@@ -1,0 +1,888 @@
+Job Title,Degree/Work Experience,Area of Study,Starting Income,Raises,Ease of getting,Attr,Requirements,Gained,FT Time Blocks ,Stress,,,,,,,
+rideshare driver,no degree needed,N/A, $1000/time block,N/A,100%,"- no paid vacation
+- income per time block 
+- city/sub
+- bonus per time block
+--- $600 if >= 70% charisma
+--- $150 if >= 50% organization
+--- $150 if >= 50% patience
+--- $600 if >= 80% caution
+(these are additive)
+- +1.5% gas cost/time block","- need a car that's <= 10 yrs old & seats >= 5 people
+- caution >= 60",,,easy/flex: 10,,work,easy (1): 10%,2: 20%,3: 30%,4: 40%,hard (5): 50%
+cashier,no degree needed,N/A,"$25,000",SS,1,"- if seasonal job: 3 months (4 time blocks, 1/4th of pay)
+- get 10% off yearly shopping while have the job
+- no PTO
+- can be part-time 
+- can be part-time in college
+- can get as a second job part-time
+- city/sub",,"- communication: +2%/yr
+- math: +1%/yr",20,easy/non-flex: 30,,schedule,flexible: 0%,non-flexible: 20%,,*deviated from scale,
+store manager,"- if no degree, need 15yrs total experience as cashier (doesn't have to consecutive)
+- if at least associates in business or finance, 5yrs total as cashier (doesn't have to consecutive)
+- if at least bachelors in business or finance","N/A, business, finance","$45,000",SS,3,"- get 20% off yearly shopping
+- PTO: 5 days = 1 time block
+- city/sub","- organization: 50%
+- sociability: 60%
+- communication: 55%","- organization: 3% 
+- sociability: 4% 
+- communication: 4%",20,35%*,,,,,,,
+waiter,no degree needed,N/A,"$5,000",SS,1,"- if summer edu job: 3 months (4 time blocks, 1/4th salary + tips)
+- get $5000/yr in tips based on skill level (baseline tip amount for min skills, for every 5% higher on skills, add $3000)
+- no PTO
+- can be PT
+- can be PT in college
+- can get as a second job part-time
+- city/sub",- sociability: 30%,"- sociability: 3%
+",20,2/N: 40,,,,,,,
+YouTuber,,,same,,,part-time side hobby like singer -> famous,"gain while have job
+- video editing: +10%/yr
+- charisma: +5%/yr
+- creative: +5%/yr
+
+",,,,,,,,,,
+restaurant manager,"- if no degree, need 15yrs total experience as waiter (doesn't have to consecutive) 
+- if at least associates in business or finance or culinary, 5yrs total as waiter
+(doesn't have to consecutive) 
+- if at least bachelors in business or finance","N/A, business, finance, culinary","$50,000",MM,2,"- PTO: 10 days = 2 time blocks
+- city/sub","- organization: 60% 
+- sociability: 70% 
+- communication: 55%","- organization: 3% 
+- sociability: 4% 
+- communication: 4%",20,40,,,,,,,
+youth program staff member,no degree needed,N/A,"$40,000",SS,2,"- if summer edu job: 3 months (4 time blocks, 1/4th salary)
+- no PTO
+- can be PT
+- can be PT college
+- can do as second job part-time
+- city/sub","- charisma: 50%
+- patience: 50%
+- good with kids: 50%
+- CPR cert","- charisma: 3%
+- patience: 5%
+- good with kids: 5%",20,3/F: 30,,,,,,,
+youth program director,"- if no degree, need 15yrs total experience as youth program staff member (doesn't have to consecutive) 
+- if at least associates in either business, psychology, english, sociology, education + 5yrs total as youth program staff member
+(doesn't have to consecutive) 
+- if at least bachelors in either business, psychology, english, sociology, education",N/A,"$50,000",MS,3,"- PTO: 10 days = 2 time blocks
+- city/sub
+-eligible for pension","- creativity: 60% 
+- organization: 60% 
+- communication: 55% 
+- CPR cert","- creativity: 3% 
+- organization: 3% 
+- communication: 4%",20,35*,,,,,,,
+Realtor,no degree needed,N/A,"each yr roll (2-5), salary = roll * $15000, every 5 yrs on job, shift roll scale up 3 (ex: 5-8, 8-11)",N/A,1,"- get certification on the job
+- based on commission, no raises
+- for first yr: training for first 6 months of yr, then work for 6 months of yr
+- sub","- charisma: 80%
+- sociability: 80%
+- organization: 60%","- charisma: +2%/yr
+- sociability: 2%
+- organized: +2%/yr
+",20,2/N: 40,,,,,,,
+Construction worker,no degree needed,NA,"$25,000",MS,1,"If summer edu job: 3 months (4 time blocks, 1/4th of pay)
+No PTO
+- city/sub","- caution: 70%
+- physical ability: 70%
+- home repair: 5%","- physical ability: 3%
+- home repair: 4%",20,2/N: 40,,,,,,,
+construction manager,"- no degree needed if 10yrs as construction worker
+OR
+- bachelors in either architecture, finance, business",NA,"$75,000",SM,3,"PTO: 10 days
+- city/sub","- organization: 70% 
+- communication: 65% 
+- technology: 20%","- organization: 3% 
+- communication: 3%",20,55*,,,,,,,
+Bartender,no degree needed,NA,"$25,000",SS,3,"- if summer edu job: 3 months (4 time blocks, 1/4th salary)
+No paid vacation
+- get $35000/yr in tips based on skill level (baseline tip amount for min skills, for every 5% higher on average on skills (each year, find difference between each skill and baseline, add up differences, divide by num skills) add $5000)
+- can get part-time
+- can be PT in college once age 21
+- can get as a second job part-time
+- city
+- if you or spouse are bartender and other is not a bartender, no childcare needed but can get if desired","- charisma: 70%
+- sociability: 50%
+- patience: 50%
+- organization: 35%
+- must be at least 21","- sociability: 2%
+- patience: 2%
+- organization: 2%",20,2/N: 40,,,,,,,
+bar manager,"- no degree needed if 10yrs as bartender
+OR
+- bachelors in either finance, business",NA,"$40,000",MM,4,"- PTO: 10 days
+- city","- organization: 60% 
+- communication: 55%","- organization: 2% 
+- communication: 3%",20,35*,,,,,,,
+Mail Carrier,no degree needed,NA,"$35,000",SS,3,"Paid time off: 15 days
+- city
+-eligible for pension","- organization: 60%
+- caution: 55%",- organization: 2%,20,1/N: 30,,,,,,,
+Secretary,no degree needed,NA,"$25,000",SS,4,"PTO: 10 days
+- city","- organization: 70%
+- communication: 40%
+- sociability: 60%
+- technology: 7%","- organization: 3%
+- communication: 2%
+- sociability: 2%",20,1/N: 30,,,,,,,
+Security guard,no degree needed,N/A,"$25,000",MS,1,"- no PTO
+- can be part-time
+- can get as a second job part-time
+- city","- bravery: 50%
+- patience: 40%
+- caution: 65%
+- physical ability: 70%
+- CPR cert",- patience: 1%,20,2/N: 35,,,,,,,
+Newscaster,no degree needed,N/A,"$30,000",,,PTO: 10 days,"- charisma: 70%
+- organization: 30%
+- communication: 30%","- organization: 1%
+- communication: 1%",,,,,,,,,
+Landscaper,no degree needed,N/A,"$25,000",SS,1,"no PTO
+- can be part-time
+- sub","- organization: 35%
+- caution: 65%
+- physical ability: 40%","- organization: 2%
+- physical ability: 1%",20,1/F: 10,,,,,,,
+Flight attendant,no degree needed,N/A,"$40,000",MS,5,"- PTO: 10 days = 2 TB (+4 TB every 10 yrs)
+- 8 tickets 80% off for any type of travel per yr
+- can be part-time
+- city","- organization: 50%
+- sociability: 70%
+- compassion: 50%
+- patience: 60%
+- caution: 65%
+- CPR cert","- organization: 2%
+- sociability: 4%
+- compassion: 1%
+- patience: 5%",16,3/N: 40,,,,,,,
+Fitness Instructor,no degree needed,N/A,"$40,000",MS,3,"- PTO: 10 days
+- can get pt
+- can get as a second job part-time
+- free gym membership = do go to gym action for free
+- city","- health: 90%
+- charisma: 60%
+- organization: 30%
+- physical ability: 60%","- health: 1%
+- organization: 1%
+- physical ability: 2%",20,1/F: 20,,,,,,,
+Entrepreneur,,,"if (unknowingly) have 50%+ -->
+40000
+else 15000",,,,"gain while have job
+- persev: +5%/yr
+- communication: +5%/yr
+- charisma: +5%/yr
+- creative: +5%/yr
+- organized: +5%/yr
+",,,,,,,,,,
+hair stylist,beauty school,N/A,"$25,000",SS,4,"- PTO: 10 days
+- can be part-time
+- city","- caution: 60%
+- organization: 30%","- organization: 2%
+- creativity: 2%",20,2/N: 40,,,,,,,
+exterminator,N/A,N/A,"$30,000",SS,1,"- get training/license on the job
+- PTO: year 1 = 0 days, year 2 = 5 days, years 3-5 = 10 days, years 6-10 = 15 days, year 11+ = 20 days
+- for first year: training for first 6 months of yr, then work for 6 months of yr
+- 70% discount on pest problems
+- suburbs","- bravery: 50%
+- caution: 65%",None,20,2/F: 30,,,,,,,
+Mechanic,Automotive Techician School,N/A,"$35,000",SS,4,"- PTO: 10 days
+- 80% off on auto maintenance
+- sub","- organization: 30%
+- phy: 60%
+- caution: 70%
+- home repair: 60%","- organization: 1%
+- home repair: 5%",20,2/N: 30,,,,,,,
+Plumber,Plumbing School,N/A,"$40,000",SS,2,"- PTO: none for first 3 yrs on job, then 10 days
+- 85% discount on plumbing problems
+- not fully certified until working 2 yrs, so no raises until then
+- sub","- organization: 30%
+- caution: 60%
+- physical ability: 40%
+- home repair: 60%","- organization: 1%
+- home repair: 5%",20,2/F: 30,,,,,,,
+Electrician,Electrician Trade School,N/A,"$30,000",SS,3,"- PTO: 5 days
+- 80% discount on electrical problems
+- start with 4 yr apprenticeship, so no raises until after then
+- sub","- caution: 80%
+- organization: 30%
+- home repair: 60%","- organization: 1%
+- home repair: 5%",20,2/F: 30,,,,,,,
+Carpenter,Carpentry Trade School,N/A,"$30,000",SS,2,"- PTO: none during apprenticeship, years 5-7 = 5 days, years 8-17 = 10 days, years 18+ = 15 days 
+- 40% discount on housing repair problems
+- start with 4 yr apprenticeship, so no raises until after then
+- sub","- organization: 30%
+- phy: 50%
+- caution: 70%
+- home repair: 60%","- organization: 1%
+- home repair: 5%",20,2/F: 30,,,,,,,
+Firefighter,Firefighter Academy,N/A,"$40,000",SM,4,"- PTO: year 1-15 = 20 days, years 16+ = 30 days
+- city/sub
+-eligible for pension","- phys: 80%
+- bravery: 80%
+- caution: 90%
+- organization: 80%
+- stress tolerance: 80%
+- communication: 80%
+- health: 90%
+- CPR cert","- phys: 3%
+- bravery: 2%
+- organization: 2%
+- stress tolerance: 5%
+- communication: 2%
+",24,4/N: 60,,,,,,,
+Police officer,Police Academy,N/A,"$40,000",SM,3,"- PTO: 15 days = 3 time blocks
+- city/sub
+-eligible for pension","- bravery: 70%
+- organization: 40%
+- patience: 60%
+- caution: 75%
+- analysis: 20%
+- stress tolerance: 80%
+- phys: 75%
+- communication: 70%
+- health: 90%
+- CPR cert","- organization: 2%
+- patience: 2%
+- analysis: 2%
+- stress tolerance: 1%
+- communication: 2%",20,4/N: 60,,,,,,,
+chef,Culinary School,N/A,"$35,000",SM,4,"- PTO: 10 days
+- city/sub","- organized: 65%
+- caution: 65%",- organized: 2%,24,3/N: 50,,,,,,,
+photographer,no degree-PhD,photography,"ND: 20000
+CC: 30000
+B: 35000
+M: 45000
+PhD: 65000
+",SM,3,"- if summer edu job: 3 months (4 time blocks, 1/4th salary
+- No PTO
+- can be pt
+- can do part-time in college
+- can get as a second job part-time
+- city/sub","- creativity: 50, 60, 70, 80, 90
+- charisma: 60, 60, 60, 60, 60
+- technology: 7, 20, 30, 50, 100","- creativity: 1%
+- charisma: 2%",20,1/F: 20,,,,,,,
+artist,no degree-PhD,"art
+material art
+digital art","ND: 30000
+CC: 40000
+B: 50000
+M: 60000
+PhD: 80000
+",SM,3,"- No PTO
+- city","- creativity: 55, 65, 75, 85, 95
+- art: 8, 20, 30, 50, 100","- creativity: 2%
+- art: 3%",20,1/F: 20,,,,,,,
+dancer,no degree-PhD,dance,"ND: 25000
+CC: 35000
+B: 50000
+M: 60000
+PhD: 75000
+",SM,3,"- no PTO
+- city","- creativity: 0, 0, 0, 60, 80
+- physical ability: 65, 65, 65, 65, 65","- creativity: 0, 0, 0, 1%, 1%
+- physical ability: 1%",20,1/N: 20,,,,,,,
+graphic designer,CC-PhD,"graphic design
+digital art","CC: 40000
+B: 50000
+M: 60000
+PhD: 70000
+",MM,3,"- PTO: 10 days
+- can be part-time
+- can get as a second job part-time
+- city","- creativity: 60, 70, 80, 95
+- technology: 20, 30, 50,100","- creativity: 2%
+- technology: 1%",20,1/N: 20,,,,,,,
+TA,currently in Masters/PhD,N/A,"$30,000",N/A,2,"- if summer edu job: 3 months (4 time blocks, 1/4th salary)
+- No PTO 
+- only part-time in college  
+- city
+- rolls over yr to yr until graduate unless player quits",None,"- communication: 5 
+- organization: 3",10,3/N/PT: 20,,,,,,,
+teacher,teaching credential,same as Bachelor's,"B: 50000
+M: 100000",SS,"B: 4
+M: 3","- 4 time blocks of unpaid time off
+- can be part-time
+- can get as a second job part-time (teach night school)
+- if get masters, salary increase to 100,000
+- city/sub
+-eligible for pension","- compassion: 70%
+- creativity: 50%
+- organization: 80%
+- patience: 80%
+- good with kids: 80%
+- communication: 70%
+- technology: 15%
+- CPR cert","- creativity: 2%
+- organization: 2%
+- patience: 2%
+- good with kids: 2%
+- communication: 3%
+- technology: 1%",16,4/N * 0.75: 45,,,,,,,
+professor,PhD,same as Bachelor's,"$80,000",SM,5,"- 4 time blocks of unpaid time off
+- action: teach summer classes
+- can do part-time
+- can get as a second job part-time (teach night class)
+- city
+-eligible for pension","- analysis: 100
+- writing: 100",None,16,3/F * 0.75: 25,,,,,,,
+principal,masters-PhD,education,"$60,000",SM,4,"- must have been teacher and/or professor for 2 yrs combined total
+- city/sub
+-eligible for pension","- organization: 100
+- communication: 90",- communication: 2,20,3/N: 50,,,,,,,
+dean,PhD,education,"$90,000",SM,4,"- must have been principal for 5 yrs
+- city
+-eligible for pension","- organization: 100
+- communication: 100",None,20,2/N: 40,,,,,,,
+lawyer,law school,same as Bachelor's,"Law School: 80000
+PhD: 100000",ML,3,"- PTO: 20 days
+- city","- persever: 70%
+- charisma: 80%
+- organize: 70%
+- analysis: 65%
+- communication: 90%","- organize: 1%
+- analysis: 2%
+- communication: 2%",28,5/N: 70,,,,,,,
+school counselor,Masters-PhD,"psychology
+education
+sociology","M: 50000
+PhD: 80000",SS,4,"-4 time blocks of unpaid time off
+- can be part-time
+- city/sub
+-eligible for pension","- sociability: 70%
+- compassion: 75%
+- organization: 70%
+- patience: 60%
+- good with kids: 80%
+- CPR cert","- compassion: 2%
+- patience: 1%
+- good with kids: 2%",16,3/N: 50,,,,,,,
+architect,Bachelors-PhD,architecture,"B: 50000
+M: 70000
+PhD: 90000
+",MS,"B: 5
+M: 3","- PTO: 10 days
+- city","- creativity: 40, 50, 60
+- organization: 40, 50, 60
+- home repair: 20, 30, 40",None,20,2/N: 30,,,,,,,
+linguist,Bachelors-PhD,linguistics,"B: 55000
+M: 75000
+PhD: 90000
+",MS,"B: 5
+M: 4","- PTO: 10 days
+- city","- organization: 50, 65, 80
+- analysis: 30, 50, 100
+- writing: 30, 50, 100","- analysis: 2%
+- writing: 2%",20,3/F: 30,,,,,,,
+archaeologist,Bachelors-PhD,archaeology,"B: 55000
+M: 65000
+PhD: 75000
+",MS,"B: 5
+M: 3","- no PTO
+- city","- organization: 50, 65, 80
+- patience: 75, 75, 75
+- caution: 60, 60, 60
+- analysis: 30, 50, 100
+- communication: 30, 50, 100
+- writing: 30, 50, 100
+- technology: 15%","- patience: 2%
+- communication: 1%
+- writing: 1%",20,4/F: 40,,,,,,,
+brain surgeon,,,"$200,000",,,,"get job 
+- communciation: 80%+
+- cleaning: 70%+
+- health 100%+
+- precise: 100%+
+- intel: 90%+
+- compassionate: 70%+
+- organized: 80%+
+- caution: 100%+","gain on job
+- organized",,,,,,,,,
+cardiologist,,,"$150,000",,,,"get job 
+- communciation: 80%+
+- cleaning: 70%+
+- health 100%+
+- precise: 100%+
+- intel: 90%+
+- compassionate: 70%+
+- organized: 80%+
+- caution: 100%+","gain on job
+- organized",,,,,,,,,
+general practitioner,,,"$100,000",,,,"get job 
+- communciation: 90%+
+- cleaning: 70%+
+- health 80%+
+- precise: 70%+
+- intel: 80%+
+- compassionate: 90%+
+- organized: 80%+","gain on job
+- organized",,,,,,,,,
+pediatrician,,,"$100,000",,,,"get job 
+- communciation: 90%+
+- cleaning: 70%+
+- health 80%+
+- precise: 80%+
+- intel: 80%+
+- compassionate: 90%+
+- organized: 80%+","gain on job
+- organized",,,,,,,,,
+pathologist,,,"$100,000",,,,"get job 
+- communciation: 80%+
+- cleaning: 70%+
+- health 90%+
+- precise: 70%+
+- intel: 90%+
+- compassionate: 80%+
+- organized: 80%+","gain on job
+- organized",,,,,,,,,
+nurse,Bachelors-PhD,nursing,"B: 70000
+M: 85000
+PhD: 100000
+",MS,2,"- PTO: 10 days
+- can be part-time
+- city/sub","- compassion: 65%
+- organization: 85%
+- patience: 70%
+- caution: 85%
+- communication: 70%
+- technology: 20%
+- science: 30
+- CPR cert","- compassion: 1%
+- communication: 2%",24,4.5/N: 65,,,,,,,
+General practitioner,General medical residency,medicine,"$100,000",ML,5,"- PTO: 10 days
+- city/sub","- compassion: 40%
+- organization: 50%
+- caution: 85%
+- analysis: 75%
+- communication: 75%
+- technology: 25%
+- science: 100
+- CPR cert","- analysis: 2%
+- communication: 1%",24,5/N: 70,,,,,,,
+Surgeon,Surgical residency,medicine,"$180,000",ML,5,"- PTO: 10 days
+- city/sub","- organization: 50%
+- caution: 90%
+- stress tolerance: 80%
+- analysis: 65%
+- communication: 60%
+- technology: 30%
+- science: 100
+- CPR cert","- stress tolerance: 2%
+- analysis: 1%",28,5/N: 70,,,,,,,
+Chiropractor,Chiropractics school,medicine,"$70,000",MM,4,"- PTO: 0 first yr, then 5 days
+- city","- caution: 85%
+- analysis: 35%
+- technology: 15%
+- science: 50
+ - CPR cert",analysis: 1%,20,3/N: 50,,,,,,,
+Psychologist,Masters-PhD,psychology,"M: 80000
+PhD: 100000
+",MM,"M: 4
+PhD: 5","- PTO: 30 days 
+- city","- compassion: 75%
+- patience: 90%
+- sociability: 90%
+- analysis: 75%
+- communication: 75%
+- science: 50","- analysis: 2%
+- communication: 2%",20,3/N: 50,,,,,,,
+Dentist,Dentistry school,medicine,"$120,000",MM,3,"- PTO: 10 days
+- city","- organization: 50%
+- caution: 70%
+- analysis: 35%
+- good with kids: 70%
+- technology: 15%
+- sci: 50
+- CPR cert","- analysis: 1%
+- good with kids: 2%",20,3/N: 50,,,,,,,
+Physical Therapist,Physical therapy school,medicine,"$70,000",MM,3,"- PTO: 10 days
+- city","- compassion: 65%
+- patience: 70%
+- caution: 70%
+- sociability: 75%
+- analysis: 40%
+- communication: 70%
+- sci: 50
+- CPR cert","- analysis: 1%
+- communication: 1%",20,3/N: 50,,,,,,,
+Accountant,Bachelors-PhD,"- economics
+- stats
+- finance
+- business","B: 50000
+M: 70000
+PhD: 85000
+",MM,2,"- PTO: 10 days
+- can be part-time
+- city","- organization: 85%
+- caution: 70%
+- stress tolerance: 75%
+- analysis: 25%
+- math: 30%
+- technology: 15%","- organization: 2%
+- analysis: 1%",24,3/N: 60,,,,,,,
+Economist,Masters-PhD,"- economics
+- business","M: 80000
+PhD: 100000
+",FS,4,"- PTO: 10 days
+- city","- organization: 70
+- analysis: 70
+- communication: 75
+- math: 50
+- writing: 50
+- technology: 15","- analysis: 2
+- communication: 2
+- writing: 1
+",20,3/F: 30,,,,,,,
+Actuary,Bachelors-PhD,"
+- econ
+- stats
+- finance
+- business","B: 65000
+M: 85000
+PhD: 100000
+",MS,4,"- PTO: 15 days
+- can be part-time
+- city","- caution: 60%
+- math: 30%
+- analysis: 20%
+- technology: 15%",- analysis: 1%,20,3/N: 30,,,,,,,
+Data scientist,Bachelors-PhD,"- data science
+- comp sci
+- stats","B: 85000
+M: 100000
+PhD: 120000
+",FM,4,"- PTO: 20 days
+- can be part-time
+- city","- communication: 75%
+- math: 40%
+- analysis: 40%
+- technology: 30%","- communication: 2%
+- analysis: 3%
+- technology: 2%",20,3/N: 30,,,,,,,
+Statistician,Bachelors-PhD,"- data science
+- stats
+- business","B: 55000
+M: 75000
+PhD: 100000
+",MM,"B: 5
+M: 4","- PTO: 10 days
+- city","- communication: 75%
+- math: 40%
+- technology: 15%",- communication: 2%,20,3/N: 30,,,,,,,
+Mechanical Engineer,,,"$90,000",,,,"get job 
+- programming: 20%
+- precise: 85%
+- creative: 80%
+- caution: 75%","gain on job
+- programming
+- precise
+- creative",,,,,,,,,
+Astronaut,Astronaut academy-PhD,see Edu sheet,"M: 65000
+PhD: 145000
+",MS,5,"- PTO: 15 days
+- city
+-eligible for pension","- bravery: 80%
+- caution: 90%
+- stress tolerance: 85%
+- physical ability: 60%
+- communication: 65%
+- math OR science: 75
+- home repair: 50
+- technology: 40
+- health: 90%
+- CPR cert",- minus 1% health/yr,24,3/N: 70,,,,,,,
+Pilot,Masters-PhD in anything  + flight school,any Bachelors,"M: 80000
+PhD: 120000
+",SM,5,"- PTO: 10 days
+- 8 tickets 80% off for any type of travel per yr
+- can be part-time
+- city","- bravery: 60%
+- caution: 90%
+- technology: 20
+- health: 70%
+- CPR cert",None,24,2/N: 50,,,,,,,
+Chemist,Bachelors-PhD,chemistry,"B: 55000
+M: 65000
+PhD: 80000
+",ML,3,"- PTO: 10 days
+ -city","- organization: 80
+- caution: 80
+- science: 30
+- analysis: 30
+- tech: 20",- analysis: 2,20,3/N: 50,,,,,,,
+Software developer,Bachelors-PhD,comp sci,"B: 75000
+M: 100000
+PhD: 120000
+",FM,5,"- PTO: 15 days
+- 50% discount on tech problems
+- can be part-time
+ -city","- perseverance: 55
+- creativity: 70
+- tech: 40
+- math: 30","- perseverance: 1
+- creativity: 1
+- tech: 3",20,3/F: 30,,,,,,,
+Geologist,Bachelors-PhD,"B: Earth Sci
+M/P: geology","B: 60000
+M: 80000
+PhD: 100000
+",MM,2,"- PTO: 10 days
+- city/sub","- organization: 50, 65, 80
+- caution: 55%
+- science: 30%, 50, 100
+- analysis: 30%, 50, 100",- analysis: 2%,20,2/N: 30,,,,,,,
+Climatologist,Bachelors-PhD,"B: Earth Sci
+M/P: climatology","B: 70000
+M: 90000
+PhD: 110000
+",MM,3,"- no PTO
+- city","- organization: 50, 65, 80
+- science: 30, 50, 100
+- writing: 30, 50, 100
+- analysis: 30, 50, 100","- analysis: 2%
+- writing: 1%
+- technology: 1%",20,3/N: 40,,,,,,,
+Ecologist,Bachelors-PhD,"B: Env Sci
+M/P: ecology","B: 60000
+M: 80000
+PhD: 100000
+",MM,3,"- PTO: 10 days
+- city/sub","- organization: 50, 65, 80
+- caution: 50%
+- science: 30, 50, 100
+- analysis: 30, 50, 100",- analysis: 2%,20,2/N: 40,,,,,,,
+Botanist,Bachelors-PhD,"B: Env Sci
+M/P: botany","B: 35000
+M: 55000
+PhD: 80000",MM,3,"- PTO: 10 days
+- city/sub","- organization: 50, 65, 80
+- caution: 50%
+- science: 30, 50, 100
+- analysis: 30, 50, 100",- analysis: 2%,20,2/N: 40,,,,,,,
+Veterinarian,Masters-PhD,Veterinary Studies,"M: 90000
+PhD: 95000",SL,2,"- PTO: 15 days
+- don't pay for vet fees
+- city/sub","- compassion: 70%
+- organization: 60%
+- caution: 70%
+- patience: 50%
+- science: 50%
+- analysis: 50%
+- technology: 15%",- analysis: 1%,20,4/N: 50,,,,,,,
+Zoologist,Bachelors-PhD,"B: animal studies
+M/P: Zoology","B: 40000
+M: 65000
+PhD: 70000",MM,3,"- PTO: 10 days
+- discount on zoo action: 4 free tickets/yr, 50% on additional tickets
+- city","- organization: 50, 65, 80
+- caution: 50%
+- science: 30, 50, 100
+- analysis: 30, 50, 100",- analysis: 2%,20,3/F: 30,,,,,,,
+Marine Biologist,Bachelors-PhD,"B: animal studies
+M/P: marine bio","B: 55000
+M: 65000
+PhD: 75000",MM,4,"- PTO: 10 days
+- discount on aquarium action: 4 free tickets/yr, 50% on additional tickets
+- city","- organization: 50, 65, 80
+- caution: 65%
+- science: 30, 50, 100
+- analysis: 30, 50, 100
+- technology: 15%",- analysis: 2%,20,4/N: 40,,,,,,,
+Anthropologist,masters-PhD,anthropology,"M: 80000
+PhD: 100000",MM,"M: 5
+PhD: 4","- no PTO
+- city","- organization: 65, 80
+- science: 60, 100
+- analysis: 60, 100",- analysis: 2%,20,3/F: 30,,,,,,,
+Cybersecurity analyst,Masters-PhD,cybersecurity,"M: 90000
+PhD: 120000",FM,4,"- PTO: 10 days
+- city","- organization: 70%
+- caution: 70%
+- analysis: 55%
+- technology: 55%","- analysis: 2%
+- technology: 1%",20,4/N: 50,,,,,,,
+AI researcher,PhD,comp sci,"$150,000",ML,3,"- PTO: 15 days
+- city","- creativity: 80%
+- organization: 80%
+- communication: 75%
+- math: 100
+- writing: 100
+- technology: 100","- creativity: 2%
+- communication: 1%",20,4/N: 40,,,,,,,
+Pharmacist,Pharmacy school,- chemistry,"$90,000",MM,3,"- PTO: 30 days
+- can be part-time
+- city/sub","- organization: 85
+- caution: 75
+- science: 50
+- CPR cert",None,20,2/N: 40,,,,,,,
+computer engineer,Masters-PhD,"B: comp sci
+M: comp eng","B: 70000
+M: 90000
+PhD: 120000",ML,3,"- PTO: 10 days
+- 50% discount on tech problems
+- city","- organization: 80
+- math: 30
+- science: 30
+- home repair: 10
+- technology: 30",None,20,3/N: 30,,,,,,,
+Paramedic,Associates-PhD,biology,"CC: 40000 
+B: 45000
+M: 50000
+PhD: 60000",MS,2,"- PTO: 10 days
+- can get part-time
+- can do part-time in college
+ - city/sub
+-eligible for pension","- compassion: 50
+- organization: 80
+- stress tolerance: 75
+- communication: 80
+- science: 15
+- CPR cert","- tech: 1
+- stress tolerance: 3
+- communication: 1",24,5/N: 70,,,,,,,
+CSI,Bachelors-PhD,"- criminology
+- chemistry
+- computer science","B: 40000
+M: 60000
+PhD: 80000",MS,4,"
+- PTO: 15 days
+- city
+-eligible for pension","- org: 80
+- caution: 70
+- math or science or tech: 35
+- analysis: 40",- analysis: 2,20,3/N: 50,,,,,,,
+Social worker,Bachelors-PhD,sociology,"B: 55000
+M: 65000
+PhD: 75000",SS,"B: 4
+M: 2","- PTO: 10 days
+- city
+-eligible for pension","- sociability: 70
+- compassion: 80
+- patience: 70
+- good with kids: 80
+- communication: 75
+- CPR cert","- patience: 2
+- good with kids: 2",20,4/N: 55,,,,,,,
+Optometrist,Optometry school,medicine,"$120,000",MM,2,"- PTO: 15 days
+- city","- organization: 50
+- caution: 70
+- science: 50
+- analysis: 40
+- tech: 15
+- CPR cert",- analysis: 1,20,3/N: 40,,,,,,,
+Nanny,no degree,N/A,"$25,000",MS,1,"- no PTO
+- city/sub","- charisma: 60%
+- compassion: 80%
+- creativity: 50%
+- organization: 65%
+- patience: 80%
+- caution: 75%
+- good with kids: 85%
+- CPR cert","- creativity: 2%
+- organization: 1%
+- patience: 1%
+- good with kids: 2%",24,4/N: 60,,,,,,,
+Animator,Bachelors-PhD,"- comp sci
+- graphic design
+- digital art","B: 65000
+M: 85000
+PhD: 110000",FM,4,"- PTO: 20 days
+- can be part-time
+- city","- creativity: 70, 80, 95
+- technology: 35, 55, 100","- creativity: 2%
+- technology: 1%",20,2/N: 30,,,,,,,
+Video game designer,Bachelors-PhD,comp sci,"B: 65000
+M: 75000
+PhD: 85000",FM,4,"- PTO: 10 days
+- city","- creativity: 70, 80, 95
+- math: 30, 50, 100
+- technology: 35, 55, 100","- creativity: 2%
+- technology: 1%",20,2/N: 30,,,,,,,
+paralegal,Associates-PhD,"- English
+ - criminology
+- sociology","CC: 55000
+B: 60000
+M: 70000
+PhD: 80000",SM,2,"- PTO: 10 days
+- city","- organize: 55, 55, 65, 65
+- sociability: 60, 60, 60, 60
+- analysis: 15, 15, 40, 40
+- writing: 20, 20, 60, 60","- organize: 1%
+- analysis: 1%
+- writing: 2%",24,4/N: 60,,,,,,,
+reporter,Bachelors-PhD,"- English
+- sociology","B: 35000
+M: 40000
+PhD: 45000",MS,4,"PTO: 10 days
+- city","- charisma: 70%
+- communication: 40%",- communication: 1%,16,1/N: 30,,,,,,,
+journalist,Bachelors-PhD,"- English
+- sociology","B: 35000
+M: 40000
+PhD: 45000",MS,4,"PTO: 10 days
+- can be part-time
+- can be part-time in college
+- can be second job part-time
+- city/sub","- organization: 45%
+- writing: 20%",None,20,3/F: 30,,,,,,,
+Marketing Specialist,Bachelors-PhD,"- English
+- sociology
+- business","B: 55000
+M: 70000
+PhD: 90000",ML,3,"PTO: 10 days
+- city","- charisma: 70%
+- creativity: 70, 80, 95
+- communication: 40, 50, 60
+- analysis: 18, 40, 100","- creativity: 2%
+- communication: 2%
+- analysis: 2%",20,3/N: 30,,,,,,,
+paleontologist,Masters-PhD,paleontology,"M: 65000
+PhD: 100000",MM,5,"PTO: 10 days
+- city","- organization: 65, 80
+- patience: 75, 75
+- caution: 60, 60
+- analysis: 50, 100
+- communication: 50, 100
+- writing: 50, 100
+- technology: 15%","- patience: 2%
+- communication: 1%
+- writing: 1%",20,4/F: 40,,,,,,,
+geneticist,Masters-PhD,genetics,"M: 45000
+PhD: 125000",FM,4,"PTO: 15 days
+- city","- organization: 70%
+- caution: 65%
+- science: 50%
+- analysis: 40%
+- technology: 20%",- analysis: 2%,20,3/N: 40,,,,,,,
+astrophysicist,Masters-PhD,astrophysics,"M: 80000
+PhD: 100000",ML,5,"PTO: 15 days
+- city","- perseverance: 75%
+- organization: 65%
+- caution: 90%
+- math: 70, 100
+- science: 70, 100
+- analysis: 60, 100
+- technology: 30%","- perseverance: 1%
+- analysis: 2%",24,5/N: 60,,,,,,,
+nature conservationist,Bachelors-PhD,"B: env sci, biology
+M: nature conservation","B: 60000
+M: 70000
+P: 75000",MS,3,"PTO: 15 days
+- city","- perseverance: 50%
+- compassion: 70%
+- communication: 50%
+- science: 30%","- perseverance: 1%
+- communication: 2%",20,2/F: 30,,,,,,,
+epidemiologist,Masters-PhD,epidemiology,"M: 50000
+P: 80000",ML,4,"PTO: 15 days
+- city","- organization: 65, 80
+- caution: 70%
+- science: 50, 100
+- analysis: 50, 100",- analysis: 1%,20,3/N: 50,,,,,,,
+neurobiologist,PhD,neurobiology,"$75,000",FM,4,"PTO: 10 days
+- city","- organization: 80
+- caution: 55%
+- science: 100
+- analysis: 100
+- technology: 30%",None,20,3/N: 50,,,,,,,

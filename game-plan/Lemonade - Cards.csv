@@ -1,0 +1,484 @@
+,CARDS,,,,Frequency Scale,,
+Type,Card ,Frequency,Result,,1,once in a lifetime,
+bad,mugged,2,"- lose $20
+- only for city residents
+- doesn't apply to public transit
+- caution between 30-60
+- caution +2%
+- stress +5%
+- Try being more cautious next time!",,2,,
+bad,mugged,3,"- lose $100
+- only for city residents
+- doesn't apply to public transit
+- caution < 30
+- caution +2%
+- stress +5%
+- Try being more cautious next time!",,3,average,
+bad,mugged,3,"- lose $20
+- only apply to public transit
+- caution between 30-60
+- caution +2%
+- stress +5%
+- Try being more cautious next time!",,4,,
+bad,mugged,4,"- lose $20
+- only apply to public transit
+- caution < 30
+- caution +2%
+- stress +5%
+- Try being more cautious next time!",,5,fairly common,
+bad,food poisoning,2,"- good deed lemon opportunity: 
+   - Make chicken soup (cost $10)
+   - Care for the person (free but need min 80 compassion)
+- stress +2%",,time blocks,skills,
+bad,locked keys in car,3,"- caution < 50
+- increases caution 1%
+- must have car
+- stress +2%
+- Try being more cautious next time!",,cost,health,
+bad,locked keys in car,1,"- caution >= 50
+- must have car
+- increases caution 1%
+- stress +2%",,lemons,stress,
+bad,vehicle was stolen,3,"- doesn't apply to public transit
+- receive current worth of car/motor from insurance (not bike)
+- caution < 30 (only if your car, not spouse)
+- stress +5%
+- Try being more cautious next time!  (only if your car, not spouse)
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks)",,,,
+bad,vehicle was stolen,1,"- doesn't apply to public transit
+- receive current worth of car/motor from insurance (not bike)
+- caution >= 30  (only if your car, not spouse)
+- stress +5%
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks)",,,,
+bad,public transit was late,3,"- must have public transit
+- stress +1%",,,,
+good,found a four-leaf clover,1,1 lemon,,,,
+good,win the lottery,1,- get $1 million,,,,
+good,found money,1,"- collect $100
+- only for city residents",,,,
+good,old friend reaches out,2,1 lemon if age < 40 else 2 lemons,,,,
+good,friends threw you a surprise birthday party,3,1 lemon,,,,
+good,read a good book,3,1 lemon,,,,
+good,someone held the door open for you,2,1 lemon,,,,
+good,receive a nice gift,2,1 lemon,,,,
+good,your favorite snacks were on sale,3,$20 discount on groceries,,,,
+good,make a new friend,2,1 lemon,,,,
+good,find a new recipe you like,3,1 lemon,,,,
+good,hear a funny joke,4,minus 1 stress,,,,
+good,received a compliment,3,1 lemon,,,,
+good,no line at store checkout,2,1 lemon,,,,
+bad,health problems,2,"- you had a minor health problem
+- with health insurance, pay $25
+- without health insurance, pay $100
+- stress +2%
+- health -2% (temporary)",,,,
+bad,health problems,1,"- you had a major health problem
+- with health insurance, pay $3200
+- without health insurance, pay $40000
+- only for health 40%-100%
+- stress +10%
+- health -5% (3 temporary, 2 permanent)
+- minus 2 time blocks
+- good deed opportunity:
+    - support by spending $1000
+    - support by using 2 time blocks",,,,
+bad,health problems,3,"- you had a major health problem
+- with health insurance, pay $20000
+- without health insurance, pay $180000
+- only for health < 40%
+- stress +20%
+- health -10% (4 temporary, 6 permanent)
+- minus 4 time blocks
+- good deed opportunity:
+    - support by spending $1000
+    - support by using 2 time blocks",,,,
+bad,health problems,2,"- you developed a chronic health condition
+- health decreases 15%
+- stress increases 5%/yr
+- with insurance, pay $3000/yr
+- without insurance, pay $5000/yr
+- minus 2 time blocks",,,,
+bad,health problems,2,"- child had minor health problem
+- must have child
+- - with health insurance, pay $25
+- without health insurance, pay $100
+- must have child under 26 age
+- stress +1%",,,,
+bad,health problems,1,"- child had major health problem
+- must have child
+- with health insurance, pay $3200
+- without health insurance, pay $40000
+- must have child under 26 age
+- stress +5%
+- minus 2 time blocks
+- good deed opportunity:
+    - support by spending $500
+    - Care for the person (free but need min 80 compassion)",,,,
+bad,car repairs,1,"- if home repair < 20, pay $100 for labor
+- pay $300 for parts
+- car age 0-4 years
+- stress +5%",,,,
+bad,car repairs,1,"- for spouse car
+- if home repair < 20, pay $100 for labor
+- pay $300 for parts
+- car age 0-4 years
+- stress +5%",,,,
+bad,car repairs,3,"- if home repair < 20, pay $100 for labor
+- pay $300 for parts
+- car age 5-10 years
+- stress +5%",,,,
+bad,car repairs,3,"- for spouse car
+- if home repair < 20, pay $100 for labor
+- pay $300 for parts
+- car age 5-10 years
+- stress +5%",,,,
+bad,car repairs,5,"- if home repair < 20, pay $100 for labor
+- pay $300 for parts
+- car age 11+ years
+- stress +5%",,,,
+bad,car repairs,5,"- for spouse car
+- if home repair < 20, pay $100 for labor
+- pay $300 for parts
+- car age 11+ years
+- stress +5%",,,,
+bad,car repairs,1,"- if don't have mechanic experience, pay $100 for labor
+- pay $2000 for parts
+- car age 0-4 years
+- stress +10%
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,car repairs,1,"- for spouse car
+- if don't have mechanic experience, pay $100 for labor
+- pay $2000 for parts
+- car age 0-4 years
+- stress +10%
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,car repairs,3,"- if don't have mechanic experience, pay $100 for labor
+- pay $2000 for parts
+- car age 5-10 years
+- stress +10%
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,car repairs,3,"- for spouse car
+- if don't have mechanic experience, pay $100 for labor
+- pay $2000 for parts
+- car age 5-10 years
+- stress +10%
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,car repairs,5,"- if don't have mechanic experience, pay $100 for labor
+- pay $2000 for parts
+- car age 11+ years
+- stress +10%
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,car repairs,5,"- for spouse car
+- if don't have mechanic experience, pay $100 for labor
+- pay $2000 for parts
+- car age 11+ years
+- stress +10%
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,motorcycle repairs,3,"- if don't have mechanic experience, pay $100 for labor
+- pay $2000 for parts
+- motorcycle age 15+ years
+- stress +15%
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,motorcycle repairs,3,"- for spouse motorcycle
+- if don't have mechanic experience, pay $100 for labor
+- pay $2000 for parts
+- motorcycle age 15+ years
+- stress +15%
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 1 time block",,,,
+bad,bike repairs,2,"- if home repair < 10, pay $50 for labor
+- pay $50 for parts",,,,
+bad,bike repairs,2,"- for spouse bike
+- if home repair < 10, pay $50 for labor
+- pay $50 for parts",,,,
+bad,bike accident,4,"- bike totaled
+- Insurance: 
+-- receive $500 from other person's insurance for new vehicle
+-- medical fees paid for by other person's insurance
+- caution < 30
+- stress +10%
+- health -3% (1 temporary, 2 permanent)
+- Try being more cautious next time!",,,,
+bad,bike accident,4,"- for spouse bike
+- bike totaled
+- Insurance: 
+-- receive $500 from other person's insurance for new vehicle
+-- medical fees paid for by other person's insurance
+- caution < 30
+- stress +10%
+- health -3% (1 temporary, 2 permanent)
+- Try being more cautious next time!",,,,
+bad,bike accident,2,"- bike totaled
+- Insurance: 
+-- receive $500 from other person's insurance for new vehicle
+-- medical fees paid for by other person's insurance
+- caution between 30-60
+- stress +10%
+- health -2% (1 temporary, 1 permanent)
+- Try being more cautious next time!",,,,
+bad,bike accident,1,"- bike totaled
+- Insurance: 
+-- receive $500 from other person's insurance for new vehicle
+-- medical fees paid for by other person's insurance
+- caution > 60
+- health -1% (1 temporary)
+- stress +10%",,,,
+bad,motorcycle accident,4,"- motorcycle totaled, roll 75-25  chance that it is your fault
+- Insurance:
+-- insurance does not cover a new vehicle if your fault; insurance gives you $2500 if not your fault
+-- - with health insurance, pay $20000
+-- - without health insurance, pay $180000
+- caution < 40
+- stress +10%
+- health -10% (4 temporary, 6 permanent)
+- if at fault, insurance increases 50% for current year; if not at fault, increases 20% for current year
+- Try being more cautious next time!
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,motorcycle accident,3,"- motorcycle totaled, roll 50-50 chance that it is your fault
+- Insurance:
+-- insurance does not cover a new vehicle if your fault; insurance gives you $2500 if not your fault
+-- - with health insurance, pay $20000
+-- - without health insurance, pay $180000
+- caution between 40-70
+- stress +10%
+- health -5% (2 temporary, 3 permanent)
+- if at fault, insurance increases 50% for current year; if not at fault, increases 20% for current year
+- Try being more cautious next time!
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,motorcycle accident,2,"- motorcycle totaled, roll 25-75 chance that it is your fault
+- Insurance:
+-- insurance does not cover a new vehicle if your fault; insurance gives you $2500 if not your fault
+-- - with health insurance, pay $20000
+-- - without health insurance, pay $180000
+- caution > 70
+- health -5% (4 temporary, 1 permanent)
+- if at fault, insurance increases 50% for current year; if not at fault, increases 20% for current year
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,motorcycle accident,3,"- for spouse motorcycle
+- motorcycle totaled, roll 50-50 chance that it is your fault
+- Insurance:
+-- insurance does not cover a new vehicle if your fault; insurance gives you $2500 if not your fault
+-- - with health insurance, pay $20000
+-- - without health insurance, pay $180000
+- stress +10%
+- if at fault, insurance increases 50% for current year; if not at fault, increases 20% for current year
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,car accident,4,"- minor car damage, roll 75-25  chance that it is your fault
+- Insurance:
+-- insurance does not cover a new vehicle if your fault; insurance gives you half of the original cost of your car if not your fault
+-- - with health insurance, pay $250
+-- - without health insurance, pay $1000
+- caution < 30
+- stress +10%
+- health -2% (temporary)
+- if at fault, insurance increases 50% for current year; if not at fault, increases 20% for current year
+- Try being more cautious next time!",,,,
+bad,car accident,3,"- for spouse car
+- minor car damage, roll 50-50  chance that it is your fault
+- Insurance:
+-- insurance does not cover a new vehicle if your fault; insurance gives you half of the original cost of your car if not your fault
+-- - with health insurance, pay $250
+-- - without health insurance, pay $1000
+- if at fault, insurance increases 50% for current year; if not at fault, increases 20% for current year",,,,
+bad,car accident,3,"- minor car damage, roll 50-50  chance that it is your fault
+- Insurance:
+-- insurance does not cover a new vehicle if your fault; insurance gives you half of the original cost of your car if not your fault
+-- - with health insurance, pay $250
+-- - without health insurance, pay $1000
+- caution between 30-60
+- health -2% (temporary)
+- if at fault, insurance increases 50% for current year; if not at fault, increases 20% for current year
+- Try being more cautious next time! ",,,,
+bad,car accident,2,"- minor car damage, roll 25-75  chance that it is your fault
+- Insurance:
+-- insurance does not cover a new vehicle if your fault; insurance gives you half of the original cost of your car if not your fault
+-- - with health insurance, pay $250
+-- - without health insurance, pay $1000
+- caution > 60
+- stress +15%
+- health -2% (temporary)
+- if at fault, insurance increases 50% for current year; if not at fault, increases 20% for current year",,,,
+bad,car accident,5,"- car totaled, roll 75-25  chance that it is your fault
+- Insurance:
+-- insurance does not cover a new vehicle if your fault; insurance gives you half of the original cost of your car if not your fault
+-- - with health insurance, pay $250
+-- - without health insurance, pay $1000
+- caution < 30
+- stress +15%
+- health -3% (2 temporary, 1 permanent)
+- if at fault, insurance increases 50% for current year; if not at fault, increases 20% for current year
+- Try being more cautious next time!
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,car accident,3,"- car totaled, roll 50-50  chance that it is your fault
+- Insurance:
+-- insurance does not cover a new vehicle if your fault; insurance gives you half of the original cost of your car if not your fault
+-- - with health insurance, pay $250
+-- - without health insurance, pay $1000
+- caution between 30-60
+- stress +15%
+- health -3% (2 temporary, 1 permanent)
+- if at fault, insurance increases 50% for current year; if not at fault, increases 20% for current year
+- Try being more cautious next time!
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,car accident,3,"- for spouse car
+- car totaled, roll 50-50  chance that it is your fault
+- Insurance:
+-- insurance does not cover a new vehicle if your fault; insurance gives you half of the original cost of your car if not your fault
+-- - with health insurance, pay $250
+-- - without health insurance, pay $1000
+- stress +15%
+- if at fault, insurance increases 50% for current year; if not at fault, increases 20% for current year
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,car accident,2,"- car totaled, roll 25-75  chance that it is your fault
+- Insurance:
+-- insurance does not cover a new vehicle if your fault; insurance gives you half of the original cost of your car if not your fault
+-- - with health insurance, pay $250
+-- - without health insurance, pay $1000
+- caution > 60
+- stress +15%
+- health -3% (2 temporary, 1 permanent)
+- if at fault, insurance increases 50% for current year; if not at fault, increases 20% for current year
+- good deed opportunity:
+    - give them a ride (you live AND work in same location = earn 2 lemons * multipler)
+    - give them a ride (you live XOR work in same location = earn 3 lemons * multipler)
+    - give them a ride (you don't live OR work in same location = earn 4 lemons * multipler, costs 2 time blocks",,,,
+bad,pest problems,2,"- parents place, college dorm, room for rent
+- stress +2%",,,,
+bad,pest problems,2,"- pay $200
+- 2BR, 1BR, Studio
+- stress +5%",,,,
+bad,pest problems,2,"- pay $250
+- 3BR, 4BR
+- stress +5%",,,,
+bad,pest problems,2,"- pay $350
+- 5BR, 6BR
+- stress +5%",,,,
+bad,pest problems,1,"- parents place, college dorm, room for rent
+- stress +5%",,,,
+bad,pest problems,1,"- pay $3000
+- 2BR, 1BR, Studio
+- stress +10%",,,,
+bad,pest problems,1,"- pay $5000
+- 3BR, 4BR
+- stress +10%",,,,
+bad,pest problems,1,"- pay $7000
+- 5BR, 6BR
+- stress +10%",,,,
+bad,plumbing problems,4,"- parents place, college dorm, room for rent
+- stress +5%",,,,
+bad,plumbing problems,4,"- not for communal living
+- if home repair < 20, pay $150 for labor
+- pay $50 for parts
+- stress +5%",,,,
+bad,plumbing problems,2,"- parents place, college dorm, room for rent
+- stress +5%",,,,
+bad,plumbing problems,2,"- not for communal living
+- if don't have plumbing experience, pay $2400 for labor
+- pay $500 for parts
+- stress +10%",,,,
+bad,plumbing problems,1,"- parents place, college dorm, room for rent
+- stress + 10%",,,,
+bad,plumbing problems,1,"- not for communcal living
+- if don't have plumbing experience, pay $12000 for labor
+- pay $1500 for parts
+- stress + 15%",,,,
+bad,electrical problems,2,"- parents place, college dorm, room for rent
+- stress +2%",,,,
+bad,electrical problems,2,"- not for communcal living
+- if don't have electrician experience, pay $200 for labor
+- pay $50 for parts
+- stress +2%",,,,
+bad,minor house repairs needed,3,"- parents place, college dorm, room for rent
+- stress +2%",,,,
+bad,minor house repairs needed,3,"- not for communal living
+- if don't have carpentry experience, pay $300 for labor
+- pay $200 for parts
+- stress +5%",,,,
+bad,tech problems,5,"- not for people with at least 15% technology
+- stress +5%",,,,
+bad,tech problems,2,"- pay $1000
+- stress +10%",,,,
+bad,you lost your job,1,"Must have a job (if have FT and PT, just lose one at random)
+go through job search action if desired",,,,
+bad,your spouse lost their job,1,"Spouse must have a job (if have FT and PT, just lose one at random)
+go through job search action for spouse if desired",,,,
+bad,major house fire,2,"suburbs only
+cost with insurance: 10% * current value of home
+cost without insurance: 40% * current value of home
+40% repair discount if have carpentry experience
+stress +15%
+health -2% (temporary)
+stress tolerance +5%
+- minus 4 time blocks
+- good deed opportunity:
+    - donate household items to this person (free)",,,"cost of damage: for every 10% damage, costs 5% current value of home, this card causes 80% damage ",current value of home is how much it would cost if you bught it this year
+bad,small house fire,2,"city and suburbs
+cost with insurance: 2% * current value of home
+cost without insurance: 10% * current value of home
+40% repair discount if have carpentry experience
+stress +10%
+health -1% (temporary)
+stress tolerance +2%
+- minus 2 time blocks",,,"cost of damage: for every 10% damage, costs 5% current value of home, this card causes 20% damage ",current value of home is how much it would cost if you bught it this year
+bad,tree fell on your house,2,"suburbs only
+cost with insurance: 6% * current value of home
+cost without insurance: 25% * current value of home
+40% repair discount if have carpentry experience
+stress +10%
+stress tolerance +2%
+- minus 2 time blocks",,,"cost of damage: for every 10% damage, costs 5% current value of home, this card causes 50% damage ",current value of home is how much it would cost if you bught it this year
+bad,home burglarized,2,"city and suburb
+cost with insurance: 1% of (current money + current value of home)
+cost without insurance: 5% of (current money + current value of home)
+stress +5%
+if caution < 50%, caution +2%",,,,"current value of home is how much it would cost if you bought it this year, current money des not include retirement savings"

@@ -1,0 +1,47 @@
+,Child Age,Time Blocks Total Per Year,Multiple children*,Only spouse taking care of kids,You and spouse take care of kids,Childcare,,Sections,,Steps
+No school,Age 0-2,30,4/child,-10/section,-4/section,See chart below,,morning,,1. Calculate how many time blocks your kids take up
+In school 1 section,Age 3-5,24,4/child,-8/section,-2/section,,,afternoon,,2. Subtract out childcare time blocks
+In school 2 sections,Age 6-9,18,2/child,-6/section,-2/section,,,night,,
+,Age 10-12,12,2/child,-4/section,-2/section,,,,,
+,Age 13-17,6,2/child,-2/section,-2/section,,,,,
+,,,*Take highest TB Total/Yr (youngest child) and add this number in addition,,,*No childcare needed if at least one parent is stay-at-home or if both are PT,,,,
+,FT Daycare,PT Daycare,After school program and all-day summer camp,All-day summer camp,Half-day summer camp,,,,,
+Always go based off of youngest child's numbers,Year Childcare FT,Year Childcare PT,Year Childcare PT + Summer Childcare FT,Summer Childcare FT,Summer Childcare PT,,,,,
+Age 0-2,-20,-10,N/A,N/A,N/A,,,,,
+Age 3-5,N/A,N/A,-12,N/A,-2,,,,,
+Age 6-9,N/A,N/A,N/A,-4,-2,,,,,
+Age 10-12,N/A,N/A,N/A,0,0,,,,,
+Age 13-17,N/A,N/A,N/A,N/A,N/A,,,,,
+,"*only for ages 0-2
+Necessary if:
+You FT, Spouse FT
+You FT","*only for ages 0-2
+Necessary if:
+You FT, Spouse PT
+You PT, Spouse FT
+You PT
+
+OR
+
+ages 3-5
+Necessary if:
+You school FT + summer internship, Spouse FT
+You school FT + summer internship","*only for ages 3-5
+Necessary if:
+You FT, Spouse FT
+You FT","*only for ages 6-9 and 10-12
+Necessary if:
+You FT, Spouse FT
+You FT","*only for ages 3-5, 6-9, and 10-12
+Necessary if:
+You PT, Spouse FT
+You FT, Spouse PT
+You PT
+
+
+OR
+
+ages 6-9 and 10-12
+Necessary if:
+You school FT + summer internship, Spouse FT
+You school FT + summer internship",,,,,
