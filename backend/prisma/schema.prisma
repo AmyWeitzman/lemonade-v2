@@ -1,0 +1,22 @@
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Placeholder model to verify Prisma is wired up correctly.
+// Full schema will be added in Task 2 (Database Schema and Migrations).
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique // format: firstname.lastname
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}

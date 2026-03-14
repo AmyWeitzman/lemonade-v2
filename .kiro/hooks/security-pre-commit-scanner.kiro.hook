@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "enabled": true,
+  "name": "Security pre-commit scanner",
+  "description": "This hook helps prevent security leaks by scanning files before they're committed.",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review changed files for potential security issues:\n1. Look for API keys, tokens, or credentials in source code\n2. Check for private keys or sensitive credentials\n3. Scan for encryption keys or certificates\n4. Identify authentication tokens or session IDs\n5. Flag passwords or secrets in configuration files\n6. Detect IP addresses containing sensitive data\n7. Find hardcoded internal URLs\n8. Spot database connection credentials\n\nFor each issue found:\n1. Highlight the specific security risk\n2. Suggest a secure alternative approach\n3. Recommend security best practices\n"
+  }
+}

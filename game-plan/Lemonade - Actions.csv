@@ -1,0 +1,427 @@
+Checkout Options,Action,Category,Requirements to Have Action Enabled,Cost,Result,,
+Express Checkout & Add to Cart,See a therapist,Mental Health,can only do once a year,"Spend 6 time blocks
+With insurance: $1040
+Without insurance: $5200","- 20% stress
++ 10% stress tolerance 
++3 lemons",,
+Express Checkout & Add to Cart,Go to the zoo,"Entertainment
+Animals",N/A,"Spend X time blocks
+Costs $35/person/time block
+Senior discount: $12/senior/time block","1 lemons/time block
++1% good with kids if have kids < 11",,
+Express Checkout & Add to Cart,Go to the aquarium,"Entertainment
+Animals",N/A,"Spend X time blocks
+Costs $65/person/time block
+Senior discount: $50/senior/time block","1 lemons/time block
++1% good with kids if have kids < 11",,
+Express Checkout & Add to Cart,Go kayaking,"Outdoors
+Physical Health",health >= 40,"Spend X time blocks
+Costs $50/person/time block","1 lemons/time block
++1% good with kids if have kids < 18",,
+Express Checkout & Add to Cart,Teach summer courses,Community,only for teacher/professor,Spend 4 time blocks (can only do once a year),"teacher: earn $20000, stress += 15
+professor: earn $30000, stress += 7
+*added to annual income --> taxed
++3 lemons",,
+Express Checkout,Write a book,Author Career,"60% perseverance,
+50% organization",Spend X time blocks,"1% writing/time block, 1% creativity/time block, 1% stress/time block, see salary formula
+",,
+Express Checkout,Self-publish book,Author Career,"completed 20 time blocks of ""write a book"" action for book not yet published","2 time block
+$2500","book is published! 
+10% stress
+see salary formula",,
+Express Checkout,Submit book to publisher,Author Career,"completed 20 time blocks of ""write a book"" action for book not yet published","2 time block
+$1000","if writing > 80 and creativity > 70 then published else not
+10% stress
+see salary formula",,
+Express Checkout & Add to Cart,Take an acting class,"Skill/Trait Development
+Actor Career",N/A,"$300
+2 time block","5% bravery
+5% charisma
+5% creativity",,
+Express Checkout,Audition for commercials,Actor Career,"20% bravery
+50% perseverance",2 time block,"If successful, earn $500 (-15% if got agent), 10% bravery, 2% charisma, 5% perseverance, 5% stress
+If unsuccessful, 3% perseverance, 7% bravery, 5% stress",,
+Express Checkout,Audition for movies,Actor Career,"50% bravery
+50% perseverance",2 time block,"If successful, follow salary formula (-15% if got agent), 10% bravery, 10% charisma, 5% perseverance, 5% creativity, spend 5 time blocks, 5% stress
+If unsuccessful, 3% perseverance, 7% bravery, 5% stress",,
+Express Checkout ,Audition for TV shows,Actor Career,"50% bravery
+50% perseverance",2 time block,"If successful, follow salary formula (-15% if got agent), 10% bravery, 8% charisma, 5% perseverance, 8% creativity, spend 7 time blocks, 5% stress
+If unsuccessful, 3% perseverance, 7% bravery, 5% stress",,
+Express Checkout & Add to Cart,Perform at bar,Musician Career,"9% music
+20% bravery",2 time block,"2% music, 10% bravery, 2% charisma, $500, 2% stress",,
+Express Checkout & Add to Cart,Perform at school dance,Musician Career,"9% music
+20% bravery",2 time block,"2% music, 10% bravery, 2% charisma, $500, 2% stress",,
+Express Checkout & Add to Cart,Perform at county fair,Musician Career,"9% music
+20% bravery",2 time block,"2% music, 10% bravery, 2% charisma, $500, 2% stress",,
+Express Checkout & Add to Cart,Release EP,Musician Career,"40% music
+75% creativity",10 time blocks,"10% music, 10% creativity, 5% patience, 5% stress, follow salary formula",,
+Express Checkout & Add to Cart,Open for tour headliner,Musician Career,"50% music
+50% creativity
+75% charisma
+60% bravery",4 time blocks,"5% music, 10% charisma, 2% creativity, 5% stress, follow salary formula",,
+Express Checkout & Add to Cart,Release album,Musician Career,"70% music
+90% creativity",20 time blocks,"10% music, 10% creativity, 10% patience, 20% stress, follow salary formula",,
+Express Checkout & Add to Cart,Headline national tour,Musician Career,"released at least 1 EP or album
+80% music
+85% charisma
+85% bravery",20 time blocks,"5% music, 8% charisma, 2% creativity, 40% stress, follow salary formula",,
+Express Checkout & Add to Cart,Headline international tour,Musician Career,"released at least 1 album
+80% music
+95% charisma
+90% bravery",36 time blocks,"5% music, 6% charisma, 2% creativity, 60% stress, follow salary formula",,
+Express Checkout & Add to Cart,Go to a concert,Entertainment,N/A,"Spend X time blocks
+Costs $250/time block",1 lemons/time block,,
+Express Checkout & Add to Cart,Go to a play,Entertainment,N/A,"Spend X time blocks
+Costs $175/person/time block",1 lemons/time block,,
+Express Checkout & Add to Cart,Go to the county fair,"Entertainment
+Animals",N/A,"Spend X time blocks
+Costs $70/person/time block","1 lemons/time block
++1%/tb good with kids if have kids < 11",,
+Express Checkout & Add to Cart,Go to the gym,Physical Health,health >= 40,"Spend X time blocks
+Costs $500 except free for Fitness Instructor, Firefighter, Police Officer, Astronaut
+Senior discount: costs $120","1% health/time block
+1% physical ability/time block
+stress decreases 1%/time block
++1 lemons/time block",,
+Express Checkout & Add to Cart,Go skiing,"Physical Health
+Outdoors",health >= 40,"Spend X time blocks
+Costs $150/person/time block","1 lemons/time block
++1%/tb good with kids if have kids < 18",,
+Express Checkout & Add to Cart,Go to the beach,Outdoors,N/A,"Spend X time blocks
+Costs $15/time block","1 lemons/time block
++1%/tb good with kids if have kids < 18",,
+Express Checkout & Add to Cart,Go on a picnic,Outdoors,N/A,Spend X time blocks,"1 lemons/time block
++1%/tb good with kids if have kids < 18",,
+Express Checkout & Add to Cart,Go out to dinner,Social Connections,N/A,"Go out for X meals
+Costs $15/person/meal",1 lemon/meal,,
+Express Checkout & Add to Cart,Go out to fancy dinner,"Social Connections
+Luxury",N/A,"Go out for X meals
+Costs $50/person/meal",1 lemons/meal,,
+Express Checkout & Add to Cart,Take a mental health day,Mental Health,need to have PTO,Spend X PTO,"decrease stress 3%/TB PTO
++1 lemons/time block",,
+Express Checkout & Add to Cart,Get housing,Home & Auto,N/A,"Spend 2 time block
+If you can sell current housing, spend additional 2 time block
+Pay housing cost",stress increases 10%,,
+Express Checkout & Add to Cart,"Remodel home
+
+","Home & Auto
+Luxury",must own a 2-6 bedroom home in the suburbs,you pick how much you want to spend,"Player chooses amount to put into remodel (X)
+Home Value Increase min = X × 0.5 
+Home Value Increase max = X × 0.8
+Calculate (Home Value Increase min) and (Home Value Increase max), determine percentage of current home value those are => Y-Z% possible increase in home value due to remodel",,
+Express Checkout & Add to Cart,Get transportation,Home & Auto,N/A,"Spend 2 time block (except public transit = 0)
+If you can sell current transportation, spend additional 2 time block
+Pay transportation cost",stress increases 5% (except public transit = 0),,
+Express Checkout,Apply for scholarships,Education,must be in school,spend 2 time block (can only do once per year),"stress increases 5%
+if meet following skill levels:
+>= 60% perseverance 
+>= 8% writing 
+>= 55% communication
+roll to see how much for scholarship
+1: $5000
+2-3: $10000
+4-5: $15000
+6: $20000","if don't get scholarship, tell them to improve the skills they were low on ",
+Express Checkout,Find a job,Career,,spend 2 time block,"job => $$$
+stress increases 15%",,
+Express Checkout,Pursue education,Education,- cannot already be in school,Spend 1 time block (can only do twice per year),"stress increases 15%
+if meet requirements for that type of school, accepted into school that year","if don't get into school, tell them to improve the skills they were low on ",
+Express Checkout,Drop out of school,Education,must be in school,,"no longer pursuing that edu (e.g., don't charge tuition, can't apply for scholarships, no notifications about graduating/doing academic actions), if need to move out of dorm then must do it that year",,
+Express Checkout,Change major,Education,must be in school,,"switch your major to the new one, update your school progress based on what you completed in the previous major  (ex: Gen Ed, Field classes, etc)",,
+Express Checkout,Change school Full-Time/Part-Time,Education,must be in school,,schooling switches between FT/PT,,
+Express Checkout,Do continuing education,Career,N/A,"Spend X time blocks
+Costs $500/time block",,,
+Express Checkout & Add to Cart,Donate to charity,Community,can only do once per year,$X,"take $X out of income => lower taxes
++10 lemons
+good deed lemon opportunity",,
+Express Checkout,Adopt a pet,"Family
+Animals",cannot be at max pets for house,"$100/large pet
+$20/small pet","yearly vet fees: $75/small pet, $1000/large pet
+2 lemons/yr/pet",,
+Express Checkout & Add to Cart,Attend life skills seminar,Skill/Trait Development,N/A,"Spend X time blocks
+Costs $25/time block","3% perseverance/tb
+3% organization/tb
+3% communication/tb
+3% stress tolerance/tb
+1% math/tb
+1% technology/tb
++1 lemons",,
+Express Checkout & Add to Cart,Tutor,Community,must have at least 9% of a skill,Spend X time blocks,"Skill 9%-10%: earn $115/time block
+Skill 11%-30%: earn $180/time block
+Skill 31%-50%: earn $300/time block
+Skill 51%-100%: earn $450/time block
+stress increases 5/time block
++2 lemons/time block",use their highest skill,
+Express Checkout & Add to Cart,Get CPR certification,"Career
+Skill/Trait Development
+Community",cannot have valid CPR certification,Costs $45 (can only do once every two years),gain 2% stress tolerance,,
+Express Checkout & Add to Cart,Do an internship,"Education
+Skill/Trait Development","must be in school, can only do once per year",Spend 4 time blocks,"Gain specified skills (See doc)
+stress increases 10%
+if have job, don't get 1/4 of job pay and don't use 4 of job time blocks for the summer",,
+Express Checkout & Add to Cart,Run a marathon,"Physical Health
+Outdoors","health >= 60, can only do twice per year","Spend 12 time blocks
+Costs $20","5% health
+15% perseverance
++2 lemons
+stress increases 5%",,
+Express Checkout & Add to Cart,Take a yoga class,"Physical Health
+Mental Health",health >= 20,"Spend X time blocks
+Costs $115/time block
+Senior Discount: $95/time block","1% health/time block
+decrease stress 1%/time block
++1 lemons",,
+Express Checkout & Add to Cart,Relax,Mental Health,N/A,Spend X time blocks,"decrease stress 3%/time block
+1 lemons/time block",,
+Express Checkout & Add to Cart,Go hiking,"Outdoors
+Physical Health",health >= 50,Spend X time blocks,"1% health/time block
++1 lemons/time block",,
+Express Checkout & Add to Cart,Install a pool,"Home & Auto
+Luxury","must live in the suburbs but not in parents' place or room for rent, can't already have a pool",Costs (10 + (2 * num yrs had this house))% of original house value,"$1500/yr pool maintenance fee
+stress increases 10%
+can do ""go in pool"" action
+house value goes up",,
+Express Checkout & Add to Cart,Go in the pool,"Entertainment
+Outdoors","must have already done ""install a pool"" action",Spend 1-3 time blocks,1 lemons/time block,,
+Express Checkout & Add to Cart,Install solar panels,"Home & Auto
+Luxury","must live in the suburbs but not in parents' place or room for rent
+cannot already have solar panels",Costs (5 + (2 * num yrs had this house))% of original house value,"60% off annual utilities cost
++2 lemons/yr",,
+Express Checkout & Add to Cart,Go to a sports game,Entertainment,N/A,"Spend X time blocks
+Costs $125/person/time block
+Senior discount: $100/senior/tb","1 lemons/time block
++1%/tb good with kids if have kids < 18",,
+Express Checkout & Add to Cart,Go to an amusement park,Entertainment,N/A,"Spend X time blocks
+Costs $90/person/time block","1 lemons/time block
++1%/tb good with kids if have kids < 18",,
+Express Checkout & Add to Cart,Go to the movies,Entertainment,N/A,"Spend X time block
+Costs $25/person/time block
+Senior discount: $18/senior/tb",1 lemons/time block,,
+Express Checkout & Add to Cart,Travel,"Entertainment
+Luxury","Local: None
+Domestic: you and spouse must have >= 5 days PTO or not work during summer
+International: you and spouse must have >= 10 days PTO or not work during summer
+* no need PTO if retired","*can do multiple trips
+Local cost: $100/person, 2 time block
+Domestic cost: $1000/person, 5 days PTO unless not work during summer
+International cost: $3700/person, 10 days PTO unless not work during summer
+Must board pets: $280/large pet, $70/small pet (domestic); $560/large pet, $140/small pet (international)","stress decreases 5% (local), 3% (domestic), 1% (international) per trip
+2 lemons/trip
++2%/trip good with kids if have kids < 18",,
+Express Checkout & Add to Cart,Go snorkeling,"Entertainment
+Outdoors",health >= 40,"Spend x time block
+Costs $80/person/tb",1 lemons/time block,,
+Express Checkout & Add to Cart,Take an art class,Skill/Trait Development,N/A,"Spend x time block
+Costs $10/tb","1% art/tb
+3% creativity/tb
++1 lemons/tb",,
+Express Checkout & Add to Cart,Take a cooking class,Skill/Trait Development,N/A,"Spend x time block
+Costs $10/tb","1% caution/tb
+1% organization/tb 
++1 lemons/tb",,
+Express Checkout & Add to Cart,Learn a new language,Skill/Trait Development,N/A,"Spend x time block
+Costs $10/tb","2% communication/tb
+1 lemon/tb",,
+Express Checkout & Add to Cart,Learn an instrument,Skill/Trait Development,N/A,"Spend x time block
+Costs $10/tb","1% music/tb
++1 lemons/tb",,
+Express Checkout & Add to Cart,Learn a new recipe,Skill/Trait Development,N/A,Spend x time block,1 lemons/time block,,
+Express Checkout & Add to Cart,Go camping,Outdoors,must have a car that seats at least # people in your family + 2,"Spend x time blocks
+Costs $200 + $25/person/tb",1 lemons/time block,,
+Express Checkout & Add to Cart,Take a martial arts class,Skill/Trait Development,health >= 40,"Spend x time blocks
+Costs $300/tb","3% physical ability/tb
+3% perseverance/tb
+3% patience/tb
++1 lemons",,
+Express Checkout & Add to Cart,Join community theater,Skill/Trait Development,N/A,"Do 1-4 plays, spend 6 time blocks/play","5% charisma/play
+2% music/play
+5% creativity/play
+5% sociability/play
+stress increases 2%/play
++2 lemons/play",,
+Express Checkout & Add to Cart,Take a photography class,Skill/Trait Development,N/A,"Spend x time blocks
+Costs $150/tb","1% art/tb
+3% creativity/tb
++1 lemons/tb",,
+Express Checkout & Add to Cart,Go to a museum,Entertainment,N/A,"Spend x time blocks
+Costs $20/person/tb
+senior discount: $15/senior/tb","
++1%/tb good with kids if have kids < 18
++1 lemons/tb",,
+Express Checkout & Add to Cart,Join Toastmasters,Skill/Trait Development,can only do once per year,"Spend 6 time blocks
+Costs $90","10% communication
+10% bravery
+stress increases 10%
++2 lemons",,
+Express Checkout & Add to Cart,Do karaoke,"Entertainment
+Social Connections",N/A,Spend x time blocks,"1% music/tb
+3% bravery/tb
++1 lemons/tb",,
+Express Checkout & Add to Cart,Volunteer,Community,N/A,Spend X time blocks,"5% compassion/tb
+3% sociability/tb
+5 lemons/tb
+good deed lemon opportunity",,
+Express Checkout & Add to Cart,Coach children's sports team,Community,"health >= 50
+physical ability >= 40","Spend 2, 4, 6, or 8 time blocks","2% good with kids/tb
+1% compassion/tb
+1% organization/tb
+stress increases 1%/tb
++2 lemons/time block",,
+Express Checkout & Add to Cart,Study abroad,"Education
+Skill/Trait Development
+Luxury","must be in bachelors program
+60% organization
+cannot be in first year at 4-year college (or first year of transfer from Assoc -> Bach)
+can only do once per year","$1000 for flights
+(optional) use 2 TB & +$1000 cost for sightseeing (x2 for full year)","5% bravery semester, 8% year
+5% compassion semester, 8% year
+5% caution semester, 8% year
+5% communication semester, 8% year
+2 lemons semester, 4 lemons year (+2 for each sightseeing)
+stress increases 20% semester, 30% year",,
+Express Checkout & Add to Cart,Join campus club,"Education
+Social Connections
+Skill/Trait Development","must be in college (except vocational/professional schools), max of 4 times per year",Spend 2 time block/club,"see doc for skills gained
++1 lemons/time block",,
+Express Checkout & Add to Cart,Babysit,Community,"30% compassion
+30% caution
+30% good with kids
+30% patience",Spend X time blocks,"$150/time block
+1% compassion/tb
+1% caution/tb
+1% good with kids/tb
+1% patience/tb
+stress increases 1%/tb
++2 lemons/time block",,
+Express Checkout & Add to Cart,Be a lifeguard,Community,"must have CPR certification
+health >= 70
+physical ability >= 60
+stress tolerance >= 60",Spend 6 time blocks,"earn $400
+*added to annual income --> taxed
+stress increases 2%
++4 lemons",,
+Express Checkout & Add to Cart,Attend classes,Schoolwork,must be in eligible college program,"Associates/bachelors/vocational/police/teaching credential/firefighter/flight/law: 8 time blocks
+Masters: 2 time block
+Astronaut: 16 time blocks","gain automatic/major skills
+vocational: +10 stress
+associates stress: +12 (H), 16 (S)
+bachelors stress: +16 (H), 20 (S)
+masters: +5 (H), 6 (S)
+police/teaching cred/firefighter/flight: +20 stress
+law: +24 stress
+","H = humanities (fine arts, humanities)","S = STEM (math, bio sci, phys sci)"
+Express Checkout & Add to Cart,Study,Schoolwork,must be in eligible college program,"Associates/bachelors/police/firefighter/flight: 4 time blocks
+Masters/astronaut: 2 time block
+Law: 8 time blocks","gain automatic/major skills
+associates stress: 6 (H), 8 (S)
+bachelors stress: 8 (H), 10 (S)
+masters: 5 (H), 6 (S)
+police/firefighter/flight: 10 stress
+law: 24 stress",,
+Express Checkout & Add to Cart,Complete coursework,Schoolwork,must be in eligible college program,"Associates/bachelors/vocational/police/firefighter/flight: 8 time blocks
+Teaching credential/law: 4 time blocks
+Astronaut: 2 time block","gain automatic/major skills 
+vocational: 10 stress
+associates stress: 12 (H), 16 (S)
+bachelors stress: 16 (H), 20 (S)
+police/firefighter/flight: 20 stress
+teaching cred: 10 stress
+law: 12 stress",,
+Express Checkout & Add to Cart,Student teach,Schoolwork,must be in eligible college program,Teaching credential: 12 time blocks,teaching cred: 30 stress,,
+Express Checkout & Add to Cart,Research,Schoolwork,must be in eligible college program,"Associates/bachelors: 4 time blocks
+Masters: 8 time blocks
+PhD: 10 time blocks","gain automatic/major skills
+associates stress: 6 (H), 8 (S)
+bachelors stress: 8 (H), 10 (S)
+masters: 20 (H), 22 (S)
+phd: 25 (H), 27 (S)",,
+Express Checkout & Add to Cart,Go to office hours,Schoolwork,must be in eligible college program,"Associates/bachelors: 2 time block
+Masters/law: 4 time blocks","gain automatic/major skills
+associates stress: 3 (H), 4 (S)
+bachelors stress: 4 (H), 5 (S)
+masters: 10 (H), 12 (S)
+law: 12 stress",,
+Express Checkout & Add to Cart,Go to a review session,Schoolwork,must be in eligible college program,"Associates/bachelors: 2 time block
+police/firefighter/flight: 4 time blocks","gain automatic/major skills
+associates stress: 3 (H), 4 (S)
+bachelors stress: 4 (H), 5 (S)
+police/firefighter/flight: 10 stress",,
+Express Checkout & Add to Cart,Work on thesis,Schoolwork,must be in eligible college program,"Masters: 8 time blocks
+Law: 4 time blocks","gain automatic/major skills
+stress = 12 (H), 16 (S)
+masters: 20 (H), 22 (S)
+law: 12 stress",,
+Express Checkout & Add to Cart,Work on dissertation,Schoolwork,must be in eligible college program,PhD: 10 time blocks,"gain automatic/major skills
+phd: 25 (H), 27 (S)",,
+Express Checkout & Add to Cart,Publish a paper,Schoolwork,must be in eligible college program,PhD: 6 time blocks,"gain automatic/major skills
+phd: 15 (H), 17 (S)",,
+Express Checkout & Add to Cart,Speak at a conference,Schoolwork,must be in eligible college program,PhD: 2 time block,"gain automatic/major skills
+phd: 5 (H), 7 (S)",,
+Express Checkout & Add to Cart,Go to the library,Entertainment,N/A,Spend x time blocks,"1 lemons/time block
++1%/tb good with kids if have kids < 11",,
+Express Checkout & Add to Cart,Stargaze,Outdoors,N/A,Spend x time blocks,1 lemons/time block,,
+Express Checkout & Add to Cart,Go to the park,Outdoors,N/A,Spend x time blocks,"1 lemons/time block
++1%/tb good with kids if have kids < 18",,
+Express Checkout & Add to Cart,Game night,"Social Connections
+Entertainment",N/A,Spend x time blocks,"1 lemons/time block
++1%/tb good with kids if have kids < 18",,
+Express Checkout & Add to Cart,Go indoor rock climbing,Physical Health,health >= 60,"Spend x time block
+Costs $65/person/tb","3% physical ability/tb
+1% caution/tb
++1%/tb good with kids if have kids < 16
++1 lemons/time block",,
+Express Checkout & Add to Cart,Go ice skating,Entertainment,health >= 40,"Spend x time blocks
+Costs $75/person/tb","1 lemons/time block
++1%/tb good with kids if have kids < 8",,
+Express Checkout & Add to Cart,Watch a science documentary,"Entertainment
+Skill/Trait Development",N/A,Spend x time blocks,"1% science/tb
++1%/tb good with kids if have kids < 18
++1 lemons/time block",,
+Express Checkout & Add to Cart,Join a book club,"Social Connections
+Entertainment",N/A,Spend x time blocks,"1% sociability/tb
+1% analysis/tb
++1 lemons/time block",,
+Express Checkout & Add to Cart,Attend home improvement workshop,"Home & Auto
+Skill/Trait Development",N/A,"Spend x time blocks
+Costs $10/tb","1% home repair/tb
++1 lemons/time blocks",,
+Express Checkout & Add to Cart,Take a programming class,Skill/Trait Development,N/A,"Spend x time blocks
+Costs $10/tb","1% technology/tb
++1 lemons/time blocks",,
+Express Checkout & Add to Cart,Go on bike ride,"Outdoors
+Physical Health",N/A,"Spend X time blocks
+free if have bike or pay $325/tb to rent","1 lemons/tb
++1% health/tb",,
+Express Checkout & Add to Cart,Hang out with friends,Social Connections,N/A,Spend X time blocks,1 lemons/tb,,
+Express Checkout & Add to Cart,Recycle,Community,can only do once per year,Spend 1 time block,"10 lemons
+good deed lemon opportunity",,
+Express Checkout,Find love,Family,must be single,N/A,see doc,,
+Express Checkout,Get divorced,Family,must be married,see doc,see doc,,
+Express Checkout,Get childcare,Family,must have kids of eligible age,see doc,see doc,,
+Express Checkout,Try to have child,Family,must be <= age 45 ,Spend 2 time block,see doc,,
+Express Checkout,Stay up late,Other,N/A,"-5% health (4% temp, 1% permanent)
++5% stress",gain 1 time block,,
+Express Checkout & Add to Cart,Spend time with grandkids,"Family
+Social Connections",Must have grandkids,Spend X time blocks,"1 lemons/grandchild/time block
++1% health/time block (max. 10%/year)
++1%/tb good with kids if have kids < 18",,
+Express Checkout & Add to Cart,Spend money on grandkids,Family,Must have grandkids,"Spend X time blocks
+Costs $X/grandkid (min. $20/grandkid)","1 lemons/grandchild/time block
++1% health/time block (max. 10%/year)
++1%/tb good with kids if have kids < 18",,
+Express Checkout,Request PTO,Career,must have PTO available,X time blocks of PTO,convert X job time blocks to action time blocks,,
+Express Checkout,Put pet up for adoption,"Animals
+Family","must have a pet, only do once per year",,you select how many small and large pets to put up for adoption,,
+Express Checkout,Apply to adopt child,Family,"- min age: 21
+ - max age: 55
+- income >= 50k + 10k/person (including adding a new child)
+- no debt
+- good with kids >= 50
+- compassion >= 60
+- stress <= 60
+- house must be not above recommended max people with new child",6 time blocks,"- see doc
+- once actually adopt:
+    - good deed lemon opportunity
+    - 0-2: 2 lemons
+    - 3-9: 3 lemons
+    - 10-17: 4 lemons",,

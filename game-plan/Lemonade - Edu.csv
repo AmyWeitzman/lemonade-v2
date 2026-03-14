@@ -1,0 +1,1058 @@
+Field,CC,Bachelors,Masters,PhD,Job Options,Skills Req Grad in Major,Skills Req to get into Professional School,Skills/Traits Gained in School for Job
+"requirements:
+vocational: see below
+","- perseverance: 10%
+- organization: 10%
+- math: 3%
+- science: 3%
+- writing: 3%","- perseverance: 30% 
+- organization: 30% 
+- math: 5%
+- science: 5%
+- writing: 5%","- perseverance: 50% 
+- organization: 50%
+- analysis: 20%
+- writing: 30%","- perseverance: 70% 
+- organization: 70% 
+- communication: 50%
+- analysis: 50%
+- writing: 50%",,,,
+,"5%/yr perseverance 
+5%/yr organization
+1%/yr math
+1%/yr science
+3%/yr analysis
+6%/yr writing","5%/yr perseverance
+5%/yr organization
+1%/yr math
+1%/yr science
+3%/yr analysis
+6%/yr writing","5%/yr perseverance
+20/# yrs of Mdegree %/yr org
+30/# yrs of Mdegree %/yr analysis
+20/# yrs of Mdegree %/yr writing
+15/# yrs of Mdegree %/yr comm","
+1%/yr perseverance
+1%/yr org
+50/# yrs of Pdegree %/yr comm
+50/# yrs of Pdegree %/yr analysis
+50/# yrs of Pdegree %/yr writing",,,,
+,"any
+OR 2 yrs FT work experience","Police Academy
+(1yr)
+stress = 50%",,,police,N/A,"- caution: 50%
+- phys: 55%
+","- caution: 20
+- stress tolerance: 30
+- phys: 15
+- communication: 20
+- analysis: 15"
+,,any,"Teaching Credential
+(1yr)
+stress = 50%",,teacher,N/A,"- organization: 50
+- communication: 45
+- CPR cert","- creativity: 10%
+- organization: 25%
+- patience: 20%
+- good with kids: 20%
+- communication: 25%
+- technology: 10%"
+,"Beauty School
+(1yr)",,,,hair stylist,N/A,None,"- caution: 40%
+- organization: 20%"
+,"Automotive Technician School
+(2yr)",,,,mechanic,N/A,None,"- organization: 20%
+- caution: 40%
+- home repair: 60%"
+,"Plumbing School
+(2yr)",,,,plumber,N/A,None,"- organization: 20%
+- caution: 30%
+- home repair: 60%"
+,"Electrician Trade School
+(1yr)",,,,electrician,N/A,None,"- caution: 50%
+- organization: 20%
+- home repair: 60%"
+,"Carpentry Trade School
+(1yr)",,,,carpenter,N/A,None,"- organization: 20%
+- caution: 40%
+- home repair: 60%"
+,"Firefighter Academy
+(1yr)
+stress = 50%",,,,firefighter,N/A,"- phys: 60%
+- health: 90%
+- communication: 45%","- phys: 20%
+- bravery: 10%
+- caution: 60%
+- organization: 50%
+- stress tolerance: 20%
+- communication: 35%
+- CPR cert (part of program --> don't pay, don't gain points)"
+,"Culinary School
+(2yr)",,,,chef,N/A,None,"- organized: 30%
+- caution: 30%"
+,,any,"Flight School
+(1yr)
+stress = 50%",,"pilot
+astronaut",N/A,None,"- bravery: 10%
+- caution: 35%
+- tech: 15"
+,,any,"Law School
+(3yr)
+stress = 60%",,lawyer,N/A,"- organization: 50%
+- analysis: 20%
+- communication: 60%","- persever: 10%
+- organize: 20%
+- analysis: 45%
+- communication: 30%"
+,,,"either computer science, computer engineering, astrophysics, botany, nursing, med school, chiropractor, dentist, optomestrist, physical therapist, flight school (+ 2 yrs work as pilot)","Astronaut Academy
+(2yr)
+stress = 60%",astronaut,N/A,"- stress tolerance: 50
+- math or sci 60 OR 2 yrs as pilot
+- health: 90%","- caution: 40
+- stress tolerance: 30
+- communication: 15
+- math: 15
+- science: 15
+- home repair: 45
+- technology: 35
+"
+fine arts,drama,,,,actor,"- bravery: 20
+- charisma: 20
+- creativity: 20",N/A,"- bravery: 10
+- charisma: 10
+- creativity: 5"
+fine arts,drama,drama,,,actor,"- bravery: 30
+- charisma: 30
+- creativity: 30",N/A,"- bravery: 20
+- charisma: 20
+- creativity: 10"
+fine arts,drama,drama,"drama
+(1)",,actor,"- bravery: 40
+- charisma: 40
+- creativity: 40",N/A,"- bravery: 10
+- charisma: 10
+- creativity: 10"
+fine arts,drama,drama,"drama
+(1)","drama
+(3)",actor,"- bravery: 50
+- charisma: 50
+- creativity: 50",N/A,"- bravery: 10
+- charisma: 10
+- creativity: 10"
+fine arts,vocal performance,,,,singer,"- charisma: 20
+- music: 13
+- creativity: 20",N/A,"- charisma: 10
+- music: 10
+- creativity: 5"
+fine arts,vocal performance,vocal performance,,,singer,"- charisma: 30
+- music: 23
+- creativity: 30",N/A,"- charisma: 20
+- music: 20
+- creativity: 10"
+fine arts,vocal performance,vocal performance,"vocal performance
+(1)",,singer,"- charisma: 40
+- music: 43
+- creativity: 40",N/A,"- charisma: 10
+- music: 20
+- creativity: 10"
+fine arts,vocal performance,vocal performance,"vocal performance
+(1)","vocal performance
+(3)",singer,"- charisma: 50
+- music: 93
+- creativity: 50",N/A,"- charisma: 10
+- music: 50
+- creativity: 10"
+fine arts,instrumental performance,,,,"musician, orchestral musician","- music: 26
+- creativity: 20",N/A,"- music: 20
+- creativity: 5"
+fine arts,instrumental performance,instrumental performance,,,"musician, orchestral musician","- music: 46
+- creativity: 30",N/A,"- music: 40
+- creativity: 10"
+fine arts,instrumental performance,instrumental performance,"instrumental performance
+(1)",,"musician, orchestral musician","- music: 76
+- creativity: 40",N/A,"- music: 30
+- creativity: 10"
+fine arts,instrumental performance,instrumental performance,"instrumental performance
+(1)","instrumental performance
+(3)","musician, orchestral musician","- music: 100
+- creativity: 50",N/A,"- music: 24
+- creativity: 10"
+fine arts,photography,,,,photographer,"- creativity: 60
+- tech: 15",N/A,"- creativity: 7
+- tech: 13"
+fine arts,photography,photography,,,photographer,"- creativity: 65
+- tech: 30",N/A,"- creativity: 14
+- tech: 26"
+fine arts,photography,photography,"photography
+(1)",,photographer,"- creativity: 75
+- tech: 50",N/A,"- creativity: 10
+- charisma: 10
+- tech: 20"
+fine arts,photography,photography,"photography
+(1)","photography
+(3)",photographer,"- creativity: 85
+- tech: 100",N/A,"- creativity: 10
+- charisma: 10
+- tech: 50"
+fine arts,art,,,,artist,"- creativity: 40
+- art: 15
+- tech: 15",N/A,"- creativity: 10
+- art: 13
+- tech: 15"
+fine arts,art,art,,,"artist
+animator","- creativity: 50
+- art: 30
+- tech: 30",N/A,"- creativity: 20
+- art: 26
+- tech: 30"
+fine arts,art,art,"material art
+(1)",,artist,"- creativity: 80
+- art: 50",N/A,"- creativity: 30
+- art: 20"
+fine arts,art,art,"material art
+(1)","material art
+(3)",artist,"- creativity: 95
+- art: 100",N/A,"- creativity: 15
+- art: 50"
+fine arts,art,art,"digital art
+(1)",,"animator
+graphic designer
+artist","- creativity: 80
+- tech: 55",N/A,"- creativity: 30
+- tech: 25"
+fine arts,art,art,"digital art
+(1)","digital art
+(3)","animator
+graphic designer
+artist","- creativity: 95
+- tech: 100",N/A,"- creativity: 15
+- tech: 50"
+fine arts,dance,,,,dancer,"- creativity: 15
+- physical ability: 40",N/A,"- creativity: 3
+- physical ability: 8"
+fine arts,dance,dance,,,dancer,"- creativity: 18
+- physical ability: 50",N/A,"- creativity: 6
+- physical ability: 16"
+fine arts,dance,dance,"dance
+(1)",,dancer,- creativity: 60,N/A,- creativity: 10
+fine arts,dance,dance,"dance
+(1)","dance
+(3)",dancer,- creativity: 80,N/A,- creativity: 20
+fine arts,graphic design,,,,graphic designer,"- creativity: 40
+- tech: 17",N/A,"- creativity: 10
+- tech: 15"
+fine arts,graphic design,graphic design,,,"graphic designer
+animator","- creativity: 60
+- tech: 32",N/A,"- creativity: 20
+- tech: 30"
+fine arts,graphic design,graphic design,"graphic design
+(1)",,"graphic designer
+animator","- creativity: 80
+- tech: 52",N/A,"- creativity: 20
+- tech: 20"
+fine arts,graphic design,graphic design,"graphic design
+(1)","graphic design
+(3)","graphic designer
+animator","- creativity: 95
+- tech: 52",N/A,"- creativity: 15
+- tech: 50"
+humanities,English,,,,"author
+paralegal","- writing: 20
+- analysis: 15",N/A,"- writing: 12
+- analysis: 12
+- creativity: 5
+- communication: 10"
+humanities,English,English,,,"Author
+paralegal
+marketing specialist
+reporter
+journalist","- writing: 30
+- analysis: 27
+- communication: 20",N/A,"- writing: 24
+- analysis: 24
+- creativity: 10
+- communication: 20"
+humanities,English,English,"English
+(2)",,"Author
+paralegal
+marketing specialist
+reporter
+journalist","- writing: 50
+- analysis: 57
+- communication: 35",N/A,- creativity: 10
+humanities,English,English,"English
+(2)","English
+(4)","Author
+paralegal
+marketing specialist
+reporter
+journalist","- writing: 100
+- analysis: 100
+- communication: 85",N/A,- creativity: 15
+humanities,psychology,,,,,- science: 10,N/A,"- science: 10
+- communication: 5"
+humanities,psychology,psychology,,,,- science: 20,N/A,"- science: 20
+- communication: 10"
+humanities,psychology,psychology,"psychology
+ (2)",,"school counselor
+psychologist","- analysis: 75
+- science: 50",N/A,"- analysis: 25
+- science: 30"
+humanities,psychology,psychology,"psychology
+ (2)","psychology
+(5)","school counselor
+psychologist","- analysis: 100
+- science: 100",N/A,- science: 50
+humanities,education,,,,,"- organization: 30
+- communication: 15",N/A,"- compassion: 5
+- communication: 5"
+humanities,education,education,,,,"- organization: 40
+- communication: 20",N/A,"- compassion: 10
+- communication: 10"
+humanities,education,education,"education
+(2)",,"school counselor 
+principal","- organization: 60
+- communication: 35",N/A,- compassion: 10
+humanities,education,education,"education
+(2)","education
+(4)","school counselor
+principal
+Dean","- organization: 65
+- communication: 85",N/A,None
+humanities,sociology,,,,paralegal,"- writing: 20
+- analysis: 15",N/A,"- writing: 12
+- analysis: 12
+- communication: 10"
+humanities,sociology,sociology,,,"paralegal
+social worker
+marketing specialist
+reporter
+journalist","- writing: 30
+- analysis: 27
+- communication: 20",N/A,"- writing: 24
+- analysis: 24
+- communication: 20"
+humanities,sociology,sociology,"sociology
+(2)",,"paralegal
+social worker
+marketing specialist
+reporter
+journalist
+school counselor","- writing: 50
+- analysis: 57
+- communication: 35",N/A,- writing: 10
+humanities,sociology,sociology,"sociology
+(2)","sociology
+(5)","school counselor
+social worker
+paralegal
+marketing specialist
+reporter
+journalist","- writing: 100
+- analysis: 100
+- communication: 85",N/A,None
+humanities,architecture,,,,,"- creativity: 40
+- home repair: 7",N/A,"- creativity: 5
+- home repair: 7"
+humanities,architecture,architecture,,,architect,"- creativity: 45
+- home repair: 14",N/A,"- creativity: 10
+- home repair: 14"
+humanities,architecture,architecture,"architecture
+(2)",,architect,"- creativity: 55
+- home repair: 30",N/A,"- creativity: 10
+- home repair: 16"
+humanities,architecture,architecture,"architecture
+(2)","architecture
+(4)",architect,"- creativity: 65
+- home repair: 40",N/A,"- creativity: 10
+- home repair: 10"
+humanities,linguistics,,,,,"- analysis: 14
+- writing: 18",N/A,"- analysis: 4
+- communication: 5"
+humanities,linguistics,linguistics,,,linguist,"- analysis: 26
+- writing: 30",N/A,"- analysis: 8
+- communication: 10"
+humanities,linguistics,linguistics,"linguistics
+(1)",,linguist,"- analysis: 50
+- writing: 50",N/A,None
+humanities,linguistics,linguistics,"linguistics
+(1)","linguistics
+(4)",linguist,"- analysis: 100
+- writing: 100",N/A,- organization: 10
+humanities,archaeology,,,,,"- analysis: 14
+- writing: 18",N/A,"- caution: 5
+- analysis: 4
+- communication: 5
+- technology: 5"
+humanities,archaeology,archaeology,,,archaeologist,"- analysis: 26
+- writing: 30",N/A,"- caution: 10
+- analysis: 8
+- communication: 10
+- technology: 10"
+humanities,archaeology,archaeology,"archaeology
+(1)",,archaeologist,"- analysis: 50
+- writing: 50",N/A,"- patience: 20
+- caution: 20
+- technology: 10"
+humanities,archaeology,archaeology,"archaeology
+(1)","archaeology
+(4)",archaeologist,"- analysis: 100
+- writing: 100",N/A,"- organization: 10
+- technology: 10"
+humanities,anthropology,,,,paralegal,"- writing: 20
+- analysis: 15
+- science: 15",N/A,"- writing: 12
+- analysis: 12
+- communication: 10
+- science: 10"
+humanities,anthropology,anthropology,,,"paralegal
+CSI","- writing: 30
+- analysis: 27
+- communication: 20
+- science: 30",N/A,"- writing: 24
+- analysis: 24
+- communication: 20
+- science: 25"
+humanities,anthropology,anthropology,"anthropology
+(2)",,"anthropologist 
+CSI
+paralegal","- writing: 50
+- analysis: 57
+- communication: 35
+- science: 50",N/A,"- writing: 10
+- science: 25"
+humanities,anthropology,anthropology,"anthropology
+(2)","anthropology
+(6)","anthropologist
+CSI
+paralegal","- writing: 100
+- analysis: 100
+- communication: 85
+- science: 100",N/A,- science: 50
+humanities,criminology,,,,paralegal,"- writing: 20
+- analysis: 15
+- science: 15",N/A,"- writing: 12
+- analysis: 12
+- communication: 10
+- science: 10"
+humanities,criminology,criminology,,,"paralegal
+CSI","- writing: 30
+- analysis: 27
+- communication: 20
+- science: 30",N/A,"- writing: 24
+- analysis: 24
+- communication: 20
+- science: 25"
+humanities,criminology,criminology,criminology,,paralegal,"- writing: 50
+- analysis: 57
+- communication: 35
+- science: 50",N/A,"- writing: 10
+- science: 25"
+humanities,criminology,criminology,"criminology
+(2)","criminology
+(4)","CSI
+paralegal","- writing: 100
+- analysis: 100
+- communication: 85
+- science: 100",N/A,- science: 50
+math,economics,,,,,"- caution: 24
+- analysis: 20
+- math: 20
+- tech: 11",N/A,"- caution: 6
+- analysis: 5
+- math: 10
+- technology: 5
+- communication: 5"
+math,economics,economics,,,"accountant
+acutary","- caution: 30
+- analysis: 25
+- math: 30
+- tech: 16",N/A,"- caution: 12
+- analysis: 10
+- math: 20
+- technology: 10
+- communication: 10"
+math,economics,economics,"economics
+(2)",,"accountant
+actuary
+economist","- caution: 40
+- analysis: 70
+- math: 50
+- technology: 18
+- communication: 75",N/A,"- caution: 10
+- analysis: 15
+- math: 20
+- technology: 2
+- communication: 15"
+math,economics,economics,"economics
+(2)","economics
+(5)","accountant
+actuary
+economist","- math: 100
+- analysis: 100
+- technology: 28
+- communication: 100",N/A,"- math: 50
+- technology: 10"
+math,stats,,,,,"- caution: 24
+- analysis: 25
+- math: 25
+- tech: 11",N/A,"- caution: 6
+- analysis: 10
+- math: 15
+- technology: 5
+- communication: 5"
+math,stats,stats,,,"accountant
+actuary
+data scientist
+statistician","- caution: 30
+- analysis: 35
+- math: 40
+- tech: 16",N/A,"- caution: 12
+- analysis: 20
+- math: 30
+- technology: 10
+- communication: 10"
+math,stats,stats,"stats
+(2)",,"accountant
+actuary
+data scientist
+statistician","- caution: 40
+- analysis: 70
+- math: 60
+- technology: 18
+- communication: 75",N/A,"- caution: 10
+- analysis: 15
+- math: 20
+- technology: 2
+- communication: 15"
+math,stats,"stats
+","stats
+(2)","stats
+(4)","accountant
+actuary
+data scientist
+statistician","- math: 100
+- analysis: 100
+- technology: 28
+- communication: 100",N/A,"- math: 40
+- technology: 10"
+math,finance,,,,,"- organization: 40
+- caution: 25
+- analysis: 16
+- math: 20
+- technology: 11",N/A,"- organization: 7
+- caution: 7
+- analysis: 4
+- math: 10
+- technology: 5"
+math,finance,finance,,,"accountant
+actuary","- organization: 65
+- caution: 35
+- analysis: 26
+- math: 30
+- technology: 16",N/A,"- organization: 14
+- caution: 14
+- analysis: 8
+- math: 20
+- technology: 10"
+math,finance,finance,"finance
+(2)",,"accountant
+actuary","- organization: 85
+- caution: 55
+- analysis: 55
+- math: 50
+- technology: 18",N/A,"- caution: 20
+- math: 20
+- technology: 2"
+math,finance,finance,"finance
+(2)","finance
+(5)","accountant
+actuary","- analysis: 100
+- math: 100
+- technology: 28",N/A,"- math: 50
+- technology: 10"
+math,computer science,,,,,"- math: 19
+- analysis: 19
+- technology: 20
+- creativity: 50",N/A,"- math: 12
+- analysis: 10
+- technology: 15
+- perseverance: 5
+- creativity: 8"
+math,computer science,computer science,,,"data scientist
+software developer
+animator
+video game designer","- math: 33
+- analysis: 35
+- technology: 35
+- creativity: 70",N/A,"- math: 24
+- analysis: 20
+- technology: 30
+- perseverance: 10
+- creativity: 16"
+math,computer science,computer science,"computer science
+(2)",,"data scientist
+software developer
+animator
+astronaut
+video game designer","- math: 53
+- technology: 55
+- creativity: 80",N/A,"- math: 20
+- technology: 20
+- creativity: 10"
+math,computer science,computer science,"computer science
+(2)","computer science
+(4)","data scientist
+software developer
+animator
+astronaut
+video game designer","- math: 100
+- technology: 100
+- creativity: 95",N/A,"- math: 47
+- technology: 45
+- creativity: 15"
+math,computer science,computer science,"cybersecurity
+(2)",,cybersecurity analyst,"- technology: 55
+- analysis: 55",N/A,"- caution: 25
+- technology: 20
+- analysis: 5"
+math,computer science,computer science,"cybersecurity
+(2)","cybersecurity
+(4)",cybersecurity analyst,"- technology: 100
+- analysis: 100",N/A,- technology: 45
+math,computer science,computer science,"Artificial intelligence
+(8)
+55% stress",,AI researcher,"- creativity: 80
+- math: 100
+- writing: 100
+- technology: 100",N/A,"- creativity: 10
+- math: 67
+- technology: 65"
+math,computer science,computer science,"computer engineering
+(2)",,"computer engineer
+astronaut","- organization: 80
+- math: 30
+- science: 30
+- home repair: 10
+- technology: 30",N/A,"- organization: 10
+- math: 10
+- science: 20
+- home repair: 10
+- technology: 15"
+math,computer science,computer science,"computer engineering
+(2)","computer engineering
+(4)","Computer Engineer
+astronaut","- math: 50
+- science: 50
+- technology: 40",N/A,"- math: 20
+- science: 20
+- technology: 10"
+math,data science,,,,,"- analysis: 27
+- math: 25
+- tech: 16",N/A,"- analysis: 12
+- math: 15
+- technology: 10
+- communication: 12"
+math,data science,data science,,,"data scientist
+statistician","- analysis: 39
+- math: 40
+- tech: 26",N/A,"- analysis: 24
+- math: 30
+- technology: 20
+- communication: 24"
+math,data science,data science,"data science
+(2)",,"data scientist
+statistician","- analysis: 70
+- math: 60
+- technology: 56
+- communication: 75",N/A,"- analysis: 15
+- math: 20
+- technology: 30
+- communication: 15"
+math,data science,data science,"data science
+(2)","data science
+(4)","data scientist
+statistician","- math: 100
+- analysis: 100
+- technology: 100
+- communication: 100",N/A,"- math: 40
+- technology: 44"
+math,business,,,,"store manager
+restaurant manager
+youth program director","- math: 20
+- tech: 10
+- analysis: 20",N/A,"- org: 20
+- communication: 10
+- tech: 5
+- math: 10
+- analysis: 5"
+math,business,business,,,"store manager
+restaurant manager
+youth program director
+construction manager
+bar manager
+accountant
+actuary 
+statistician 
+marketing specialist","- math: 30
+- tech: 15
+- analysis: 20",N/A,"- org: 20
+- caution: 8
+- analysis: 10
+- math: 20
+- tech: 10
+- communication: 20
+- creativity: 10
+"
+math,business,business,"business
+(2)",,"store manager
+restaurant manager
+youth program director
+construction manager
+bar manager
+accountant
+economist
+actuary 
+statistician 
+marketing specialist","- math: 50
+- tech: 20
+- analysis: 70",N/A,"- org: 10
+- analysis: 20
+- math: 20
+- tech: 5
+- communication: 20
+"
+math,business,business,"business
+(2)","business
+(5)","store manager
+restaurant manager
+youth program director
+construction manager
+bar manager
+accountant
+economist
+actuary 
+statistician 
+marketing specialist","- math: 100
+- analysis: 100
+- technology: 30
+- communication: 100",N/A,"- math: 50
+- tech: 10
+"
+Physical Sciences,chemistry,,,,,"- science: 20
+- analysis: 14
+- technology: 11",N/A,"- organization: 7
+- caution: 15
+- science: 12
+- analysis: 6
+- technology: 9"
+Physical Sciences,chemistry,chemistry,,,"chemist 
+CSI","- science: 34
+- analysis: 30
+- technology: 20",N/A,"- organization: 14
+- caution: 30
+- science: 24
+- analysis: 12
+- technology: 18"
+Physical Sciences,chemistry,chemistry,"chemistry
+(2)",,"chemist 
+CSI
+astronaut","- science: 64
+- analysis: 60
+- technology: 25",N/A,"- caution: 20
+- science: 30
+- technology: 5"
+Physical Sciences,chemistry,chemistry,"chemistry
+(2)","chemistry
+(5)","chemist 
+CSI
+astronaut","- science: 100
+- analysis: 100
+",N/A,- science: 36
+Physical Sciences,chemistry,chemistry,"pharmacy school
+(4)
+stress = 50%",,pharmacist,"- organization: 85
+- caution: 75
+- science: 50",N/A,"- organization: 10
+- caution: 10
+- science: 20"
+Physical Sciences,Earth Science,,,,,"- science: 18
+- analysis: 18",N/A,"- science: 10
+- analysis: 6"
+Physical Sciences,Earth Science,Earth Science,,,"geologist
+climatologist","- science: 30
+- analysis: 30",N/A,"- science: 20
+- analysis: 12"
+Physical Sciences,Earth Science,Earth Science,"Geology
+2 yrs",,"geologist
+astronaut","- science: 60
+- analysis: 60",N/A,"- caution: 20
+- science: 30"
+Physical Sciences,Earth Science,Earth Science,"Geology
+2 yrs","Geology
+6 yrs","geologist
+astronaut","- science: 100
+- analysis: 100
+",N/A,- science: 40
+Physical Sciences,Earth Science,Earth Science,"Paleontology
+(2)",,paleontologist,"- analysis: 60
+- technology: 15",N/A,"- patience: 25
+- caution: 25
+- technology: 13"
+Physical Sciences,Earth Science,Earth Science,"Paleontology
+(2)","Paleontology
+(4)",paleontologist,"- analysis: 100
+- writing: 100",N/A,- organization: 15
+Physical Sciences,Earth Science,Earth Science,"Climatology
+2 yrs",,climatologist,"- science: 50
+- analysis: 60",N/A,- science: 20
+Physical Sciences,Earth Science,Earth Science,"Climatology
+2 yrs","Climatology
+6 yrs",climatologist,"- science: 100
+- writing: 100
+- analysis: 100",N/A,"- organization: 15
+- science: 50"
+Physical Sciences,physics,,,,,"- math: 15
+- science: 15
+- technology: 5",N/A,"- math: 10
+- science: 10
+- technology: 2"
+Physical Sciences,physics,astronomy,,,,"- math: 30
+- science: 30
+- technology: 7",N/A,"- math: 20
+- science: 20
+- technology: 4"
+Physical Sciences,physics,astronomy,"astrophysics
+(2)",,"astrophysicist
+astronaut","- math: 65
+- science: 65
+- analysis: 60
+- technology: 30",N/A,"- organization: 15
+- caution: 20
+- math: 30
+- science: 30
+- analysis: 40
+- technology: 23"
+Physical Sciences,physics,astronomy,"astrophysics
+(2)","astrophysics
+(6)","astrophysicist
+astronaut","- math: 100
+- science: 100
+- analysis: 100",N/A,"- caution: 20
+- math: 35
+- science: 35"
+Biological Sciences,Environmental Science,,,,,"- science: 18
+- analysis: 18
+- caution: 35",N/A,"- science: 12
+- analysis: 12
+- caution: 5"
+Biological Sciences,Environmental Science,Environmental Science,,,"ecologist
+botanist
+nature conservationist","- science: 30
+- analysis: 30
+- caution: 40",N/A,"- science: 24
+- analysis: 24
+- caution: 10"
+Biological Sciences,Environmental Science,Environmental Science,"Ecology
+2 yrs",,ecologist,"- science: 50
+- analysis: 50
+- caution: 60",N/A,"- science: 20
+- caution: 20"
+Biological Sciences,Environmental Science,Environmental Science,"Ecology
+2 yrs","Ecology
+6 yrs",ecologist,"- science: 100
+- analysis: 100",N/A,- science: 50
+Biological Sciences,Environmental Science,Environmental Science,"Botany
+2 yrs",,"botanist
+astronaut","- science: 50
+- analysis: 50
+- caution: 60",N/A,"- science: 20
+- caution: 20"
+Biological Sciences,Environmental Science,Environmental Science,"Botany
+2 yrs","Botany
+6 yrs","botanist
+astronaut","- science: 100
+- analysis: 100",N/A,- science: 50
+Biological Sciences,Environmental Science,Environmental Science,"nature conservation
+(2)",,nature conservationist,- science: 50,N/A,"- science: 20
+- communication: 25"
+Biological Sciences,Environmental Science,"Environmental Science
+min req","nature conservation
+(2)","nature conservation
+(4)",nature conservationist,- science: 100,N/A,- science: 50
+Biological Sciences,animal science,,,,,"- science: 18
+- analysis: 18",N/A,"- caution: 5
+- science: 10
+- analysis: 6"
+Biological Sciences,animal science,animal science,,,"zoologist
+marine biologist","- science: 30
+- analysis: 30",N/A,"- caution: 10
+- science: 20
+- analysis: 12"
+Biological Sciences,animal science,animal science,"Veterinary Studies
+(4 yrs)",,veterinarian,"- science: 50
+- analysis: 60
+- technology: 15",N/A,"- compassion: 10
+- caution: 15
+- patience: 10
+- science: 20
+- technology: 13"
+Biological Sciences,animal science,Animal Science,"Veterinary Studies
+(4 yrs)","Veterinary Studies
+(4 yrs)",veterinarian,"- science: 100
+- analysis: 100",N/A,- science: 50
+Biological Sciences,animal science,animal science,"Zoology
+(2 yrs)",,zoologist ,"- science: 50
+- analysis: 60",N/A,"- caution: 10
+- science: 20"
+Biological Sciences,animal science,Animal Science,"Zoology
+(2 yrs)","Zoology
+(6 yrs)",zoologist ,"- science: 100
+- analysis: 100",N/A,"- science: 50
+- organization: 10"
+Biological Sciences,animal science,Animal Science,"Marine Biology
+2 yrs",,marine biologist,"- science: 50
+- analysis: 60
+- technology: 15",N/A,"- caution: 15
+- science: 20
+- technology: 13"
+Biological Sciences,animal science,Animal Science,"Marine Biology
+2 yrs","Marine Biology
+6 yrs",marine biologist,"- science: 100
+- analysis: 100",N/A,"- science: 50
+- organization: 10"
+Biological Sciences,nursing,,,,,"- organization: 50
+- communication: 50
+- technology: 11
+- science: 18",N/A,"- organization: 5
+- caution: 10
+- communication: 8
+- technology: 9
+- science: 10"
+Biological Sciences,nursing,nursing,,,nurse,"- organization: 60
+- communication: 60
+- technology: 20
+- science: 30",N/A,"- organization: 10
+- caution: 20
+- communication: 16
+- technology: 18
+- science: 20"
+Biological Sciences,nursing,nursing,"nursing
+(2)",,"nurse
+astronaut","- communication: 75
+- science: 60",N/A,"- compassion: 10
+- patience: 20
+- caution: 15
+- science: 30"
+Biological Sciences,nursing,nursing,"nursing
+(2)","nursing
+(3)","nurse
+astronaut",- communication: 100,N/A,- organization: 15
+Biological Sciences,biology,,,,paramedic,- science: 15,N/A,"- organization: 15
+- science: 10"
+Biological Sciences,biology,biology,,,paramedic,- science: 30,N/A,"- organization: 30
+- science: 20"
+Biological Sciences,biology,biology,"biology
+(2)",,"paramedic
+astronaut",- science: 60,N/A,- science: 30
+Biological Sciences,biology,biology,biology,"biology
+(5)","paramedic
+astronaut",- science: 100,N/A,- science: 40
+Biological Sciences,biology,biology,"med school
+(4)
+stress = 60%",,,"- analysis: 65
+- technology: 25
+- science: 100",- science: 40,"- caution: 10
+- analysis: 15
+- technology: 20
+- science: 70"
+Biological Sciences,biology,biology,"med school
+(4)
+stress = 60%","general medical residency
+(3)
+min req
+stress = 70%","general practicioner
+astronaut",N/A,N/A,"- caution: 25
+- analysis: 10
+- communication: 15
+- uses 24 time blocks
+- earn $60,000/yr + FS raises
+"
+Biological Sciences,biology,biology,"med school
+(4)
+stress = 60%","surgical residency
+(5)
+min req
+stress = 70%","surgeon
+astronaut",N/A,N/A,"- caution: 30
+- stress tolerance: 20
+- technology: 5
+- uses 28 time blocks
+- earn $60,000/yr + FS raises"
+Biological Sciences,biology,biology,"chiropractic school
+(4)
+min req
+stress = 50%",,"chiropractor
+astronaut","- technology: 15
+- science: 50",N/A,"- caution: 35
+- technology: 13
+- science: 20"
+Biological Sciences,biology,biology,"dental school
+(4)
+min req
+stress = 50%",,"dentist
+astronaut","- technology: 15
+- science: 50",N/A,"- caution: 20
+- good with kids: 15
+- technology: 13
+- science: 20"
+Biological Sciences,biology,biology,"optometry school
+(4)
+min req
+stress = 50%",,"optometrist
+astronaut","- technology: 15
+- science: 50",N/A,"- caution: 20
+- technology: 13
+- science: 20"
+Biological Sciences,biology,biology,"physical therapy school
+(3)
+min req
+stress = 50%",,"physical therapist
+astronaut","- caution: 70
+- science: 50",N/A,"- patience: 10
+- caution: 20
+- communication: 10
+- science: 20"
+Biological Sciences,biology,biology,"genetics
+(3)",,geneticist,"- science: 50
+- analysis: 40
+- technology: 20",N/A,"- caution: 15
+- science: 20
+- technology: 18"
+Biological Sciences,biology,biology,"genetics
+(3)","genetics
+(4)",geneticist,"- science: 100
+- analysis: 100",N/A,"- science: 50
+- analysis: 10"
+Biological Sciences,biology,biology,"epidemiology
+(2)",,epidemiologist,"- science: 50
+- analysis: 50",N/A,"- caution: 20
+- science: 20"
+Biological Sciences,biology,biology,"epidemiology
+(2)","epidemiology
+(5)",epidemiologist,"- science: 100
+- analysis: 100",N/A,- science: 50
+Biological Sciences,biology,biology,"neurobiology
+(2)
+",,,"- science: 50
+- analysis: 50
+- technology: 20",N/A,"- caution: 5
+- science: 20
+- technology: 20"
+Biological Sciences,biology,biology,"neurobiology
+(2)
+","neurobiology
+(5)",neurobiologist,"- science: 100
+- analysis: 100
+- technology: 30",N/A,"- science: 50
+- technology: 10"

@@ -1,0 +1,20 @@
+,,college skills scale,,,
+1%-10%,11%-30%,,31%-50%,,51%-100%
+High School,Bachelors,,Masters,,PhD
+,,,,,
+,,,,,
+Raises,,,,,
+,"Small
+1%","Medium
+3%","Large
+5%",,
+"Slow
+3 yrs",SS,SM,SL,,
+"Medium
+2 yrs",MS,MM,ML,,
+"Fast
+1 yr",FS,FM,FL,,
+,,,,,
+,"Don’t get a raise first year that all of these traits are below threshold (second year, you are fired):",,,,
+,Organization < 25%,,,,
+,Communication < 25%,,,,

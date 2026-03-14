@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "enabled": true,
+  "name": "Documentation generator",
+  "description": "This hook can be triggered on demand to update documentation to match code changes.",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Generate comprehensive documentation for the current file:\n1. Extract function and class signatures\n2. Document parameters and return types\n3. Provide usage examples based on existing code\n4. Update the README.md with any new exports\n5. Ensure documentation follows project standards\n"
+  }
+}
