@@ -10,13 +10,650 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Placeholder model to verify Prisma is wired up correctly.
-// Full schema will be added in Task 2 (Database Schema and Migrations).
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
 model User {
   id        String   @id @default(cuid())
   username  String   @unique // format: firstname.lastname
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  players Player[]
+
   @@map("users")
+}
+
+// ─── Game Session ─────────────────────────────────────────────────────────────
+
+model GameSession {
+  id           String  @id @default(cuid())
+  code         String  @unique // 6-character join code
+  hostPlayerId String
+
+  theme       String  @default("default")
+  currentYear Int     @default(0)
+  status      String  @default("waiting") // 'waiting' | 'active' | 'ended'
+  endReason   String? // 'pitcher_failed' | 'all_deceased' | 'player_ended'
+
+  maxPlayers Int @default(8)
+
+  // Lemonade Pitcher (stored as JSON)
+  pitcherCurrentLemons        Int     @default(0)
+  pitcherYearlyGoal           Int     @default(0)
+  pitcherGraceYearUsed        Boolean @default(false)
+  pitcherContributionsByPlayer Json    @default("{}") // playerId -> total lemons
+  pitcherYearlyContributions  Json    @default("{}") // year -> lemons
+
+  // Inflation & Tax (stored as JSON arrays)
+  inflationRates Json @default("[]") // InflationRates[]
+  taxBrackets    Json @default("[]") // TaxBracket[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  players  Player[]
+  messages Message[]
+
+  @@map("game_sessions")
+}
+
+// ─── Player ───────────────────────────────────────────────────────────────────
+
+model Player {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+  gameSessionId String
+  gameSession   GameSession @relation(fields: [gameSessionId], references: [id])
+
+  name String
+  age  Int    @default(18)
+
+  // Financial
+  money             Float @default(0)
+  projectedIncome   Float @default(0)
+  retirementSavings Float @default(0)
+  collegeFund       Float @default(0)
+
+  // Attributes
+  health    Float @default(100)
+  maxHealth Float @default(100)
+  stress    Float @default(0)
+
+  // Skills (JSONB)
+  skills Json @default("{\"math\":0,\"science\":0,\"art\":0,\"music\":0,\"writing\":0,\"analysis\":0,\"homeRepair\":0,\"technology\":0}")
+
+  // Traits (JSONB)
+  traits Json @default("{\"bravery\":0,\"perseverance\":0,\"charisma\":0,\"compassion\":0,\"creativity\":0,\"organization\":0,\"patience\":0,\"caution\":0,\"sociability\":0,\"stressTolerance\":0,\"goodWithKids\":0,\"physicalAbility\":0,\"communication\":0}")
+
+  // Status
+  isAlive    Boolean @default(true)
+  isRetired  Boolean @default(false)
+  yearComplete Boolean @default(false)
+
+  // Chronic conditions & certifications
+  chronicConditions Json @default("[]") // string[]
+  certifications    Json @default("[]") // Certification[]
+
+  // Relationships
+  maritalStatus String  @default("single") // 'single' | 'married' | 'divorced'
+  spouse        Json?   // Spouse object (denormalized for performance)
+
+  // Parent contributions (set at init)
+  parentContributions Json @default("{}")
+
+  // Game progress
+  totalLemonsEarned     Int @default(0)
+  goodDeedCount         Int @default(0)
+  badDeedCount          Int @default(0)
+  cardsReceivedThisYear Int @default(0)
+
+  // Insurance
+  hasHealthInsurance Boolean @default(false)
+  healthInsuranceType String  @default("single") // 'single' | 'family'
+  hasHomeInsurance    Boolean @default(false)
+  autoInsuranceRate   Float   @default(0)
+
+  // Location
+  location String @default("city") // 'city' | 'suburb'
+
+  // Career progress (JSONB)
+  writingProgress Json? // WritingProgress
+  actingProgress  Json? // ActingProgress
+  musicProgress   Json? // MusicProgress
+
+  // Marriage compatibility
+  marriageCompatibility Json? // MarriageCompatibility
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  loans              Loan[]
+  children           Child[]
+  pets               Pet[]
+  employments        Employment[]
+  educations         Education[]
+  housingOwnerships  HousingOwnership[]
+  vehicleOwnerships  VehicleOwnership[]
+  retirementHistory  RetirementTransaction[]
+  actionHistory      ActionHistory[]
+  notifications      Notification[]
+  messages           Message[]
+  cardEvents         CardEvent[]
+  adoptionApplications AdoptionApplication[]
+
+  @@unique([userId, gameSessionId])
+  @@map("players")
+}
+
+// ─── Children & Pets ──────────────────────────────────────────────────────────
+
+model Child {
+  id       String @id @default(cuid())
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  age       Int     @default(0)
+  isAdopted Boolean @default(false)
+
+  // Grandchildren tracking
+  hasChildren   Boolean @default(false)
+  childrenCount Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@map("children")
+}
+
+model Pet {
+  id       String @id @default(cuid())
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  type          String  @default("small") // 'small' | 'large'
+  age           Int     @default(0)
+  deathAgeMin   Int
+  deathAgeMax   Int
+  isAlive       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@map("pets")
+}
+
+// ─── Adoption ─────────────────────────────────────────────────────────────────
+
+model AdoptionApplication {
+  id       String @id @default(cuid())
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  childAgeGroup  String // '0-2' | '3-9' | '10-17'
+  status         String @default("pending") // 'pending' | 'available' | 'completed' | 'cancelled'
+  appliedYear    Int
+  availableYear  Int?
+  completedYear  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("adoption_applications")
+}
+
+// ─── Financial ────────────────────────────────────────────────────────────────
+
+model Loan {
+  id       String @id @default(cuid())
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  principal      Float
+  currentBalance Float
+  interestRate   Float  @default(0.08)
+  minimumPayment Float  // 5% of balance
+  originAge      Int
+  isJoint        Boolean @default(false) // acquired during marriage
+  owner          String  @default("player") // 'player' | 'spouse'
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("loans")
+}
+
+model RetirementTransaction {
+  id       String @id @default(cuid())
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  year         Int
+  age          Int
+  type         String // 'contribution' | 'withdrawal' | 'interest' | 'penalty'
+  amount       Float
+  balanceAfter Float
+  reason       String?
+
+  createdAt DateTime @default(now())
+
+  @@map("retirement_transactions")
+}
+
+// ─── Employment ───────────────────────────────────────────────────────────────
+
+model Employment {
+  id       String @id @default(cuid())
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  jobId    String
+  job      Job    @relation(fields: [jobId], references: [id])
+
+  startAge         Int
+  currentSalary    Float
+  yearsOfService   Int     @default(0)
+  ptoRemaining        Int     @default(0)
+  unpaidTimeOffRemaining Int  @default(0)
+  isActive         Boolean @default(true)
+  isPartTime       Boolean @default(false)
+  isSeasonal       Boolean @default(false)
+  consecutiveMissedRaiseYears Int @default(0)
+  endAge           Int?
+  endReason        String? // 'quit' | 'fired_performance' | 'fired_health' | 'retired'
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("employments")
+}
+
+// ─── Education ────────────────────────────────────────────────────────────────
+
+model Education {
+  id        String           @id @default(cuid())
+  playerId  String
+  player    Player           @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  programId String
+  program   EducationProgram @relation(fields: [programId], references: [id])
+
+  isPartTime Boolean @default(false)
+  startAge   Int
+
+  // Credit progress (JSONB)
+  creditsCompleted Json @default("{\"generalEducation\":0,\"field\":0,\"major\":0}")
+
+  isActive              Boolean @default(true)
+  graduated             Boolean @default(false)
+  graduationAge         Int?
+  parentContributionUsed Float   @default(0)
+
+  // Scholarships received
+  scholarships Json @default("[]") // Scholarship[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("educations")
+}
+
+// ─── Housing ──────────────────────────────────────────────────────────────────
+
+model HousingOwnership {
+  id        String  @id @default(cuid())
+  playerId  String
+  player    Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  housingId String
+  housing   Housing @relation(fields: [housingId], references: [id])
+
+  startAge      Int
+  endAge        Int?
+  isRental      Boolean @default(true)
+  purchasePrice Float?
+  salePrice     Float?
+  totalRentPaid Float   @default(0)
+  yearsLived    Int     @default(0)
+
+  // Home improvements (JSONB)
+  improvements Json @default("[]") // HomeImprovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("housing_ownerships")
+}
+
+// ─── Transportation ───────────────────────────────────────────────────────────
+
+model VehicleOwnership {
+  id        String  @id @default(cuid())
+  playerId  String
+  player    Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id])
+
+  startAge             Int
+  endAge               Int?
+  purchasePrice        Float?
+  salePrice            Float?
+  wasParentGift        Boolean @default(false)
+  isSpouseVehicle      Boolean @default(false)
+  totalMaintenancePaid Float   @default(0)
+  totalInsurancePaid   Float   @default(0)
+  yearsOwned           Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("vehicle_ownerships")
+}
+
+// ─── Action History ───────────────────────────────────────────────────────────
+
+model ActionHistory {
+  id       String @id @default(cuid())
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  actionId String
+  action   Action @relation(fields: [actionId], references: [id])
+
+  year           Int
+  count          Int   @default(1)
+  totalCost      Float @default(0)
+  totalTimeBlocks Int  @default(0)
+  lemonsEarned   Int   @default(0)
+
+  @@unique([playerId, actionId, year])
+  @@map("action_history")
+}
+
+// ─── Card Events ──────────────────────────────────────────────────────────────
+
+model CardEvent {
+  id       String @id @default(cuid())
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  cardId   String
+  card     Card   @relation(fields: [cardId], references: [id])
+
+  year           Int
+  effectsApplied Json @default("{}")
+
+  // Good deed responses from other players
+  goodDeedResponses Json @default("[]")
+
+  createdAt DateTime @default(now())
+
+  @@map("card_events")
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+model Notification {
+  id       String @id @default(cuid())
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  type     String // 'info' | 'warning' | 'success' | 'error'
+  category String // 'year' | 'job' | 'education' | 'health' | 'family' | 'certification' | 'housing' | 'vehicle' | 'pitcher'
+
+  title   String
+  message String
+
+  persistent    Boolean @default(false)
+  dismissible   Boolean @default(true)
+  actionRequired Boolean @default(false)
+  actionUrl     String?
+
+  createdAt   DateTime  @default(now())
+  dismissedAt DateTime?
+
+  @@map("notifications")
+}
+
+// ─── Messaging ────────────────────────────────────────────────────────────────
+
+model Message {
+  id            String      @id @default(cuid())
+  gameSessionId String
+  gameSession   GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+  playerId      String?
+  player        Player?     @relation(fields: [playerId], references: [id], onDelete: SetNull)
+
+  playerName     String
+  content        String    @db.VarChar(500)
+  isSystemMessage Boolean  @default(false)
+
+  // Reactions stored as JSONB: { emoji: string, playerIds: string[] }[]
+  reactions Json @default("[]")
+
+  createdAt DateTime @default(now())
+
+  @@map("messages")
+}
+
+// ─── Marriage Compatibility ───────────────────────────────────────────────────
+
+model MarriageCompatibility {
+  id       String @id @default(cuid())
+  playerId String @unique
+
+  currentScore  Float @default(0)
+  yearlyScores  Json  @default("{}") // year -> score
+
+  debtStressHistory   Json @default("[]") // boolean[] last 2 years
+  familyActionHistory Json @default("[]") // number[] last 2 years
+
+  totalYearsMarried    Int   @default(0)
+  communicationGained  Float @default(0)
+  compassionGained     Float @default(0)
+  patienceGained       Float @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("marriage_compatibility")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATIC GAME DATA (seeded, read-only during gameplay)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+
+model Action {
+  id          String @id @default(cuid())
+  name        String @unique
+  category    String // 'mental-health' | 'physical-health' | 'social' | 'family' | 'entertainment' | 'outdoors' | 'animals' | 'education' | 'schoolwork' | 'skill-trait' | 'luxury' | 'home-auto' | 'community' | 'career' | 'other'
+  description String @default("")
+
+  // Requirements (JSONB)
+  requirements Json @default("{}")
+
+  // Costs
+  cost        Float  @default(0)
+  costFormula String @default("none") // 'none' | 'per_person' | 'per_time_block' | 'per_person_per_time_block'
+  seniorDiscount Boolean @default(false)
+
+  // Time
+  minTimeBlocks Int     @default(0)
+  maxTimeBlocks Int     @default(0)
+  requiresPTO   Boolean @default(false)
+
+  // Effects (JSONB)
+  effects Json @default("{}")
+
+  // Execution
+  executionType String @default("cart") // 'express' | 'cart' | 'both'
+  frequency     String @default("unlimited") // 'once_per_year' | 'multiple' | 'unlimited'
+
+  // Discounts (JSONB)
+  discounts Json @default("{}")
+
+  actionHistory ActionHistory[]
+
+  @@map("actions")
+}
+
+// ─── Jobs ─────────────────────────────────────────────────────────────────────
+
+model Job {
+  id    String @id @default(cuid())
+  title String @unique
+
+  // Requirements (JSONB)
+  requirements Json @default("{}")
+
+  // Compensation
+  baseSalary      Float
+  raiseSchedule   Json    @default("[]") // { years, percentage }[]
+  hasPension      Boolean @default(false)
+  pensionPercentage Float? 
+
+  // Time & Stress
+  timeBlocks    Int
+  stressLevel   Float @default(0)
+  ptoDays       Int   @default(0)
+  unpaidTimeOff Int?
+
+  // Employment type
+  fullTime  Boolean @default(true)
+  partTime  Boolean @default(false)
+  seasonal  Boolean @default(false)
+
+  // Benefits & Perks (JSONB)
+  benefits Json @default("[]")
+
+  // Annual skill/trait gains (JSONB)
+  annualGains Json @default("{}")
+
+  // Location
+  location String @default("both") // 'city' | 'suburb' | 'both'
+
+  // Ease of getting (1=easy, 5=hard)
+  easeOfGetting Int @default(3)
+
+  employments Employment[]
+
+  @@map("jobs")
+}
+
+// ─── Education Programs ───────────────────────────────────────────────────────
+
+model EducationProgram {
+  id   String @id @default(cuid())
+  name String
+  type String // 'associates' | 'bachelors' | 'masters' | 'doctorate' | 'certificate' | 'vocational'
+  field String
+
+  // Requirements (JSONB)
+  requirements Json @default("{}")
+
+  // Costs
+  tuitionFullTime Float
+
+  // Credits required (JSONB)
+  totalCredits Json @default("{\"generalEducation\":0,\"field\":0,\"major\":0}")
+
+  // Skill gains per year (JSONB)
+  skillGains Json @default("{\"automatic\":{},\"major\":{}}")
+
+  isStem      Boolean @default(false)
+  partTimeAllowed Boolean @default(true)
+  grantsOnGraduation Json @default("[]") // string[] e.g. ['CPR']
+
+  educations Education[]
+
+  @@unique([name, type])
+  @@map("education_programs")
+}
+
+// ─── Housing Catalog ──────────────────────────────────────────────────────────
+
+model Housing {
+  id   String @id @default(cuid())
+  name String @unique
+  type String // 'parent' | 'dorm' | 'apartment' | 'house'
+  location String // 'city' | 'suburb' | 'both'
+
+  // Costs
+  isRental          Boolean @default(true)
+  rentPerYear       Float?
+  purchasePrice     Float?
+  utilitiesBase     Float   @default(0)
+  utilitiesPerPerson Float  @default(0)
+  insurancePerYear  Float?
+
+  // Capacity
+  recommendedOccupancy Int
+  maxOccupancy         Int
+  maxKids              Int @default(-1) // -1 = no restriction, 0 = no children allowed
+  petLimitLarge        Int @default(0)
+  petLimitSmall        Int @default(0)
+
+  // Restrictions
+  ageLimit           Int?     // parent housing age limit
+  requiresEnrollment Boolean  @default(false) // dorm
+
+  // Improvements allowed
+  allowsRemodeling  Boolean @default(false)
+  allowsPool        Boolean @default(false)
+  allowsSolarPanels Boolean @default(false)
+
+  housingOwnerships HousingOwnership[]
+
+  @@map("housing")
+}
+
+// ─── Vehicle Catalog ──────────────────────────────────────────────────────────
+
+model Vehicle {
+  id   String @id @default(cuid())
+  name String
+  type String // 'bike' | 'public_transit' | 'car' | 'motorcycle'
+  fuelType String @default("none") // 'none' | 'gas' | 'electric' | 'hybrid'
+
+  // Age variant: 'new' | 'used_5yr' | 'used_10yr'
+  ageVariant String @default("new")
+
+  // Costs
+  purchasePrice   Float?
+  annualCost      Float? // public transit only
+  insuranceBase   Float  @default(0)
+  gasPerYear      Float  @default(0)
+  maintenanceBase Float  @default(0)
+
+  // Capacity
+  passengerCapacity Int @default(1)
+
+  // Restrictions
+  restrictedToArea Boolean @default(false) // bike can't travel between areas
+  canBeParentGift  Boolean @default(false)
+
+  vehicleOwnerships VehicleOwnership[]
+
+  @@unique([name, ageVariant])
+  @@map("vehicles")
+}
+
+// ─── Cards ────────────────────────────────────────────────────────────────────
+
+model Card {
+  id          String @id @default(cuid())
+  name        String
+  description String @default("")
+  type        String // 'good' | 'bad'
+  frequency   Int    // weight for random selection (1-5)
+
+  // Eligibility requirements (JSONB)
+  requirements Json @default("{}")
+
+  // Effects (JSONB)
+  effects Json @default("{}")
+
+  // Good deed
+  isGoodDeedOpportunity Boolean @default(false)
+  goodDeedOptions       Json    @default("[]") // { description, cost, lemonsReward, timeBlocks }[]
+
+  cardEvents CardEvent[]
+
+  @@map("cards")
 }

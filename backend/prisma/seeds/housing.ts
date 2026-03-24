@@ -1,0 +1,22 @@
+import { PrismaClient } from '@prisma/client';
+
+export async function seedHousing(prisma: PrismaClient) {
+  const housing = [
+    { name: "Parents' Place",     type: 'parent',    location: 'both',   isRental: true,  rentPerYear: 0,      utilitiesBase: 0,    utilitiesPerPerson: 0,   recommendedOccupancy: 1, maxOccupancy: 1,  maxKids: -1, petLimitLarge: 1, petLimitSmall: 3, insurancePerYear: 0,    allowsRemodeling: false, allowsPool: false, allowsSolarPanels: false },
+    { name: 'College Dorm',       type: 'dorm',      location: 'city',   isRental: true,  rentPerYear: 12000,  utilitiesBase: 0,    utilitiesPerPerson: 0,   recommendedOccupancy: 1, maxOccupancy: 1,  maxKids: 0,  petLimitLarge: 0, petLimitSmall: 0, insurancePerYear: 0,    requiresEnrollment: true, allowsRemodeling: false, allowsPool: false, allowsSolarPanels: false },
+    { name: 'Room for Rent',      type: 'apartment', location: 'suburb', isRental: true,  rentPerYear: 10000,  utilitiesBase: 500,  utilitiesPerPerson: 0,   recommendedOccupancy: 1, maxOccupancy: 1,  maxKids: 0,  petLimitLarge: 0, petLimitSmall: 0, insurancePerYear: 0,    allowsRemodeling: false, allowsPool: false, allowsSolarPanels: false },
+    { name: 'Studio',             type: 'apartment', location: 'city',   isRental: true,  rentPerYear: 15000,  utilitiesBase: 1500, utilitiesPerPerson: 0,   recommendedOccupancy: 1, maxOccupancy: 1,  maxKids: -1, petLimitLarge: 1, petLimitSmall: 3, insurancePerYear: 100,  allowsRemodeling: false, allowsPool: false, allowsSolarPanels: false },
+    { name: '1-Bedroom',          type: 'apartment', location: 'city',   isRental: true,  rentPerYear: 18000,  utilitiesBase: 1350, utilitiesPerPerson: 150, recommendedOccupancy: 2, maxOccupancy: 2,  maxKids: 0,  petLimitLarge: 2, petLimitSmall: 3, insurancePerYear: 150,  allowsRemodeling: false, allowsPool: false, allowsSolarPanels: false },
+    { name: '2-Bedroom (City)',   type: 'apartment', location: 'city',   isRental: true,  rentPerYear: 21000,  utilitiesBase: 1350, utilitiesPerPerson: 150, recommendedOccupancy: 3, maxOccupancy: 4,  maxKids: 2,  petLimitLarge: 2, petLimitSmall: 6, insurancePerYear: 200,  allowsRemodeling: false, allowsPool: false, allowsSolarPanels: false },
+    { name: '2-Bedroom (Suburb)', type: 'house',     location: 'suburb', isRental: false, purchasePrice: 300000, utilitiesBase: 1350, utilitiesPerPerson: 150, recommendedOccupancy: 3, maxOccupancy: 4,  maxKids: 2,  petLimitLarge: 2, petLimitSmall: 6, insurancePerYear: 800,  allowsRemodeling: true,  allowsPool: true,  allowsSolarPanels: true },
+    { name: '3-Bedroom (City)',   type: 'apartment', location: 'city',   isRental: true,  rentPerYear: 42000,  utilitiesBase: 1350, utilitiesPerPerson: 150, recommendedOccupancy: 4, maxOccupancy: 6,  maxKids: 4,  petLimitLarge: 2, petLimitSmall: 6, insurancePerYear: 250,  allowsRemodeling: false, allowsPool: false, allowsSolarPanels: false },
+    { name: '3-Bedroom (Suburb)', type: 'house',     location: 'suburb', isRental: false, purchasePrice: 350000, utilitiesBase: 1350, utilitiesPerPerson: 150, recommendedOccupancy: 4, maxOccupancy: 6,  maxKids: 4,  petLimitLarge: 3, petLimitSmall: 6, insurancePerYear: 1200, allowsRemodeling: true,  allowsPool: true,  allowsSolarPanels: true },
+    { name: '4-Bedroom (Suburb)', type: 'house',     location: 'suburb', isRental: false, purchasePrice: 375000, utilitiesBase: 1350, utilitiesPerPerson: 150, recommendedOccupancy: 5, maxOccupancy: 8,  maxKids: 6,  petLimitLarge: 3, petLimitSmall: 6, insurancePerYear: 1600, allowsRemodeling: true,  allowsPool: true,  allowsSolarPanels: true },
+    { name: '5-Bedroom (Suburb)', type: 'house',     location: 'suburb', isRental: false, purchasePrice: 400000, utilitiesBase: 1350, utilitiesPerPerson: 150, recommendedOccupancy: 6, maxOccupancy: 10, maxKids: 8,  petLimitLarge: 4, petLimitSmall: 6, insurancePerYear: 2000, allowsRemodeling: true,  allowsPool: true,  allowsSolarPanels: true },
+    { name: '6-Bedroom (Suburb)', type: 'house',     location: 'suburb', isRental: false, purchasePrice: 425000, utilitiesBase: 1350, utilitiesPerPerson: 150, recommendedOccupancy: 7, maxOccupancy: 12, maxKids: 10, petLimitLarge: 4, petLimitSmall: 9, insurancePerYear: 2400, allowsRemodeling: true,  allowsPool: true,  allowsSolarPanels: true },
+  ];
+  for (const h of housing) {
+    await prisma.housing.upsert({ where: { name: h.name }, update: h, create: h });
+  }
+  console.log(`  ✓ ${housing.length} housing options`);
+}

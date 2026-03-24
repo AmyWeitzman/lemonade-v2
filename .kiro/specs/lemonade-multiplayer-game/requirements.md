@@ -305,7 +305,7 @@ Lemonade is a multiplayer web-based life simulation game where players navigate 
 1. THE Game_System SHALL provide a "Find Love" action for single players
 2. WHEN using Find Love action, THE Game_System SHALL require player to have >= 50 communication
 3. WHEN using Find Love action, THE Game_System SHALL require player to have >= 50 compassion
-4. THE Game_System SHALL allow players to input desired spouse characteristics including money, salary, vehicle type, housing type, PTO, and education interest (major)
+4. THE Game_System SHALL allow players to input desired spouse characteristics including money, salary, vehicle type, housing type, and education interest (major)
 5. THE Game_System SHALL generate 3 spouse candidates that are the same age as the player
 6. WHEN generating candidates, THE Game_System SHALL ensure each candidate matches at least one player-specified criteria
 7. THE Game_System SHALL exclude actor, author, ride-share driver, and musician jobs from spouse candidates
