@@ -23,7 +23,7 @@
   - Implement `GET /api/auth/me` and `POST /api/auth/refresh` endpoints
   - _Requirements: Req 8.1 (design section)_
 
-- [ ] 4. Game Session Management API
+- [x] 4. Game Session Management API
   - Implement `POST /api/sessions` — create game with unique 6-character code, creator display name, theme, max players
   - Implement `GET /api/sessions` and `GET /api/sessions/:id`
   - Implement `POST /api/sessions/:id/join` — validate code, capacity, and waiting status; create Player record
@@ -31,7 +31,7 @@
   - Implement `DELETE /api/sessions/:id` (host only)
   - _Requirements: Req 1_
 
-- [ ] 5. WebSocket Server Setup
+- [x] 5. WebSocket Server Setup
   - Configure Socket.IO server with JWT authentication on connection
   - Implement room management: join/leave game session rooms
   - Define and wire all server→client events: `playerJoined`, `playerLeft`, `yearStarted`, `lemonAdded`, `pitcherUpdated`, `cardDrawn`, `goodDeedOpportunity`, `notification`, `playerStateChanged`, `messageReceived`, `gameEnded`, `messageReactionUpdated`, `playerDied`

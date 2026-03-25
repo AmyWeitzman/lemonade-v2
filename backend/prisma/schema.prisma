@@ -18,7 +18,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  players Player[]
+  players      Player[]
+  hiddenSessions SessionHide[]
 
   @@map("users")
 }
@@ -51,8 +52,9 @@ model GameSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  players  Player[]
-  messages Message[]
+  players     Player[]
+  messages    Message[]
+  hiddenByUsers SessionHide[]
 
   @@map("game_sessions")
 }
@@ -428,6 +430,21 @@ model Message {
   createdAt DateTime @default(now())
 
   @@map("messages")
+}
+
+// ─── Session Hide ─────────────────────────────────────────────────────────────
+
+model SessionHide {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameSessionId String
+  gameSession   GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, gameSessionId])
+  @@map("session_hides")
 }
 
 // ─── Marriage Compatibility ───────────────────────────────────────────────────

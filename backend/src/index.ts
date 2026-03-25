@@ -1,24 +1,17 @@
 import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import authRouter from './routes/auth';
+import sessionsRouter from './routes/sessions';
+import { initSocket, getIO } from './socket';
 
 const PORT = process.env.PORT ?? 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
 
 const app = express();
 const httpServer = createServer(app);
-
-// Socket.IO
-const io = new Server(httpServer, {
-  cors: {
-    origin: FRONTEND_URL,
-    methods: ['GET', 'POST'],
-  },
-});
 
 // Middleware
 app.use(helmet());
@@ -36,18 +29,13 @@ app.get('/api', (_req, res) => {
 });
 
 app.use('/api/auth', authRouter);
+app.use('/api/sessions', sessionsRouter);
 
-// Socket.IO connection handler — full implementation in Task 5
-io.on('connection', (socket) => {
-  console.log(`[socket] client connected: ${socket.id}`);
-
-  socket.on('disconnect', () => {
-    console.log(`[socket] client disconnected: ${socket.id}`);
-  });
-});
+// Socket.IO — full typed setup with JWT auth and room management
+const io = initSocket(httpServer);
 
 httpServer.listen(PORT, () => {
   console.log(`🍋 Lemonade backend running on http://localhost:${PORT}`);
 });
 
-export { app, io };
+export { app, io, getIO };
