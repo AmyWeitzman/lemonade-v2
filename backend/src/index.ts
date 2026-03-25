@@ -4,6 +4,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
+import authRouter from './routes/auth';
 
 const PORT = process.env.PORT ?? 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
@@ -29,10 +30,12 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Placeholder API router — routes added in subsequent tasks
+// API routes
 app.get('/api', (_req, res) => {
   res.json({ message: 'Lemonade API 🍋' });
 });
+
+app.use('/api/auth', authRouter);
 
 // Socket.IO connection handler — full implementation in Task 5
 io.on('connection', (socket) => {

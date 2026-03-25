@@ -15,7 +15,7 @@
   - Seed static game data tables: actions, jobs, education programs, housing catalog, vehicle catalog, cards
   - _Requirements: Req 1, Req 2, Req 49_
 
-- [-] 3. Authentication System
+- [x] 3. Authentication System
   - Implement `POST /api/auth/login` endpoint accepting `firstname.lastname` username format
   - Create or retrieve User record on login; generate JWT (7-day expiry)
   - Implement `authorize` middleware to validate JWT on protected routes
