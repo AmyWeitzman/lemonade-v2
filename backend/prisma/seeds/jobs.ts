@@ -747,7 +747,7 @@ export async function seedJobs(prisma: PrismaClient) {
       raiseSchedule: j.raiseSchedule as object,
       timeBlocks: j.timeBlocks as number,
       stressLevel: j.stressLevel as number,
-      ptoDays: (j as any).ptoTimeBlocks as number,
+      ptoTimeBlocks: (j as any).ptoTimeBlocks as number,
       fullTime: j.fullTime as boolean,
       partTime: j.partTime as boolean,
       seasonal: j.seasonal as boolean,

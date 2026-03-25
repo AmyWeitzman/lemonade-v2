@@ -9,13 +9,13 @@
   - Configure environment variables via `.env` files
   - _Requirements: Req 49, Req 53_
 
-- [ ] 2. Database Schema and Migrations
+- [x] 2. Database Schema and Migrations
   - Create Prisma schema for all core entities: User, GameSession, Player, Child, Pet, Loan, Employment, Education, HousingOwnership, VehicleOwnership, AdoptionApplication, Message, Notification, RetirementTransaction, ActionHistory, MarriageCompatibility, WritingProgress, ActingProgress, MusicProgress
   - Write and run initial migrations
   - Seed static game data tables: actions, jobs, education programs, housing catalog, vehicle catalog, cards
   - _Requirements: Req 1, Req 2, Req 49_
 
-- [ ] 3. Authentication System
+- [-] 3. Authentication System
   - Implement `POST /api/auth/login` endpoint accepting `firstname.lastname` username format
   - Create or retrieve User record on login; generate JWT (7-day expiry)
   - Implement `authorize` middleware to validate JWT on protected routes

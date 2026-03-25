@@ -462,7 +462,7 @@ model MarriageCompatibility {
 model Action {
   id          String @id @default(cuid())
   name        String @unique
-  category    String // 'mental-health' | 'physical-health' | 'social' | 'family' | 'entertainment' | 'outdoors' | 'animals' | 'education' | 'schoolwork' | 'skill-trait' | 'luxury' | 'home-auto' | 'community' | 'career' | 'other'
+  category    Json   // string[]
   description String @default("")
 
   // Requirements (JSONB)
@@ -470,13 +470,18 @@ model Action {
 
   // Costs
   cost        Float  @default(0)
-  costFormula String @default("none") // 'none' | 'per_person' | 'per_time_block' | 'per_person_per_time_block'
+  costFormula String @default("none") // 'none' | 'per_person' | 'per_time_block' | 'per_person_per_time_block' | 'base_plus_per_person_per_time_block' | 'by_compatibility_score' | 'by_childcare_plan'
+  baseCost    Float?
   seniorDiscount Boolean @default(false)
 
   // Time
-  minTimeBlocks Int     @default(0)
-  maxTimeBlocks Int     @default(0)
-  requiresPTO   Boolean @default(false)
+  minTimeBlocks      Int  @default(0)
+  maxTimeBlocks      Int?
+  timeBlockIncrement Int?
+  requiresPTO        Boolean @default(false)
+
+  // User input (JSONB) — for actions requiring player-entered values (amounts, dropdowns)
+  userInput Json?
 
   // Effects (JSONB)
   effects Json @default("{}")
@@ -511,7 +516,7 @@ model Job {
   // Time & Stress
   timeBlocks    Int
   stressLevel   Float @default(0)
-  ptoDays       Int   @default(0)
+  ptoTimeBlocks Int   @default(0)
   unpaidTimeOff Int?
 
   // Employment type
@@ -547,8 +552,12 @@ model EducationProgram {
   // Requirements (JSONB)
   requirements Json @default("{}")
 
+  // Graduation requirements (JSONB)
+  graduationRequirements Json @default("{}")
+
   // Costs
-  tuitionFullTime Float
+  tuitionFullTime  Float
+  tuitionPartTime  Float?
 
   // Credits required (JSONB)
   totalCredits Json @default("{\"generalEducation\":0,\"field\":0,\"major\":0}")
