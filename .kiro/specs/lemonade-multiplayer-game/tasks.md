@@ -41,13 +41,13 @@
 
 ## Phase 2: Core Game Engine
 
-- [ ] 6. Player Profile Initialization
+- [x] 6. Player Profile Initialization
   - Implement `POST /api/players/:id/initialize` — roll traits (bell curve), skills (bell/right-skewed), parent contributions (d10), starting money (savings + parent wealth + organization modifier), chronic conditions (20% chance)
   - Implement trait/skill adjustment UI flow: allow up to 50% total trait adjustment (max 10%/trait) and 10% total skill adjustment (max 2%/skill)
   - Display job and college requirements during adjustment so players can make informed choices
   - _Requirements: Req 2_
 
-- [ ] 7. Year Cycle Engine
+- [x] 7. Year Cycle Engine
   - Implement `startNewYear(sessionId)` — increment age, apply aging health loss, reset stress, process job raises, apply job skill/trait gains, age children and pets, roll for grandchildren, apply inflation, update tax brackets every 5 years, reset year flags, send birthday notifications
   - Implement `POST /api/year/complete` — validate expenses paid, mark player year complete, trigger `startNewYear` when all players done
   - Implement `GET /api/year/status` — return completion status per player

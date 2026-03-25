@@ -89,9 +89,10 @@ model Player {
   traits Json @default("{\"bravery\":0,\"perseverance\":0,\"charisma\":0,\"compassion\":0,\"creativity\":0,\"organization\":0,\"patience\":0,\"caution\":0,\"sociability\":0,\"stressTolerance\":0,\"goodWithKids\":0,\"physicalAbility\":0,\"communication\":0}")
 
   // Status
-  isAlive    Boolean @default(true)
-  isRetired  Boolean @default(false)
-  yearComplete Boolean @default(false)
+  isAlive        Boolean @default(true)
+  isRetired      Boolean @default(false)
+  isInitialized  Boolean @default(false)
+  yearComplete   Boolean @default(false)
 
   // Chronic conditions & certifications
   chronicConditions Json @default("[]") // string[]

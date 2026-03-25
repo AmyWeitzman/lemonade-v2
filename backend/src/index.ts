@@ -5,6 +5,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import authRouter from './routes/auth';
 import sessionsRouter from './routes/sessions';
+import playersRouter from './routes/players';
+import yearRouter from './routes/year';
 import { initSocket, getIO } from './socket';
 
 const PORT = process.env.PORT ?? 3001;
@@ -30,6 +32,8 @@ app.get('/api', (_req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/sessions', sessionsRouter);
+app.use('/api/players', playersRouter);
+app.use('/api/year', yearRouter);
 
 // Socket.IO — full typed setup with JWT auth and room management
 const io = initSocket(httpServer);
