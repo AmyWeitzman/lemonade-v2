@@ -83,7 +83,7 @@
   - Implement pet death rolls — 50% chance per pet in death age range
   - _Requirements: Req 9, Req 55_
 
-- [-] 12. Inflation Engine
+- [x] 12. Inflation Engine
   - Implement `generateInflationRates()` — random rates within ranges: housing 4-7%, salary 2-5%, auto insurance 2-5%, home insurance 7-9%, other 0.1-0.3%
   - Implement `applyInflation(player, session)` — apply to housing rent/value, salaries, vehicle insurance, action costs
   - Update tax brackets every 5 years (+$15,000 per bracket threshold)
@@ -92,7 +92,7 @@
 
 ## Phase 3: Game Systems
 
-- [ ] 13. Action System
+- [-] 13. Action System
   - Implement `GET /api/actions` with filters (category, stress impact, health impact, cost, time blocks, eligibility, location, favorites, good deed, senior discount, PTO required) and sort (lemons/TB, lemons/$, cost/TB, min cost)
   - Implement `GET /api/actions/search?q=term` — search by name/description
   - Implement eligibility checker — validate skills, traits, health, certifications, age, enrollment, location, other requirements

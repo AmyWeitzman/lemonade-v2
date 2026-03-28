@@ -6,19 +6,16 @@ import type {
   SocketData,
 } from '../socket/events';
 import { prisma } from './prisma';
+import {
+  generateInflationRates,
+  applyInflation,
+  applyGlobalCatalogInflation,
+  type InflationRates,
+} from './inflation';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface InflationRates {
-  year: number;
-  housing: number;
-  salary: number;
-  autoInsurance: number;
-  homeInsurance: number;
-  other: number;
-}
 
 interface TaxBracket {
   minIncome: number;
@@ -28,10 +25,6 @@ interface TaxBracket {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function randomInRange(min: number, max: number): number {
-  return Math.random() * (max - min) + min;
-}
 
 function agingHealthLoss(age: number): number {
   if (age >= 80) return 5;
@@ -84,19 +77,6 @@ export async function sendNotification(
       actionRequired: saved.actionRequired,
     });
   }
-}
-
-// ─── generateInflationRates ───────────────────────────────────────────────────
-
-export function generateInflationRates(year?: number): InflationRates {
-  return {
-    year: year ?? 0,
-    housing: randomInRange(0.04, 0.07),
-    salary: randomInRange(0.02, 0.05),
-    autoInsurance: randomInRange(0.02, 0.05),
-    homeInsurance: randomInRange(0.07, 0.09),
-    other: randomInRange(0.001, 0.003),
-  };
 }
 
 // ─── checkAdoptionAvailability ────────────────────────────────────────────────
@@ -165,7 +145,12 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     },
   });
 
-  // 3. Process each player
+  // 3. Generate inflation rates once for this year (same rates apply to all players)
+  const currentInflationRates = (session.inflationRates as unknown) as InflationRates[];
+  const newRates = generateInflationRates(session.currentYear + 1);
+  const updatedInflationRates = [...currentInflationRates, newRates];
+
+  // 4. Process each player
   for (const player of players) {
     const traits = player.traits as Record<string, number>;
     const skills = player.skills as Record<string, number>;
@@ -348,7 +333,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     );
 
     // Persist all player updates
-    await prisma.$transaction(async (tx: typeof prisma) => {
+    await prisma.$transaction(async (tx) => {
       // Update player
       await tx.player.update({
         where: { id: player.id },
@@ -391,13 +376,14 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     });
   }
 
-  // 3. Apply inflation — generate new rates and append to session's inflationRates array
-  const currentInflationRates = session.inflationRates as InflationRates[];
-  const newRates = generateInflationRates(session.currentYear + 1);
-  const updatedInflationRates = [...currentInflationRates, newRates];
+  // 5. Apply inflation — catalog-wide first, then per-player salaries
+  await applyGlobalCatalogInflation(newRates);
+  for (const player of players) {
+    await applyInflation(player.id, newRates);
+  }
 
-  // 4. Update tax brackets every 5 years
-  let taxBrackets = session.taxBrackets as TaxBracket[];
+  // 6. Update tax brackets every 5 years
+  let taxBrackets = (session.taxBrackets as unknown) as TaxBracket[];
   const nextYear = session.currentYear + 1;
   if (nextYear % 5 === 0 && taxBrackets.length > 0) {
     taxBrackets = taxBrackets.map((bracket, index) => ({
@@ -407,20 +393,20 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     }));
   }
 
-  // 5. Check adoption availability
+  // 7. Check adoption availability
   await checkAdoptionAvailability(sessionId, io);
 
-  // 6. Increment session.currentYear + update inflation/tax
+  // 8. Increment session.currentYear + update inflation/tax
   await prisma.gameSession.update({
     where: { id: sessionId },
     data: {
       currentYear: nextYear,
-      inflationRates: updatedInflationRates,
-      taxBrackets,
+      inflationRates: updatedInflationRates as any,
+      taxBrackets: taxBrackets as any,
     },
   });
 
-  // 7. Recalculate pitcher yearly goal based on new player ages
+  // 9. Recalculate pitcher yearly goal based on new player ages
   const updatedPlayers = await prisma.player.findMany({
     where: { gameSessionId: sessionId, isAlive: true },
     select: { id: true, age: true, health: true, maxHealth: true, stress: true, isAlive: true, isRetired: true, yearComplete: true, totalLemonsEarned: true, money: true },
@@ -432,7 +418,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     data: { pitcherYearlyGoal: newGoal },
   });
 
-  // 8. Broadcast yearStarted event
+  // 10. Broadcast yearStarted event
   const playerAges: Record<string, number> = {};
   for (const p of updatedPlayers) {
     playerAges[p.id] = p.age;
@@ -444,7 +430,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     playerAges,
   });
 
-  // 9. Broadcast playerStateChanged for each player
+  // 11. Broadcast playerStateChanged for each player
   for (const p of updatedPlayers) {
     io.to(`game:${sessionId}`).emit('playerStateChanged', {
       playerId: p.id,
