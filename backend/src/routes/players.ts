@@ -40,7 +40,7 @@ router.post('/:id/initialize', authorize, async (req: Request, res: Response): P
       return;
     }
 
-    if (player.isInitialized) {
+    if ((player as unknown as Record<string, unknown>)['isInitialized']) {
       res.status(400).json({ error: 'Player has already been initialized' });
       return;
     }
@@ -74,18 +74,19 @@ router.post('/:id/initialize', authorize, async (req: Request, res: Response): P
     }
 
     // Update player and optionally create vehicle ownership in a transaction
-    const updatedPlayer = await prisma.$transaction(async (tx: typeof prisma) => {
+    const updatedPlayer = await prisma.$transaction(async (tx) => {
       const updated = await tx.player.update({
         where: { id },
         data: {
           traits,
           skills,
-          parentContributions,
+          parentContributions: parentContributions as unknown as Record<string, unknown>,
           money,
           collegeFund: parentContributions.collegeFund,
           chronicConditions,
-          isInitialized: true,
-        },
+          // isInitialized added after last Prisma client generation — cast needed
+          ...({ isInitialized: true } as Record<string, unknown>),
+        } as Parameters<typeof tx.player.update>[0]['data'],
       });
 
       if (vehicleOwnershipData) {
@@ -139,7 +140,7 @@ router.patch('/:id/adjust', authorize, async (req: Request, res: Response): Prom
       return;
     }
 
-    if (!player.isInitialized) {
+    if (!(player as unknown as Record<string, unknown>)['isInitialized']) {
       res.status(400).json({ error: 'Player has not been initialized yet' });
       return;
     }

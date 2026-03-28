@@ -8,6 +8,7 @@ import sessionsRouter from './routes/sessions';
 import playersRouter from './routes/players';
 import yearRouter from './routes/year';
 import timeblocksRouter from './routes/timeblocks';
+import actionsRouter from './routes/actions';
 import { initSocket, getIO } from './socket';
 
 const PORT = process.env.PORT ?? 3001;
@@ -36,6 +37,7 @@ app.use('/api/sessions', sessionsRouter);
 app.use('/api/players', playersRouter);
 app.use('/api/players', timeblocksRouter);
 app.use('/api/year', yearRouter);
+app.use('/api/actions', actionsRouter);
 
 // Socket.IO — full typed setup with JWT auth and room management
 const io = initSocket(httpServer);

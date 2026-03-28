@@ -92,7 +92,7 @@
 
 ## Phase 3: Game Systems
 
-- [-] 13. Action System
+- [x] 13. Action System
   - Implement `GET /api/actions` with filters (category, stress impact, health impact, cost, time blocks, eligibility, location, favorites, good deed, senior discount, PTO required) and sort (lemons/TB, lemons/$, cost/TB, min cost)
   - Implement `GET /api/actions/search?q=term` — search by name/description
   - Implement eligibility checker — validate skills, traits, health, certifications, age, enrollment, location, other requirements
