@@ -152,7 +152,7 @@
   - Implement college fund contributions (1 lemon per 1% of money contributed)
   - _Requirements: Req 6, Req 18, Req 28, Req 29, Req 30, Req 37, Req 38_
 
-- [ ] 19. Relationship and Family System
+- [x] 19. Relationship and Family System
   - Implement `POST /api/relationships/marry` — execute marriage: combine finances, add spouse loans, initialize compatibility tracking, charge wedding cost (minus parent contribution for first marriage)
   - Implement annual marriage compatibility calculation — score based on debt stress history, current stress, family actions, compassion, patience, stress tolerance, communication; grant 1%/year to communication/compassion/patience (max 20% total)
   - Implement `POST /api/relationships/divorce` — finalize next year: split assets using formula, keep all children, vehicle choice, +10% stress

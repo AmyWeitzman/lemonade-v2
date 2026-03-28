@@ -17,6 +17,11 @@ import {
   checkGraduationRequirements,
   type EduProgramRow,
 } from './education';
+import {
+  calculateMarriageCompatibility,
+  applyMarriageTraitGains,
+  type MarriageCompatibilityRecord,
+} from './relationships';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -402,12 +407,109 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
               hasChildren: true,
             },
           });
+          await sendNotification(
+            player.id,
+            {
+              type: 'success',
+              category: 'family',
+              title: 'You Have a Grandchild!',
+              message: 'Congratulations! One of your children has welcomed a new baby.',
+            },
+            io,
+          );
         }
       }
     }
 
-    // i. Reset year flags
-    // j. Send birthday notification
+    // i. Annual marriage compatibility + trait gains (married players only)
+    if (player.maritalStatus === 'married') {
+      const compat = await prisma.marriageCompatibility.findUnique({
+        where: { playerId: player.id },
+      });
+
+      if (compat) {
+        const debtStressHistory = (compat.debtStressHistory as boolean[]) ?? [];
+        const familyActionHistory = (compat.familyActionHistory as number[]) ?? [];
+
+        // Count family actions done this year from action history
+        const familyActionsThisYear = await prisma.actionHistory.findMany({
+          where: {
+            playerId: player.id,
+            year: session.currentYear,
+            action: { category: { array_contains: 'family' } },
+          },
+        });
+        const familyActionCount = familyActionsThisYear.reduce((sum, ah) => sum + ah.count, 0);
+
+        // Determine if player had debt stress this year (any outstanding loans)
+        const loans = await prisma.loan.findMany({ where: { playerId: player.id } });
+        const hadDebtStress = loans.length > 0 && loans.some((l) => l.currentBalance > 0);
+
+        // Update rolling histories (keep last 2 years)
+        const newDebtStressHistory = [...debtStressHistory, hadDebtStress].slice(-2);
+        const newFamilyActionHistory = [...familyActionHistory, familyActionCount].slice(-2);
+
+        const hasKidsUnder18 = player.children.some((c) => c.age < 18);
+
+        const compatScore = calculateMarriageCompatibility({
+          year: session.currentYear,
+          debtStressHistory: newDebtStressHistory,
+          familyActionHistory: newFamilyActionHistory,
+          hasKidsUnder18,
+          currentStress: newStress,
+          compassion: newTraits.compassion ?? 0,
+          patience: newTraits.patience ?? 0,
+          stressTolerance: newTraits.stressTolerance ?? 0,
+          communication: newTraits.communication ?? 0,
+        });
+
+        const yearlyScores = (compat.yearlyScores as Record<number, number>) ?? {};
+        yearlyScores[session.currentYear] = compatScore;
+
+        // Apply annual trait gains from marriage
+        const compatRecord: MarriageCompatibilityRecord = {
+          currentScore: compatScore,
+          yearlyScores,
+          debtStressHistory: newDebtStressHistory,
+          familyActionHistory: newFamilyActionHistory,
+          totalYearsMarried: compat.totalYearsMarried,
+          communicationGained: compat.communicationGained,
+          compassionGained: compat.compassionGained,
+          patienceGained: compat.patienceGained,
+        };
+
+        const traitGainResult = applyMarriageTraitGains(
+          {
+            communication: newTraits.communication ?? 0,
+            compassion: newTraits.compassion ?? 0,
+            patience: newTraits.patience ?? 0,
+          },
+          compatRecord,
+        );
+
+        // Apply trait gains back to newTraits
+        newTraits.communication = traitGainResult.communication;
+        newTraits.compassion = traitGainResult.compassion;
+        newTraits.patience = traitGainResult.patience;
+
+        // Persist compatibility record
+        await prisma.marriageCompatibility.update({
+          where: { playerId: player.id },
+          data: {
+            currentScore: traitGainResult.updatedCompat.currentScore,
+            yearlyScores: traitGainResult.updatedCompat.yearlyScores as any,
+            debtStressHistory: traitGainResult.updatedCompat.debtStressHistory as any,
+            familyActionHistory: traitGainResult.updatedCompat.familyActionHistory as any,
+            totalYearsMarried: traitGainResult.updatedCompat.totalYearsMarried,
+            communicationGained: traitGainResult.updatedCompat.communicationGained,
+            compassionGained: traitGainResult.updatedCompat.compassionGained,
+            patienceGained: traitGainResult.updatedCompat.patienceGained,
+          },
+        });
+      }
+    }
+
+    // k. Send birthday notification
     await sendNotification(
       player.id,
       {
