@@ -168,7 +168,7 @@
   - Charge 2 time blocks + 1 lemon if no candidate selected; 6 time blocks + 3 lemons if married
   - _Requirements: Req 14A_
 
-- [ ] 21. Pet System
+- [x] 21. Pet System
   - Implement `POST /api/pets/adopt` — validate housing pet limits, charge adoption fee by size
   - Implement `POST /api/pets/:id/release`
   - Apply annual pet expenses: food ($300 small/$500 large), vet fees ($75 small/$1000 large); waive vet fees for veterinarian job

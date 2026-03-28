@@ -22,6 +22,7 @@ import {
   applyMarriageTraitGains,
   type MarriageCompatibilityRecord,
 } from './relationships';
+import { calculatePetLemons } from './pets';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -389,6 +390,34 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
         }
       }
       petUpdates.push({ id: pet.id, age: newPetAge, isAlive });
+    }
+
+    // Grant annual lemons for pet ownership (2 lemons per alive pet after death rolls)
+    const alivePetsAfterRolls = petUpdates.filter((p) => p.isAlive).length;
+    const petLemons = calculatePetLemons(alivePetsAfterRolls);
+
+    if (petLemons > 0) {
+      const sessionForPitcher = await prisma.gameSession.findUnique({
+        where: { id: sessionId },
+        select: { pitcherCurrentLemons: true, pitcherContributionsByPlayer: true },
+      });
+      if (sessionForPitcher) {
+        const contributions = (sessionForPitcher.pitcherContributionsByPlayer ?? {}) as Record<string, number>;
+        contributions[player.id] = (contributions[player.id] ?? 0) + petLemons;
+        await prisma.$transaction([
+          prisma.player.update({
+            where: { id: player.id },
+            data: { totalLemonsEarned: { increment: petLemons } },
+          }),
+          prisma.gameSession.update({
+            where: { id: sessionId },
+            data: {
+              pitcherCurrentLemons: { increment: petLemons },
+              pitcherContributionsByPlayer: contributions,
+            },
+          }),
+        ]);
+      }
     }
 
     // h. Roll for grandchildren (children aged 25-40)
