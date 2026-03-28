@@ -7,6 +7,7 @@ import authRouter from './routes/auth';
 import sessionsRouter from './routes/sessions';
 import playersRouter from './routes/players';
 import yearRouter from './routes/year';
+import timeblocksRouter from './routes/timeblocks';
 import { initSocket, getIO } from './socket';
 
 const PORT = process.env.PORT ?? 3001;
@@ -33,6 +34,7 @@ app.get('/api', (_req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/players', playersRouter);
+app.use('/api/players', timeblocksRouter);
 app.use('/api/year', yearRouter);
 
 // Socket.IO — full typed setup with JWT auth and room management

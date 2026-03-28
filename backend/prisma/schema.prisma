@@ -117,6 +117,9 @@ model Player {
   hasHomeInsurance    Boolean @default(false)
   autoInsuranceRate   Float   @default(0)
 
+  // Childcare
+  childcarePlan String @default("none") // 'year_ft' | 'year_pt' | 'year_pt_summer_ft' | 'summer_ft' | 'summer_pt' | 'none'
+
   // Location
   location String @default("city") // 'city' | 'suburb'
 
@@ -260,6 +263,7 @@ model Employment {
   isPartTime       Boolean @default(false)
   isSeasonal       Boolean @default(false)
   consecutiveMissedRaiseYears Int @default(0)
+  chosenLocation   String  @default("city") // resolved location: 'city' | 'suburb' (set at apply time from job.location)
   endAge           Int?
   endReason        String? // 'quit' | 'fired_performance' | 'fired_health' | 'retired'
 
@@ -314,6 +318,7 @@ model HousingOwnership {
   salePrice     Float?
   totalRentPaid Float   @default(0)
   yearsLived    Int     @default(0)
+  chosenLocation String @default("city") // resolved location: 'city' | 'suburb' (set at selection time from housing.location)
 
   // Home improvements (JSONB)
   improvements Json @default("[]") // HomeImprovement[]
