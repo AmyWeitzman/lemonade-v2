@@ -75,7 +75,7 @@
   - Implement expense forecast: project next year's mandatory expenses vs available funds, calculate stress impact
   - _Requirements: Req 6, Req 37, Req 39, Req 40_
 
-- [ ] 11. Random Event and Probability System
+- [x] 11. Random Event and Probability System
   - Implement `bellCurve(min, max)`, `rightSkewed(min, max)`, `leftSkewed(min, max)`, `rollDie(sides)` distribution helpers
   - Implement `drawCard(player)` — filter eligible cards, weighted frequency selection
   - Implement `attemptCardDraw(player)` — 20% chance per action, max 3 cards/year, broadcast `cardDrawn` event
@@ -83,7 +83,7 @@
   - Implement pet death rolls — 50% chance per pet in death age range
   - _Requirements: Req 9, Req 55_
 
-- [ ] 12. Inflation Engine
+- [-] 12. Inflation Engine
   - Implement `generateInflationRates()` — random rates within ranges: housing 4-7%, salary 2-5%, auto insurance 2-5%, home insurance 7-9%, other 0.1-0.3%
   - Implement `applyInflation(player, session)` — apply to housing rent/value, salaries, vehicle insurance, action costs
   - Update tax brackets every 5 years (+$15,000 per bracket threshold)
