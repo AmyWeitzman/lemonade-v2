@@ -63,7 +63,7 @@ export async function seedJobs(prisma: PrismaClient) {
       requirements: { education: 'none', skills: { sociability: 30 } },
       baseSalary: 5000, raiseSchedule: { type: 'SS' }, timeBlocks: 20, stressLevel: 40, ptoTimeBlocks: 0,
       fullTime: true, partTime: true, seasonal: true,
-      benefits: { baseTips: 5000, tipsPerSkill5pct: 3000, canBeSecondJob: true },
+      benefits: { baseTips: 5000, tipsPerSkillAvg5pct: 3000, canBeSecondJob: true },
       annualGains: { sociability: 3 }, location: 'both', hasPension: false, easeOfGetting: 1,
     },
     {
@@ -131,7 +131,7 @@ export async function seedJobs(prisma: PrismaClient) {
       requirements: { education: 'none', skills: { charisma: 70, sociability: 50, patience: 50, organization: 35 }, minAge: 21 },
       baseSalary: 25000, raiseSchedule: { type: 'SS' }, timeBlocks: 20, stressLevel: 40, ptoTimeBlocks: 0,
       fullTime: true, partTime: true, seasonal: true,
-      benefits: { baseTips: 35000, tipsPerSkillAvg5pct: 5000, canBeSecondJob: true, noChildcareIfSpouseIsBartender: true },
+      benefits: { baseTips: 35000, tipsPerSkillAvg5pct: 5000, canBeSecondJob: true, eveningShift: true },
       annualGains: { sociability: 2, patience: 2, organization: 2 }, location: 'city', hasPension: false, easeOfGetting: 3,
     },
     {
@@ -439,7 +439,7 @@ export async function seedJobs(prisma: PrismaClient) {
       requirements: { educationIds: [...byName('Economics','bachelors','masters','doctorate'), ...byName('Statistics','bachelors','masters','doctorate'), ...byName('Finance','bachelors','masters','doctorate'), ...byName('Business','bachelors','masters','doctorate')], skills: { organization: 85, caution: 70, stressTolerance: 75, analysis: 25, math: 30, technology: 15 } },
       baseSalary: 0, raiseSchedule: { type: 'MM', byDegree: { bachelors: 50000, masters: 70000, phd: 85000 } }, timeBlocks: 24, stressLevel: 60, ptoTimeBlocks: pto(10),
       fullTime: true, partTime: true, seasonal: false,
-      benefits: {},
+      benefits: { waivesTaxPrepFee: true },
       annualGains: { organization: 2, analysis: 1 }, location: 'city', hasPension: false, easeOfGetting: 2,
     },
     {
@@ -551,7 +551,7 @@ export async function seedJobs(prisma: PrismaClient) {
       requirements: { educationIds: [...byName('Animal Science','bachelors'), ...byName('Zoology','masters','doctorate')], skills: { organization: [50,65,80], caution: 50, science: [30,50,100], analysis: [30,50,100] } },
       baseSalary: 0, raiseSchedule: { type: 'MM', byDegree: { bachelors: 40000, masters: 65000, phd: 70000 } }, timeBlocks: 20, stressLevel: 30, ptoTimeBlocks: pto(10),
       fullTime: true, partTime: false, seasonal: false,
-      benefits: { zooDiscount: { freeTickets: 4, additionalPct: 50 } },
+      benefits: { zooDiscountPct: 50, zooFreeTickets: 4 },
       annualGains: { analysis: 2 }, location: 'city', hasPension: false, easeOfGetting: 3,
     },
     {
@@ -559,7 +559,7 @@ export async function seedJobs(prisma: PrismaClient) {
       requirements: { educationIds: [...byName('Animal Science','bachelors'), ...byName('Marine Biology','masters','doctorate')], skills: { organization: [50,65,80], caution: 65, science: [30,50,100], analysis: [30,50,100], technology: 15 } },
       baseSalary: 0, raiseSchedule: { type: 'MM', byDegree: { bachelors: 55000, masters: 65000, phd: 75000 } }, timeBlocks: 20, stressLevel: 40, ptoTimeBlocks: pto(10),
       fullTime: true, partTime: false, seasonal: false,
-      benefits: { aquariumDiscount: { freeTickets: 4, additionalPct: 50 } },
+      benefits: { aquariumDiscountPct: 50, aquariumFreeTickets: 4 },
       annualGains: { analysis: 2 }, location: 'city', hasPension: false, easeOfGetting: 4,
     },
     {

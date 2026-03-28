@@ -75,6 +75,7 @@ export interface MessageReactionPayload {
 
 export interface PlayerState {
   money: number;
+  projectedIncome: number;
   health: number;
   maxHealth: number;
   stress: number;

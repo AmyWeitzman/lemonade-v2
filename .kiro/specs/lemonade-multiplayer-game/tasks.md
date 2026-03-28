@@ -102,7 +102,7 @@
   - Apply senior discounts (age >= 65), job-specific discounts, per-person and per-time-block costs
   - _Requirements: Req 8, Req 22, Req 34_
 
-- [ ] 14. Employment System
+- [x] 14. Employment System
   - Implement `GET /api/jobs` with filters (salary, PTO, time blocks, stress, degree, skills/traits, location, perks) and sort
   - Implement `GET /api/jobs/search?q=term`
   - Implement `POST /api/jobs/:id/apply` — check education, skill, trait, health, certification requirements; assign job; adjust time blocks and projected income (half salary for mid-year switch)
