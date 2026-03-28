@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { authorize } from '../middleware/authorize';
+import { recalculatePitcherGoal } from '../lib/pitcher';
 
 const router = Router();
 
@@ -25,32 +26,6 @@ async function generateUniqueCode(): Promise<string> {
     if (!existing) return code;
   }
   throw new Error('Failed to generate unique join code after 10 attempts');
-}
-
-/**
- * Calculate the pitcher yearly goal based on active players' ages.
- * Age brackets: 20-22 → 10, 23-30 → 20, 31-50 → 40, 51-65 → 60, 66+ → 80
- */
-function lemonsForAge(age: number): number {
-  if (age < 20) return 0;
-  if (age <= 22) return 10;
-  if (age <= 30) return 20;
-  if (age <= 50) return 40;
-  if (age <= 65) return 60;
-  return 80;
-}
-
-async function recalculatePitcherGoal(gameSessionId: string): Promise<number> {
-  const players = await prisma.player.findMany({
-    where: { gameSessionId, isAlive: true },
-    select: { age: true },
-  });
-  const goal = players.reduce((sum: number, p: { age: number }) => sum + lemonsForAge(p.age), 0);
-  await prisma.gameSession.update({
-    where: { id: gameSessionId },
-    data: { pitcherYearlyGoal: goal },
-  });
-  return goal;
 }
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
@@ -292,9 +267,9 @@ router.post('/:id/leave', authorize, async (req: Request, res: Response): Promis
 
     // Non-host player leaving: delete player record, recalculate pitcher
     await prisma.player.delete({ where: { id: player.id } });
-    const newGoal = await recalculatePitcherGoal(id);
+    await recalculatePitcherGoal(id);
 
-    res.json({ message: 'Left session', pitcherYearlyGoal: newGoal });
+    res.json({ message: 'Left session' });
   } catch (err) {
     console.error('[sessions/leave]', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -345,9 +320,9 @@ router.post('/:id/kick', authorize, async (req: Request, res: Response): Promise
     }
 
     await prisma.player.delete({ where: { id: playerId } });
-    const newGoal = await recalculatePitcherGoal(id);
+    await recalculatePitcherGoal(id);
 
-    res.json({ message: 'Player kicked', pitcherYearlyGoal: newGoal });
+    res.json({ message: 'Player kicked' });
   } catch (err) {
     console.error('[sessions/kick]', err);
     res.status(500).json({ error: 'Internal server error' });

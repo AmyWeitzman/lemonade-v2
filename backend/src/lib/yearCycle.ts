@@ -23,6 +23,7 @@ import {
   type MarriageCompatibilityRecord,
 } from './relationships';
 import { calculatePetLemons } from './pets';
+import { checkYearEndPitcher } from './pitcher';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -638,6 +639,13 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       taxBrackets: taxBrackets as any,
     },
   });
+
+  // 8b. Check pitcher year-end — apply grace year or end game if goal missed
+  const pitcherResult = await checkYearEndPitcher(sessionId);
+  if (pitcherResult === 'ended') {
+    // Game ended due to pitcher failure — stop processing
+    return;
+  }
 
   // 9. Recalculate pitcher yearly goal based on new player ages
   const updatedPlayers = await prisma.player.findMany({

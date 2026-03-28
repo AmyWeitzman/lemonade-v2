@@ -118,6 +118,7 @@ export interface LemonAddedEvent {
 export interface PitcherUpdatedEvent {
   currentLemons: number;
   yearlyGoal: number;
+  recommendedPerPlayer: number;
   graceYearUsed: boolean;
   contributionsByPlayer: Record<string, number>;
 }

@@ -41,7 +41,7 @@ model GameSession {
   // Lemonade Pitcher (stored as JSON)
   pitcherCurrentLemons        Int     @default(0)
   pitcherYearlyGoal           Int     @default(0)
-  pitcherGraceYearUsed        Boolean @default(false)
+  pitcherInGraceYear          Boolean @default(false) // true = currently in a grace year (missed last year); resets on goal met
   pitcherContributionsByPlayer Json    @default("{}") // playerId -> total lemons
   pitcherYearlyContributions  Json    @default("{}") // year -> lemons
 

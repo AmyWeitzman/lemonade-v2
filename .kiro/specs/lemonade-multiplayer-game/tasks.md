@@ -183,7 +183,7 @@
   - Implement annual good deed options — present 3 identical options to all players; each player selects one for 2 lemons × multiplier
   - _Requirements: Req 9, Req 19_
 
-- [ ] 23. Lemonade Pitcher System
+- [x] 23. Lemonade Pitcher System
   - Implement pitcher capacity calculation — lemons per player by age bracket (20-22: 10, 23-30: 20, 31-50: 40, 51-65: 60, 66+: 80); recalculate on player death or departure
   - Implement `GET /api/pitcher/:sessionId` — current lemons, yearly goal, recommended per player
   - Implement grace year logic — one grace year if goal missed; end game if missed again

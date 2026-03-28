@@ -16,6 +16,7 @@ import vehiclesRouter from './routes/vehicles';
 import financesRouter from './routes/finances';
 import relationshipsRouter from './routes/relationships';
 import petsRouter from './routes/pets';
+import pitcherRouter from './routes/pitcher';
 import { initSocket, getIO } from './socket';
 
 const PORT = process.env.PORT ?? 3001;
@@ -52,6 +53,7 @@ app.use('/api/vehicles', vehiclesRouter);
 app.use('/api/finances', financesRouter);
 app.use('/api/relationships', relationshipsRouter);
 app.use('/api/pets', petsRouter);
+app.use('/api/pitcher', pitcherRouter);
 
 // Socket.IO — full typed setup with JWT auth and room management
 const io = initSocket(httpServer);
