@@ -141,7 +141,7 @@
   - Track both player and spouse vehicles separately
   - _Requirements: Req 13_
 
-- [ ] 18. Financial Management API
+- [x] 18. Financial Management API
   - Implement `GET /api/finances/:playerId` — full financial summary
   - Implement `POST /api/finances/loan` — create loan, auto-loan if can't afford minimum payment
   - Implement `POST /api/finances/loan/payment` — pay down loans (own, spouse, joint separately)
