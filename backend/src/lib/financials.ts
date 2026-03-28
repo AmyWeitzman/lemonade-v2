@@ -3,11 +3,12 @@
  *
  * Pure/deterministic functions — no DB writes. Callers persist changes.
  *
- * Requirements: Req 6 (financial system), Req 37 (taxes), Req 39 (debt stress),
- *               Req 40 (expense forecast)
+ * Requirements: Req 6 (financial system), Req 12 (housing costs), Req 37 (taxes),
+ *               Req 39 (debt stress), Req 40 (expense forecast)
  */
 
 import type { RetirementTransaction } from '@prisma/client';
+import { calculateAnnualHousingCosts, type HomeImprovement, type HousingRow } from './housing';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -253,6 +254,31 @@ export function applyRetirementInterest(input: RetirementInterestInput): Retirem
   };
 
   return { newBalance, interestEarned, transaction };
+}
+
+// ─── Annual Housing Costs ─────────────────────────────────────────────────────
+
+export interface AnnualHousingCostInput {
+  housing: HousingRow;
+  occupants: number;
+  isRental: boolean;
+  hasHomeInsurance: boolean;
+  improvements: HomeImprovement[];
+}
+
+/**
+ * Calculate annual housing costs for the expense calculation.
+ * Delegates to the housing lib — re-exported here so the financial engine
+ * has a single entry point for all expense types.
+ */
+export function calculateAnnualHousingExpense(input: AnnualHousingCostInput): {
+  rent: number;
+  utilities: number;
+  insurance: number;
+  poolMaintenance: number;
+  total: number;
+} {
+  return calculateAnnualHousingCosts(input);
 }
 
 // ─── Expense Forecast ─────────────────────────────────────────────────────────

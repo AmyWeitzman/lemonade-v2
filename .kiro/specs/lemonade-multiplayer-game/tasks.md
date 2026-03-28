@@ -123,7 +123,7 @@
   - Apply education stress (STEM multiplier)
   - _Requirements: Req 10, Req 33_
 
-- [ ] 16. Housing System
+- [x] 16. Housing System
   - Implement `GET /api/housing` with filters (location, capacity, pet limits, rent vs buy, max cost) and compare feature
   - Implement `POST /api/housing/:id/select` — validate occupancy limits, enforce age/enrollment restrictions, track `HousingOwnership` history, handle sale of current owned home (calculate market value with appreciation + improvements)
   - Implement `POST /api/housing/improvements` — remodel (50-80% value increase), pool (cost + annual maintenance + value increase + pool actions), solar panels (60% utility reduction + 2 lemons/year)
