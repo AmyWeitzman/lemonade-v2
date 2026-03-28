@@ -113,7 +113,7 @@
   - Support full-time, part-time, and seasonal employment; multi-job tracking
   - _Requirements: Req 11, Req 44, Req 45, Req 46_
 
-- [ ] 15. Education System
+- [x] 15. Education System
   - Implement `GET /api/education/programs` with filters and `GET /api/education/programs/search?q=term`
   - Implement `POST /api/education/enroll` — check skill/trait/prerequisite requirements; reject with hints if not met; set full-time or part-time
   - Implement annual academic progress — grant skill percentages per year (full-time: full %, part-time: half %); check graduation requirements (gen ed + field + major credits); award degree on completion

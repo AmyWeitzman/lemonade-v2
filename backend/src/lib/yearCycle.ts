@@ -12,6 +12,11 @@ import {
   applyGlobalCatalogInflation,
   type InflationRates,
 } from './inflation';
+import {
+  calculateAnnualSkillGains,
+  checkGraduationRequirements,
+  type EduProgramRow,
+} from './education';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -138,7 +143,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     where: { gameSessionId: sessionId, isAlive: true },
     include: {
       employments: { where: { isActive: true }, include: { job: true } },
-      educations: { where: { isActive: true } },
+      educations: { where: { isActive: true }, include: { program: true } },
       children: true,
       pets: true,
       adoptionApplications: { where: { status: 'pending' } },
@@ -256,7 +261,89 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       }
     }
 
-    // f. Age children — increment age; notify if turns 18
+    // f. Process annual education progress — grant skills, advance credits, check graduation
+    const educationUpdates: Array<{
+      id: string;
+      creditsCompleted: { generalEducation: number; field: number; major: number };
+      graduated: boolean;
+      graduationAge: number | null;
+      isActive: boolean;
+      clearScholarships: boolean;
+    }> = [];
+
+    for (const edu of player.educations) {
+      const program = edu.program as unknown as EduProgramRow;
+      const credits = edu.creditsCompleted as { generalEducation: number; field: number; major: number };
+
+      // Grant annual skill gains
+      const gains = calculateAnnualSkillGains(program, edu.isPartTime);
+      for (const [skill, gain] of Object.entries(gains)) {
+        if (skill in newSkills) {
+          newSkills[skill] = Math.min(100, (newSkills[skill] ?? 0) + gain);
+        } else {
+          newTraits[skill] = Math.min(100, (newTraits[skill] ?? 0) + gain);
+        }
+      }
+
+      // Advance credits: each year of enrollment earns 1 credit in the next unfilled category
+      // Order: gen ed → field → major
+      let newCredits = { ...credits };
+      const required = program.totalCredits;
+
+      if (newCredits.generalEducation < required.generalEducation) {
+        newCredits.generalEducation += 1;
+      } else if (newCredits.field < required.field) {
+        newCredits.field += 1;
+      } else if (newCredits.major < required.major) {
+        newCredits.major += 1;
+      }
+
+      // Check graduation
+      const gradCheck = checkGraduationRequirements(program, newCredits, newSkills, newTraits);
+      let graduated = edu.graduated;
+      let graduationAge: number | null = edu.graduationAge;
+      let isActive = edu.isActive;
+
+      let clearScholarships = false;
+      if (!graduated && gradCheck.canGraduate) {
+        graduated = true;
+        graduationAge = newAge;
+        isActive = false;
+        clearScholarships = true; // surplus scholarship money goes away on graduation
+
+        // Grant certifications from graduation
+        if (program.grantsOnGraduation && program.grantsOnGraduation.length > 0) {
+          const existingCerts = (player.certifications as string[]) ?? [];
+          const newCerts = [...new Set([...existingCerts, ...program.grantsOnGraduation])];
+          await prisma.player.update({
+            where: { id: player.id },
+            data: { certifications: newCerts },
+          });
+        }
+
+        await sendNotification(
+          player.id,
+          {
+            type: 'success',
+            category: 'education',
+            title: 'Congratulations, Graduate!',
+            message: `You graduated from ${program.name}! Time to update your job search.`,
+          },
+          io,
+        );
+      }
+
+      educationUpdates.push({
+        id: edu.id,
+        creditsCompleted: newCredits,
+        graduated,
+        graduationAge,
+        isActive,
+        clearScholarships,
+      });
+    }
+
+    // g. Age children — increment age; notify if turns 18
     const childUpdates: Array<{ id: string; age: number }> = [];
     for (const child of player.children) {
       const newChildAge = child.age + 1;
@@ -360,6 +447,21 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
             isActive: eu.isActive,
             endReason: eu.endReason,
             endAge: eu.endAge,
+          },
+        });
+      }
+
+      // Update education progress
+      for (const eu of educationUpdates) {
+        await tx.education.update({
+          where: { id: eu.id },
+          data: {
+            creditsCompleted: eu.creditsCompleted,
+            graduated: eu.graduated,
+            graduationAge: eu.graduationAge,
+            isActive: eu.isActive,
+            // Clear surplus scholarship money on graduation — can't use it after graduating
+            ...(eu.clearScholarships ? { scholarships: [] } : {}),
           },
         });
       }
