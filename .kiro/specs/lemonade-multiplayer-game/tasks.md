@@ -132,7 +132,7 @@
   - Enforce pet limits when selecting new housing
   - _Requirements: Req 12, Req 42_
 
-- [ ] 17. Transportation System
+- [x] 17. Transportation System
   - Implement `GET /api/vehicles` with filters (max cost, min people, car vs non-car, fuel type, age) and compare feature
   - Implement `POST /api/vehicles/:id/purchase` — validate family capacity, track `VehicleOwnership` history, deduct purchase price
   - Implement `POST /api/vehicles/:id/sell` — calculate depreciated value (15%/year, floor at 10% of original)

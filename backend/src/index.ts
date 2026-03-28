@@ -12,6 +12,7 @@ import actionsRouter from './routes/actions';
 import jobsRouter from './routes/jobs';
 import educationRouter from './routes/education';
 import housingRouter from './routes/housing';
+import vehiclesRouter from './routes/vehicles';
 import { initSocket, getIO } from './socket';
 
 const PORT = process.env.PORT ?? 3001;
@@ -44,6 +45,7 @@ app.use('/api/actions', actionsRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/education', educationRouter);
 app.use('/api/housing', housingRouter);
+app.use('/api/vehicles', vehiclesRouter);
 
 // Socket.IO — full typed setup with JWT auth and room management
 const io = initSocket(httpServer);
