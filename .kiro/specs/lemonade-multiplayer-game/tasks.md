@@ -61,13 +61,13 @@
   - Expose time block state to frontend via player state
   - _Requirements: Req 4, Req 32_
 
-- [ ] 9. Health and Stress Calculation Engines
+- [x] 9. Health and Stress Calculation Engines
   - Implement `calculateStress(player)` — aggregate job stress, education stress, debt stress (1% per $20k), children stress, pet stress, housing overcrowding stress, card stress, expense forecast stress; apply stress tolerance modifier
   - Implement `calculateHealth(player)` — apply stress-based health loss thresholds, aging health loss by decade, chronic condition max health cap
   - Implement `applyHealthEffects(player, temporaryChange, permanentChange)` — handle temporary vs permanent health changes, chronic condition 80% effectiveness rule
   - _Requirements: Req 5, Req 16, Req 39_
 
-- [ ] 10. Financial Calculation Engine
+- [x] 10. Financial Calculation Engine
   - Implement `calculateTaxes(player, session)` — progressive tax brackets, joint filing for married players, early retirement withdrawal penalty
   - Implement `calculateTaxPreparationFee(player)` — simple filing waiver, accounting experience waiver, complexity-based fee
   - Implement `applyLoanInterest(loans)` — 8% annual interest, 5% minimum payment
