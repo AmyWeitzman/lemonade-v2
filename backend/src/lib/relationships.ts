@@ -346,3 +346,161 @@ export function generateChildAge(ageGroup: AdoptionAgeGroup): number {
   if (ageGroup === '3-9') return 3 + rollDie(7) - 1; // 3-9
   return 10 + rollDie(8) - 1; // 10-17
 }
+
+// ─── Find Love / Dating App ───────────────────────────────────────────────────
+
+export interface FindLovePreferences {
+  minMoney?: number;
+  minSalary?: number;
+  vehicleId?: string;   // DB id of the preferred vehicle
+  housingId?: string;   // DB id of the preferred housing (never 'parent' or 'dorm')
+  educationInterest?: string; // major
+}
+
+export interface DatingCandidate {
+  index: number;
+  age: number;
+  jobId?: string;
+  salary?: number;
+  isRetired: boolean;
+  educationLevel: 'none' | 'high_school' | 'associates' | 'bachelors' | 'masters' | 'phd';
+  educationInterest?: string;
+  money: number;
+  retirementSavings: number;
+  loans: number; // total debt amount
+  vehicleId?: string;
+  housingId?: string;
+  initialCompatibilityScore: number;
+  matchesCriteria: string[];
+}
+
+export interface FindLoveResult {
+  eligible: boolean;
+  reasons: string[];
+  candidates?: DatingCandidate[];
+}
+
+export interface FindLoveNoSelectResult {
+  timeBlocksUsed: number;
+  lemonsEarned: number;
+}
+
+export interface FindLoveMarryResult {
+  timeBlocksUsed: number;
+  lemonsEarned: number;
+  marriageResult: MarriageResult;
+  spouseData: SpouseData;
+}
+
+/**
+ * Validate that a player meets the Find Love eligibility requirements.
+ * Req 14A.2-3
+ */
+export function validateFindLoveEligibility(traits: {
+  communication: number;
+  compassion: number;
+}): { eligible: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  const lowSkills: string[] = [];
+
+  if (traits.communication < 50) {
+    lowSkills.push('communication');
+  }
+  if (traits.compassion < 50) {
+    lowSkills.push('compassion');
+  }
+
+  const lowSkillsMessage: string = lowSkills.length > 1 ? lowSkills.join(' and ') : lowSkills.length > 0 ? lowSkills[0] : '';
+  if(lowSkills.length > 0) {
+     reasons.push(`You didn't quite make a connection this time, but improving your ${lowSkillsMessage} skills will open up more matches.`)
+  }
+ 
+  return { eligible: reasons.length === 0, reasons };
+}
+
+/**
+ * Calculate the player's portion of the initial compatibility score.
+ * Player portion: stress < 90 = +1, compassion >= 80 = +1, patience >= 80 = +1,
+ * stressTolerance >= 60 = +1, communication >= 80 = +2 (max 6)
+ * Then adds random 0-2 for the candidate's portion.
+ * Req 14A.12
+ */
+export function calculateCandidateCompatibilityScore(
+  playerTraits: {
+    compassion: number;
+    patience: number;
+    stressTolerance: number;
+    communication: number;
+  },
+  playerStress: number,
+): number {
+  let score = 0;
+  if (playerStress < 90) score += 1;
+  if (playerTraits.compassion >= 80) score += 1;
+  if (playerTraits.patience >= 80) score += 1;
+  if (playerTraits.stressTolerance >= 60) score += 1;
+  if (playerTraits.communication >= 80) score += 2;
+  // Candidate random portion: 0-2
+  const candidateRandom = Math.floor(Math.random() * 3); // 0, 1, or 2
+  return score + candidateRandom;
+}
+
+/**
+ * Convert a DatingCandidate into a SpouseData object for marriage.
+ *
+ * - certifications: derived from the job's requirements (e.g. CPR) so the
+ *   spouse arrives with whatever certs their job already requires.
+ * - hasAccountingExperience: derived from job title so tax-prep fee waiver
+ *   applies correctly if the spouse is an accountant.
+ * - loanOriginAge: approximated as age 18 (when most people start borrowing),
+ *   capped so it's never greater than the candidate's current age.
+ *
+ * Req 14A.16
+ */
+export function buildSpouseFromCandidate(
+  candidate: DatingCandidate,
+  jobCertifications: string[] = [],
+  jobTitle?: string,
+): SpouseData {
+  // Loan origin: approximate start of borrowing (college start ~18), never > current age
+  const loanOriginAge = Math.min(18, candidate.age);
+
+  const loans: SpouseLoan[] =
+    candidate.loans > 0
+      ? [
+          {
+            principal: candidate.loans,
+            currentBalance: candidate.loans,
+            interestRate: 0.08,
+            minimumPayment: Math.ceil(candidate.loans * 0.05),
+            originAge: loanOriginAge,
+          },
+        ]
+      : [];
+
+  // Spouse already holds whatever certs their job requires
+  const certifications = [...jobCertifications];
+
+  // Accounting experience waives tax-prep fee (Req 6.11)
+  const hasAccountingExperience = !!jobTitle && /account/i.test(jobTitle);
+
+  return {
+    age: candidate.age,
+    jobId: candidate.jobId ?? null,
+    salary: candidate.salary ?? 0,
+    isJobPartTime: false,
+    educationProgramId: null,
+    isEduPartTime: false,
+    vehicleId: candidate.vehicleId ?? null,
+    housingId: candidate.housingId ?? null,
+    loans,
+    money: candidate.money,
+    retirementSavings: candidate.retirementSavings,
+    isRetired: candidate.isRetired,
+    certifications,
+    hasAccountingExperience,
+    originalMoney: candidate.money,
+    originalSavings: candidate.retirementSavings,
+    originalLoans: candidate.loans,
+  };
+}

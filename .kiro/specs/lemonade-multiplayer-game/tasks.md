@@ -161,7 +161,7 @@
   - Implement grandchildren roll at year start (ages 25-40 children)
   - _Requirements: Req 14, Req 14A, Req 14B, Req 14C_
 
-- [ ] 20. Dating App (Find Love Action)
+- [x] 20. Dating App (Find Love Action)
   - Implement `executeFindLoveAction(player, preferences)` — validate communication >= 50 and compassion >= 50
   - Implement `generateCandidate(player, preferences, index)` — determine education by age (50/50 degree chance), select eligible job (exclude actor/author/ride-share/musician), calculate financial profile (money, retirement savings, debt via d5 multiplier), assign vehicle and housing, calculate initial compatibility score
   - Implement marriage execution from selected candidate — create Spouse record, combine finances, charge wedding cost, add spouse cart item
