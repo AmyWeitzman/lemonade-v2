@@ -204,10 +204,10 @@
   - Apply insurance reductions to card costs (health, auto, home)
   - _Requirements: Req 29_
 
-- [ ] 26. Notification System
+- [x] 26. Notification System
   - Implement `sendNotification(player, notification)` — save to DB, broadcast via WebSocket `notification` event
   - Implement `GET /api/notifications/:playerId` and `POST /api/notifications/:id/dismiss`
-  - Trigger notifications for: CPR expiration, childcare changes needed, spouse retirement warning, retirement savings penalty-free, graduation, health too low for job, new year birthday, adoption available/complete, child turns 18, job loss, pet death, housing/transport change required
+  - Trigger notifications for: CPR expiration, childcare changes needed, spouse retirement warning, retirement savings penalty-free, graduation, health too low for job, new year birthday, adoption available/complete, child turns 18, job loss, pet death, housing/transport change required, pregnancy result (children born, stillborn, etc)
   - Display persistent notifications in navbar; show accordion on actions and expenses pages
   - _Requirements: Req 21_
 

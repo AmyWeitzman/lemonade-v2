@@ -62,6 +62,8 @@ export async function handleJoinGame(
   socket.data.playerName = player.name;
 
   await socket.join(roomName(gameSessionId));
+  // Also join a player-specific room so targeted notifications can be delivered
+  await socket.join(`player:${player.id}`);
 
   io.to(roomName(gameSessionId)).emit('playerJoined', {
     playerId: player.id,
@@ -149,6 +151,8 @@ export async function handleReconnect(socket: AppSocket, io: IO): Promise<void> 
   socket.data.playerName = player.name;
 
   await socket.join(roomName(gameSessionId));
+  // Also join a player-specific room so targeted notifications can be delivered
+  await socket.join(`player:${player.id}`);
 
   // Notify room that player rejoined
   io.to(roomName(gameSessionId)).emit('playerJoined', {
