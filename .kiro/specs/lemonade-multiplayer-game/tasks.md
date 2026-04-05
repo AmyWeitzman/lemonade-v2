@@ -197,7 +197,7 @@
   - Implement pension tracking and annual pension payments for eligible jobs
   - _Requirements: Req 15, Req 16, Req 38_
 
-- [ ] 25. Insurance System
+- [x] 25. Insurance System
   - Implement health insurance toggle — single ($6k/yr + $300 age increase) vs family ($12k/yr + $1k/child + $450 age increase); parent insurance free until age 26; all children under 18 required on plan
   - Implement home insurance toggle for owned homes
   - Implement auto insurance calculation by vehicle type, age, and driver factors
