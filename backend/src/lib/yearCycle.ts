@@ -6,6 +6,7 @@ import type {
   SocketData,
 } from '../socket/events';
 import { prisma } from './prisma';
+import { Prisma } from '@prisma/client';
 import {
   generateInflationRates,
   applyInflation,
@@ -23,7 +24,7 @@ import {
   type MarriageCompatibilityRecord,
 } from './relationships';
 import { calculatePetLemons } from './pets';
-import { checkYearEndPitcher } from './pitcher';
+import { checkYearEndPitcher, recalculatePitcherGoal } from './pitcher';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -89,6 +90,124 @@ export async function sendNotification(
       actionRequired: saved.actionRequired,
     });
   }
+}
+
+// ─── sendSystemMessage ────────────────────────────────────────────────────────
+
+/**
+ * Send a system chat message to all players in a game session.
+ * System messages are styled differently in the UI (gray italic).
+ */
+export async function sendSystemMessage(
+  sessionId: string,
+  content: string,
+  io?: IO,
+): Promise<void> {
+  const saved = await prisma.message.create({
+    data: {
+      gameSessionId: sessionId,
+      playerId: null,
+      playerName: 'System',
+      content,
+      isSystemMessage: true,
+      reactions: [],
+    },
+  });
+
+  if (io) {
+    io.to(`game:${sessionId}`).emit('messageReceived', {
+      id: saved.id,
+      gameSessionId: saved.gameSessionId,
+      playerId: '',
+      playerName: 'System',
+      content: saved.content,
+      timestamp: saved.createdAt.toISOString(),
+      reactions: [],
+      isSystemMessage: true,
+    });
+  }
+}
+
+// ─── handlePlayerDeath ────────────────────────────────────────────────────────
+
+/**
+ * Handle a player's death:
+ *  1. Mark player as deceased (isAlive = false)
+ *  2. Emit `playerDied` to the player's socket and the session room
+ *  3. Send a system chat message
+ *  4. Recalculate pitcher goal (living players only)
+ *  5. Check if ALL players are now dead → end game
+ *
+ * Requirements: Req 16.7–16.9
+ */
+export async function handlePlayerDeath(
+  playerId: string,
+  sessionId: string,
+  io: IO,
+): Promise<void> {
+  // 1. Mark deceased
+  const deceased = await prisma.player.update({
+    where: { id: playerId },
+    data: { isAlive: false },
+    select: { id: true, name: true, age: true, gameSessionId: true },
+  });
+
+  // 2. Emit playerDied to the session room
+  io.to(`game:${sessionId}`).emit('playerDied', {
+    playerId: deceased.id,
+    playerName: deceased.name,
+    age: deceased.age,
+  });
+
+  // Also emit playerStateChanged so clients update their UI
+  io.to(`game:${sessionId}`).emit('playerStateChanged', {
+    playerId: deceased.id,
+    changes: { isAlive: false },
+  });
+
+  // 3. System chat message
+  await sendSystemMessage(
+    sessionId,
+    `💀 ${deceased.name} has passed away at age ${deceased.age}. Their contributions to the community will be remembered.`,
+    io,
+  );
+
+  // 4. Recalculate pitcher goal (living players only)
+  await recalculatePitcherGoal(sessionId);
+
+  // 5. Check if all players are now dead → end game
+  const livingCount = await prisma.player.count({
+    where: { gameSessionId: sessionId, isAlive: true },
+  });
+
+  if (livingCount === 0) {
+    await prisma.gameSession.update({
+      where: { id: sessionId },
+      data: { status: 'ended', endReason: 'all_deceased' },
+    });
+
+    io.to(`game:${sessionId}`).emit('gameEnded', {
+      reason: 'all_deceased',
+      finalStats: { message: 'All players have passed away.' },
+    });
+  }
+}
+
+// ─── calculatePensionPayment ──────────────────────────────────────────────────
+
+/**
+ * Calculate annual pension payment for a retired player.
+ * Formula: pensionPercentage * baseSalary * yearsOfService
+ * (pensionPercentage is stored as a decimal, e.g. 0.02 = 2%)
+ *
+ * Requirements: Req 38
+ */
+export function calculatePensionPayment(
+  pensionPercentage: number,
+  baseSalary: number,
+  yearsOfService: number,
+): number {
+  return pensionPercentage * baseSalary * yearsOfService;
 }
 
 // ─── checkAdoptionAvailability ────────────────────────────────────────────────
@@ -170,7 +289,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     // a. Increment age
     const newAge = player.age + 1;
 
-    // b. Aging health loss (permanent — reduces both health and maxHealth)
+    // b. Aging health loss (semi-permanent — reduces current health only, maxHealth unchanged)
     const healthLossPct = agingHealthLoss(newAge);
     const healthLoss = (healthLossPct / 100) * player.maxHealth;
     const newMaxHealth = Math.max(0, player.maxHealth - healthLoss);
@@ -179,7 +298,95 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     // c. Reset stress
     const newStress = 0;
 
-    // d. Process job raises for each active employment
+    // d. Retirement check — mark player retired at 65 (Req 15.5)
+    const isNowRetired = player.isRetired || newAge >= 65;
+
+    // e. Auto-retire spouse at 65 (Req 15.8)
+    const spouse = player.spouse as Record<string, unknown> | null;
+    let updatedSpouse = spouse;
+    if (spouse && typeof spouse.age === 'number' && !spouse.isRetired) {
+      const spouseNewAge = (spouse.age as number) + 1;
+      if (spouseNewAge >= 65) {
+        updatedSpouse = { ...spouse, age: spouseNewAge, isRetired: true };
+        // Notify player that spouse has retired
+        await sendNotification(
+          player.id,
+          {
+            type: 'info',
+            category: 'family',
+            title: 'Spouse Retired',
+            message: `Your spouse has turned ${spouseNewAge} and is now retired.`,
+            persistent: true,
+          },
+          io,
+        );
+      } else {
+        updatedSpouse = { ...spouse, age: spouseNewAge };
+        // Notify player when spouse is approaching retirement (age 64)
+        if (spouseNewAge === 64) {
+          await sendNotification(
+            player.id,
+            {
+              type: 'info',
+              category: 'family',
+              title: 'Spouse Approaching Retirement',
+              message: 'Your spouse will retire next year at age 65.',
+              persistent: false,
+            },
+            io,
+          );
+        }
+        else if (spouseNewAge === 60) {
+          await sendNotification(
+            player.id,
+            {
+              type: 'info',
+              category: 'family',
+              title: 'Spouse Approaching Retirement',
+              message: 'Your spouse will retire at age 65.',
+              persistent: false,
+            },
+            io,
+          );
+        }
+      }
+    } else if (spouse && typeof spouse.age === 'number') {
+      updatedSpouse = { ...spouse, age: (spouse.age as number) + 1 };
+    }
+
+    // f. Notify player when they reach retirement age (Req 15.5)
+    if (!player.isRetired && newAge === 65) {
+      await sendNotification(
+        player.id,
+        {
+          type: 'success',
+          category: 'year',
+          title: 'You Are Now Retired!',
+          message:
+            'You have reached age 65. Your retirement savings are now accessible without penalty. You may continue working if you choose.',
+          persistent: true,
+        },
+        io,
+      );
+    }
+
+    // g. Pension payments for retired players with pension-eligible jobs (Req 38)
+    let pensionIncome = 0;
+    if (isNowRetired) {
+      for (const employment of player.employments) {
+        const job = employment.job;
+        if (job.hasPension && job.pensionPercentage && employment.yearsOfService > 0) {
+          const payment = calculatePensionPayment(
+            job.pensionPercentage,
+            job.baseSalary,
+            employment.yearsOfService,
+          );
+          pensionIncome += payment;
+        }
+      }
+    }
+
+    // h. Process job raises for each active employment
     const employmentUpdates: Array<{
       id: string;
       currentSalary: number;
@@ -563,6 +770,13 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
           stress: newStress,
           skills: newSkills,
           traits: newTraits,
+          isRetired: isNowRetired,
+          // Update spouse age and retirement status
+          ...(updatedSpouse !== spouse
+            ? { spouse: (updatedSpouse ?? Prisma.JsonNull) as Prisma.InputJsonValue }
+            : {}),
+          // Add pension income to money
+          ...(pensionIncome > 0 ? { money: { increment: pensionIncome } } : {}),
           yearComplete: false,
           cardsReceivedThisYear: 0,
         },
@@ -608,6 +822,28 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
         await tx.pet.update({ where: { id: pu.id }, data: { age: pu.age, isAlive: pu.isAlive } });
       }
     });
+
+    // Death probability check — 20% chance of dying when health <= 5% (Req 16.6)
+    // Run after the transaction so the updated health is persisted first.
+    if (newHealth <= 5 && Math.random() < 0.2) {
+      await handlePlayerDeath(player.id, sessionId, io);
+      // Skip further per-player processing — player is now deceased
+      continue;
+    }
+
+    // Notify player of pension income if any
+    if (pensionIncome > 0) {
+      await sendNotification(
+        player.id,
+        {
+          type: 'success',
+          category: 'year',
+          title: 'Pension Payment Received',
+          message: `You received $${pensionIncome.toLocaleString()} in pension income this year.`,
+        },
+        io,
+      );
+    }
   }
 
   // 5. Apply inflation — catalog-wide first, then per-player salaries

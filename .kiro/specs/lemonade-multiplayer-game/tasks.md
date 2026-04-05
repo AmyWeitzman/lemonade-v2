@@ -190,7 +190,7 @@
   - Broadcast `pitcherUpdated` on every lemon change
   - _Requirements: Req 7_
 
-- [ ] 24. Aging, Death, and Retirement System
+- [x] 24. Aging, Death, and Retirement System
   - Implement aging health loss in year cycle (40s: -1%, 50s: -2%, 60s: -3%, 70s: -4%, 80s: -5%)
   - Implement `handlePlayerDeath(player)` — mark deceased, notify player and session, send system chat message, check if all players dead (end game)
   - Implement retirement: mark player retired at 65 (no forced retirement display), allow penalty-free withdrawals, auto-retire spouse at 65, prevent forcing retired spouse to work
