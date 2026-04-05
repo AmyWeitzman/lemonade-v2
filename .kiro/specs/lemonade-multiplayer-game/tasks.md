@@ -214,7 +214,7 @@
 
 ## Phase 4: Multiplayer Coordination
 
-- [ ] 27. Messaging System
+- [x] 27. Messaging System
   - Implement `POST /api/messages` — sanitize content (strip HTML, trim, max 500 chars), save, broadcast `messageReceived`
   - Implement `GET /api/messages/:sessionId` (paginated) and `GET /api/messages/:sessionId/recent` (last 50)
   - Implement `POST /api/messages/:messageId/react` — toggle emoji reaction (add/remove), validate against 10 supported emojis, broadcast `messageReactionUpdated`

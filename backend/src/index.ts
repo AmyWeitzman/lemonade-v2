@@ -19,6 +19,7 @@ import petsRouter from './routes/pets';
 import pitcherRouter from './routes/pitcher';
 import cardsRouter from './routes/cards';
 import notificationsRouter from './routes/notifications';
+import messagesRouter from './routes/messages';
 import { initSocket, getIO } from './socket';
 
 const PORT = process.env.PORT ?? 3001;
@@ -58,6 +59,7 @@ app.use('/api/pets', petsRouter);
 app.use('/api/pitcher', pitcherRouter);
 app.use('/api/cards', cardsRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/messages', messagesRouter);
 
 // Socket.IO — full typed setup with JWT auth and room management
 const io = initSocket(httpServer);
