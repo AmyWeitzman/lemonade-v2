@@ -138,7 +138,6 @@ export interface GoodDeedOpportunityEvent {
   fromPlayerId: string;
   cardId: string;
   lemonReward: number;
-  expiresAt: string;
 }
 
 export interface NotificationEvent {

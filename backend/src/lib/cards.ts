@@ -1,9 +1,10 @@
 /**
- * Card System — Random Event Drawing
+ * Card System — Random Event Drawing & Effect Application
  *
- * Implements weighted card selection and the 20%-chance-per-action draw mechanic.
+ * Implements weighted card selection, the 20%-chance-per-action draw mechanic,
+ * card effect application, and good deed multiplier logic.
  *
- * Requirements: Req 9 (Card System), Req 55 (probability)
+ * Requirements: Req 9 (Card System), Req 19 (Good Deed System), Req 55 (probability)
  */
 
 import type { Server } from 'socket.io';
@@ -226,4 +227,201 @@ export async function attemptCardDrawForYear(
   });
 
   return card;
+}
+
+// ─── Good Deed Multipliers ────────────────────────────────────────────────────
+
+/**
+ * Good_Deed_Multiplier = 1 + floor(goodDeedCount / 5)
+ * Req 19.3 — every 5 good deeds adds +1 to the multiplier.
+ */
+export function getGoodDeedMultiplier(goodDeedCount: number): number {
+  return 1 + Math.floor(goodDeedCount / 5);
+}
+
+/**
+ * Bad_Deed_Multiplier = 1 + floor(badDeedCount / 5)
+ * Req 19.4 — every 5 bad deeds adds +1 to the penalty multiplier.
+ */
+export function getBadDeedMultiplier(badDeedCount: number): number {
+  return 1 + Math.floor(badDeedCount / 5);
+}
+
+// ─── Card Effects ─────────────────────────────────────────────────────────────
+
+/** Shape of the effects JSONB column on a Card */
+export interface CardEffects {
+  cost?: number;
+  healthTemporary?: number;
+  healthPermanent?: number;
+  stress?: number;
+  /**
+   * Insurance surcharge multiplier for the current year (e.g. 0.5 = +50% for at-fault accident).
+   * Per game rules: at-fault accident = +50%, not-at-fault = +20%.
+   */
+  insuranceSurcharge?: number;
+  insuranceAffected?: 'health' | 'auto' | 'home';
+  skills?: Record<string, number>;
+  traits?: Record<string, number>;
+  other?: string[];
+}
+
+/** Player state fields that card effects can mutate */
+export interface CardEffectTarget {
+  money: number;
+  health: number;
+  maxHealth: number;
+  temporaryHealthDebt: number;
+  stress: number;
+  autoInsuranceRate: number;
+  skills: Record<string, number>;
+  traits: Record<string, number>;
+  chronicConditionCount: number;
+}
+
+/**
+ * Apply a card's effects to a mutable player state snapshot.
+ * Returns the mutated snapshot — does NOT write to the DB.
+ *
+ * Req 9.4 — apply costs, health, stress, skills, traits, insurance changes.
+ * Req 9.8 — track temporary vs permanent health changes.
+ */
+export function applyCardEffects(
+  state: CardEffectTarget,
+  effects: CardEffects,
+): CardEffectTarget {
+  const result = { ...state };
+
+  // ── Cost ──────────────────────────────────────────────────────────────────
+  if (effects.cost) {
+    result.money = result.money - effects.cost;
+  }
+
+  // ── Temporary health (auto-restores next year) ────────────────────────────
+  if (effects.healthTemporary) {
+    const delta = effects.healthTemporary;
+    if (delta > 0) {
+      const gain =
+        result.chronicConditionCount > 0 ? Math.ceil(delta * 0.8) : delta;
+      result.health = Math.min(result.health + gain, result.maxHealth);
+    } else {
+      const actualLoss = Math.min(-delta, result.health);
+      result.health = Math.max(0, result.health + delta);
+      result.temporaryHealthDebt += actualLoss;
+    }
+  }
+
+  // ── Permanent health (affects both health and maxHealth) ──────────────────
+  if (effects.healthPermanent) {
+    const delta = effects.healthPermanent;
+    if (delta > 0) {
+      result.maxHealth = Math.min(100, result.maxHealth + delta);
+      const gain =
+        result.chronicConditionCount > 0 ? Math.ceil(delta * 0.8) : delta;
+      result.health = Math.min(result.health + gain, result.maxHealth);
+    } else {
+      result.maxHealth = Math.max(0, result.maxHealth + delta);
+      result.health = Math.max(0, result.health + delta);
+      result.health = Math.min(result.health, result.maxHealth);
+    }
+  }
+
+  // ── Stress ────────────────────────────────────────────────────────────────
+  if (effects.stress) {
+    result.stress = Math.min(100, Math.max(0, result.stress + effects.stress));
+  }
+
+  // ── Insurance surcharge (accident penalty) ───────────────────────────────
+  // Req 9.9 — apply insurance rate increase for the current year.
+  // At-fault accident = +50% (insuranceSurcharge: 0.5), not-at-fault = +20% (0.2).
+  if (effects.insuranceSurcharge && effects.insuranceAffected === 'auto') {
+    result.autoInsuranceRate = result.autoInsuranceRate * (1 + effects.insuranceSurcharge);
+  }
+
+  // ── Skills ────────────────────────────────────────────────────────────────
+  if (effects.skills) {
+    result.skills = { ...result.skills };
+    for (const [key, val] of Object.entries(effects.skills)) {
+      result.skills[key] = Math.min(100, Math.max(0, (result.skills[key] ?? 0) + val));
+    }
+  }
+
+  // ── Traits ────────────────────────────────────────────────────────────────
+  if (effects.traits) {
+    result.traits = { ...result.traits };
+    for (const [key, val] of Object.entries(effects.traits)) {
+      result.traits[key] = Math.min(100, Math.max(0, (result.traits[key] ?? 0) + val));
+    }
+  }
+
+  return result;
+}
+
+// ─── Annual Good Deed Options ─────────────────────────────────────────────────
+
+/** The fixed pool of annual good deed options (Req 19.9) */
+export const ANNUAL_GOOD_DEED_OPTIONS = [
+  'Help an old lady cross the street',
+  'Open the door for someone',
+  'Read to kids at public library',
+  'Pick up trash at park',
+  'Let someone go ahead of you in line',
+  'Give a compliment',
+  'Walk dogs at the animal shelter',
+  'Send a card to a service member',
+  'Tell someone why they are special to you',
+  'Do yard work for a neighbor',
+  'Volunteer at a soup kitchen',
+  'Spend quality time with a loved one',
+  'Volunteer at community garden',
+] as const;
+
+/**
+ * Pick 3 random options from the annual good deed pool.
+ * All players in a session see the same 3 options for a given year
+ * (seed by sessionId + year for determinism).
+ *
+ * Req 19.9 — present 3 identical options to all players each year.
+ */
+export function pickAnnualGoodDeedOptions(sessionId: string, year: number): string[] {
+  // Simple deterministic shuffle seeded by sessionId + year
+  const seed = [...sessionId].reduce((acc, c) => acc + c.charCodeAt(0), year * 31);
+  const pool = [...ANNUAL_GOOD_DEED_OPTIONS];
+
+  // Fisher-Yates with a simple LCG seeded by `seed`
+  let s = seed;
+  const rand = () => {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0x100000000;
+  };
+
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [pool[i], pool[j]] = [pool[j]!, pool[i]!];
+  }
+
+  return pool.slice(0, 3);
+}
+
+// ─── broadcastGoodDeedOpportunity ─────────────────────────────────────────────
+
+/**
+ * Notify all OTHER players in the session about a good deed opportunity
+ * triggered by a card drawn for `sourcePlayerId`.
+ *
+ * No expiration — players can respond any time before their year ends.
+ * Req 9.5 / Req 19.5 — broadcast goodDeedOpportunity to all other players.
+ */
+export function broadcastGoodDeedOpportunity(
+  io: IO,
+  sessionId: string,
+  sourcePlayerId: string,
+  cardEventId: string,
+  lemonReward: number,
+): void {
+  io.to(`game:${sessionId}`).emit('goodDeedOpportunity', {
+    fromPlayerId: sourcePlayerId,
+    cardId: cardEventId,
+    lemonReward,
+  });
 }

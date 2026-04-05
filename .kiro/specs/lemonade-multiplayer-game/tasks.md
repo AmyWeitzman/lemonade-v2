@@ -176,7 +176,7 @@
   - Grant annual lemons for pet ownership
   - _Requirements: Req 17_
 
-- [ ] 22. Card System Effects and Good Deed Flow
+- [x] 22. Card System Effects and Good Deed Flow
   - Implement card effect application — costs, temporary health, permanent health, stress, skills, traits, insurance rate changes
   - Implement good deed opportunity broadcast — notify all other players via `goodDeedOpportunity` WebSocket event
   - Implement `POST /api/cards/:id/respond` — accept (2 lemons × good deed multiplier, increment good deed count) or decline (−1 lemon × bad deed multiplier, increment bad deed count)
