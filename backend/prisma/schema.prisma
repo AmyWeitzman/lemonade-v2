@@ -107,6 +107,9 @@ model Player {
   // Parent contributions (set at init)
   parentContributions Json @default("{}")
 
+  // Internship flag (reset each year)
+  didInternshipThisYear Boolean @default(false)
+
   // Game progress
   totalLemonsEarned     Int @default(0)
   goodDeedCount         Int @default(0)
@@ -260,6 +263,7 @@ model Employment {
   currentSalary    Float
   yearsOfService   Int     @default(0)
   ptoRemaining        Int     @default(0)
+  ptoUsed             Int     @default(0)
   unpaidTimeOffRemaining Int  @default(0)
   isActive         Boolean @default(true)
   isPartTime       Boolean @default(false)

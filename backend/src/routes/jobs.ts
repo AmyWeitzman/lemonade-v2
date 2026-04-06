@@ -23,6 +23,7 @@ import {
   JobRow,
   PlayerForJobEligibility,
 } from '../lib/jobs';
+import { resetPTOOnJobChange } from '../lib/pto';
 
 const router = Router();
 
@@ -291,6 +292,36 @@ router.post(
         (e) => e.jobId === jobId && e.isActive,
       );
       if (existingEmployment) {
+        // Allow FT→PT switch at the same job — reset PTO
+        if (partTime && !existingEmployment.isPartTime && job.partTime) {
+          await prisma.employment.update({
+            where: { id: existingEmployment.id },
+            data: {
+              isPartTime: true,
+              ptoRemaining: resetPTOOnJobChange(),
+              ...({ ptoUsed: 0 } as Record<string, unknown>),
+            } as Parameters<typeof prisma.employment.update>[0]['data'],
+          });
+
+          await sendNotification(
+            player.id,
+            {
+              type: 'info',
+              category: 'job',
+              title: 'Switched to Part-Time',
+              message: `You switched to part-time at ${job.title}. Your accumulated PTO has been reset.`,
+            },
+            getIO(),
+          );
+
+          res.status(200).json({
+            employment: { ...existingEmployment, isPartTime: true, ptoRemaining: 0 },
+            projectedIncome: player.projectedIncome,
+            deactivatedCount: 0,
+            ptoReset: true,
+          });
+          return;
+        }
         res.status(400).json({ error: 'You are already employed in this job' });
         return;
       }
@@ -340,11 +371,17 @@ router.post(
 
       // Persist in transaction
       const newEmployment = await prisma.$transaction(async (tx) => {
-        // Deactivate replaced jobs
+        // Deactivate replaced jobs — reset PTO on job change
         for (const empId of employmentsToDeactivate) {
           await tx.employment.update({
             where: { id: empId },
-            data: { isActive: false, endAge: player.age, endReason: 'quit' },
+            data: {
+              isActive: false,
+              endAge: player.age,
+              endReason: 'quit',
+              ptoRemaining: resetPTOOnJobChange(),
+              ...({ ptoUsed: 0 } as Record<string, unknown>),
+            } as Parameters<typeof tx.employment.update>[0]['data'],
           });
         }
 
@@ -445,7 +482,13 @@ router.post(
       await prisma.$transaction(async (tx) => {
         await tx.employment.update({
           where: { id: employment.id },
-          data: { isActive: false, endAge: player.age, endReason: 'quit' },
+          data: {
+            isActive: false,
+            endAge: player.age,
+            endReason: 'quit',
+            ptoRemaining: resetPTOOnJobChange(),
+            ...({ ptoUsed: 0 } as Record<string, unknown>),
+          } as Parameters<typeof tx.employment.update>[0]['data'],
         });
         await tx.player.update({
           where: { id: player.id },

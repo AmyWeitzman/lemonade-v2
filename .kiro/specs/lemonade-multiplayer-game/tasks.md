@@ -235,7 +235,7 @@
   - Auto-retire spouse at 65; prevent forcing retired spouse to work
   - _Requirements: Req 27_
 
-- [ ] 30. Internship and PTO Systems
+- [x] 30. Internship and PTO Systems
   - Implement internship action — enrolled students only, once per year, grant field skills, reduce summer job pay by 25% and time blocks by 4 if also employed
   - Implement PTO request action — convert job time blocks to activity time blocks (max half job's TBs); require PTO for travel actions; reset PTO on job change
   - Implement unpaid time off for eligible jobs (teacher, professor: 4 TBs; flight attendant/pilot: 8 discounted travel tickets)

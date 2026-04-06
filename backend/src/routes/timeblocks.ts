@@ -80,7 +80,7 @@ router.get('/:id/time-blocks', authorize, async (req: Request, res: Response): P
       employments: player.employments.map((e: any) => ({
         isActive: e.isActive as boolean,
         isPartTime: e.isPartTime as boolean,
-        ptoUsed: undefined,
+        ptoUsed: (e.ptoUsed as number | undefined) ?? 0,
         chosenLocation: (e.chosenLocation as string | undefined) ?? 'city',
         job: { timeBlocks: e.job.timeBlocks as number },
       })),
@@ -162,7 +162,7 @@ router.patch(
         employments: player.employments.map((e: any) => ({
           isActive: e.isActive as boolean,
           isPartTime: e.isPartTime as boolean,
-          ptoUsed: undefined,
+          ptoUsed: (e.ptoUsed as number | undefined) ?? 0,
           chosenLocation: (e.chosenLocation as string | undefined) ?? 'city',
           job: { timeBlocks: e.job.timeBlocks as number },
         })),

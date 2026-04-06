@@ -25,6 +25,8 @@ import {
 } from './relationships';
 import { calculatePetLemons } from './pets';
 import { checkYearEndPitcher, recalculatePitcherGoal } from './pitcher';
+import { calculatePTOAccrual } from './pto';
+import { calculateInternshipJobPayReduction } from './internship';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -417,6 +419,9 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       isActive: boolean;
       endReason: string | null;
       endAge: number | null;
+      ptoRemaining: number;
+      ptoUsed: number;
+      unpaidTimeOffRemaining: number;
     }> = [];
 
     for (const employment of player.employments) {
@@ -465,15 +470,46 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
         }
       }
 
+      // PTO accrual: add base PTO + milestone bonus (every 10 years of service)
+      // Only full-time jobs with ptoTimeBlocks > 0 accrue PTO
+      const newYearsOfService = employment.yearsOfService + 1;
+      let newPtoRemaining = employment.ptoRemaining;
+      if (!employment.isPartTime && job.ptoTimeBlocks > 0) {
+        const accrual = calculatePTOAccrual(newYearsOfService, job.ptoTimeBlocks);
+        newPtoRemaining += accrual;
+      }
+
+      // Reset ptoUsed for the new year (PTO itself carries over, but "used this year" resets)
+      const newPtoUsed = 0;
+
+      // Reset unpaid time off to job's base value for the new year
+      const newUnpaidTimeOff = job.unpaidTimeOff ?? 0;
+
       employmentUpdates.push({
         id: employment.id,
         currentSalary,
-        yearsOfService: employment.yearsOfService + 1,
+        yearsOfService: newYearsOfService,
         consecutiveMissedRaiseYears,
         isActive,
         endReason,
         endAge,
+        ptoRemaining: newPtoRemaining,
+        ptoUsed: newPtoUsed,
+        unpaidTimeOffRemaining: newUnpaidTimeOff,
       });
+    }
+
+    // Apply internship job pay reduction if player did internship this year
+    // Reduce salary payment by 25% for this year (applied as a deduction at year-end)
+    const didInternship = (player as unknown as { didInternshipThisYear: boolean })
+      .didInternshipThisYear ?? false;
+    let internshipPayDeduction = 0;
+    if (didInternship && player.employments.length > 0) {
+      for (const employment of player.employments) {
+        const normalSalary = employment.currentSalary;
+        const reducedSalary = calculateInternshipJobPayReduction(normalSalary);
+        internshipPayDeduction += normalSalary - reducedSalary;
+      }
     }
 
     // e. Apply job annual skill/trait gains
@@ -797,13 +833,15 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
           ...(updatedSpouse !== spouse
             ? { spouse: (updatedSpouse ?? Prisma.JsonNull) as Prisma.InputJsonValue }
             : {}),
-          // Add pension income, deduct spouse CPR renewal charge
-          ...(pensionIncome > 0 || spouseCprCharge > 0
-            ? { money: { increment: pensionIncome - spouseCprCharge } }
+          // Add pension income, deduct spouse CPR renewal charge, deduct internship pay reduction
+          ...(pensionIncome > 0 || spouseCprCharge > 0 || internshipPayDeduction > 0
+            ? { money: { increment: pensionIncome - spouseCprCharge - internshipPayDeduction } }
             : {}),
           yearComplete: false,
           cardsReceivedThisYear: 0,
-        },
+          // Reset internship flag for the new year
+          ...({ didInternshipThisYear: false } as Record<string, unknown>),
+        } as Parameters<typeof tx.player.update>[0]['data'],
       });
 
       // Update employments
@@ -817,7 +855,10 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
             isActive: eu.isActive,
             endReason: eu.endReason,
             endAge: eu.endAge,
-          },
+            ptoRemaining: eu.ptoRemaining,
+            unpaidTimeOffRemaining: eu.unpaidTimeOffRemaining,
+            ...({ ptoUsed: eu.ptoUsed } as Record<string, unknown>),
+          } as Parameters<typeof tx.employment.update>[0]['data'],
         });
       }
 
@@ -864,6 +905,20 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
           category: 'year',
           title: 'Pension Payment Received',
           message: `You received $${pensionIncome.toLocaleString()} in pension income this year.`,
+        },
+        io,
+      );
+    }
+
+    // Notify player of internship pay reduction if applicable
+    if (didInternship && internshipPayDeduction > 0) {
+      await sendNotification(
+        player.id,
+        {
+          type: 'info',
+          category: 'job',
+          title: 'Internship Pay Reduction Applied',
+          message: `Your job pay was reduced by $${internshipPayDeduction.toLocaleString()} (25%) this year due to your internship.`,
         },
         io,
       );
