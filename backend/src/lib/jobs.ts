@@ -326,3 +326,36 @@ export function getJobBenefits(benefitsJson: unknown, jobRow?: Pick<JobRow, 'has
     canBeSecondJob: Boolean(b.canBeSecondJob),
   };
 }
+
+// ─── checkBikeRestriction ─────────────────────────────────────────────────────
+
+/**
+ * Req 47.6 — Bikes cannot travel between city and suburb.
+ * If the player's only vehicle is a bike AND the job is in a different location
+ * than the player's housing, the player cannot take that job.
+ *
+ * Returns a reason string if blocked, null if allowed.
+ */
+export function checkBikeRestriction(
+  jobLocation: string, // 'city' | 'suburb' | 'both'
+  playerHousingLocation: string, // 'city' | 'suburb'
+  vehicleOwnerships: Array<{ endAge: number | null; vehicle: { type: string; restrictedToArea: boolean } }>,
+): string | null {
+  if (jobLocation === 'both') return null; // job is available everywhere
+
+  // Check if player has only a bike (no car/motorcycle/transit)
+  const activeVehicles = vehicleOwnerships.filter((v) => v.endAge === null);
+  if (activeVehicles.length === 0) return null; // no vehicle — no bike restriction
+
+  const hasBikeOnly =
+    activeVehicles.every((v) => v.vehicle.type === 'bike' && v.vehicle.restrictedToArea);
+
+  if (!hasBikeOnly) return null; // has a non-bike vehicle — can travel freely
+
+  // Bike is restricted to area — job must be in same location as housing
+  if (jobLocation !== playerHousingLocation) {
+    return `Bike cannot travel between city and suburb. Job is in ${jobLocation} but your housing is in ${playerHousingLocation}.`;
+  }
+
+  return null;
+}

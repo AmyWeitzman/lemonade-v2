@@ -248,10 +248,10 @@
   - Track professional licenses from jobs
   - _Requirements: Req 43_
 
-- [ ] 32. Location-Based Restrictions
+- [x] 32. Location-Based Restrictions
   - Mark jobs, housing, and actions as city-only, suburb-only, or both
   - Filter available options by player's current location (but allow viewing all)
-  - Require new housing selection when changing location
+  - Require new location selection when changing housing
   - Apply location-specific card eligibility
   - Enforce bike restriction (no inter-area travel)
   - _Requirements: Req 47_

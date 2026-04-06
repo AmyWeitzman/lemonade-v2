@@ -74,6 +74,7 @@ function countOccupants(player: FullPlayer): number {
 const listHousingSchema = z.object({
   gameSessionId: z.string().min(1),
   location: z.enum(['city', 'suburb']).optional(),
+  showAll: z.coerce.boolean().optional(), // Req 47.3: bypass player-location default filter
   minCapacity: z.coerce.number().optional(),
   maxPetLarge: z.coerce.number().optional(),
   maxPetSmall: z.coerce.number().optional(),
@@ -85,7 +86,11 @@ const listHousingSchema = z.object({
 
 const selectHousingSchema = z.object({
   gameSessionId: z.string().min(1),
+  // Required when housing.location === 'both' — player picks which area they're living in
+  location: z.enum(['city', 'suburb']).optional(),
 });
+
+
 
 const improvementsSchema = z.object({
   gameSessionId: z.string().min(1),
@@ -106,7 +111,7 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     return;
   }
 
-  const { gameSessionId, location, minCapacity, maxPetLarge, maxPetSmall, rentalOnly, buyOnly, maxCost, compare } =
+  const { gameSessionId, location, showAll, minCapacity, maxPetLarge, maxPetSmall, rentalOnly, buyOnly, maxCost, compare } =
     result.data;
 
   try {
@@ -156,7 +161,11 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
 
     // Filters
     if (location) {
+      // Explicit location filter overrides the player-location default
       housing = housing.filter((h) => h.location === location || h.location === 'both');
+    } else if (!showAll) {
+      // Req 47.3 — default: filter to player's current location (showAll=true bypasses this)
+      housing = housing.filter((h) => h.location === player.location || h.location === 'both');
     }
     if (minCapacity !== undefined) {
       housing = housing.filter((h) => h.maxOccupancy >= minCapacity);
@@ -223,7 +232,7 @@ router.post(
       return;
     }
 
-    const { gameSessionId } = result.data;
+    const { gameSessionId, location: requestedLocation } = result.data;
 
     try {
       const player = await fetchFullPlayer(req.user!.userId, gameSessionId);
@@ -266,8 +275,14 @@ router.post(
       const inflationRates = (session.inflationRates as unknown as InflationRates[]) ?? [];
       const currentYear = session.currentYear;
 
-      // Resolve location
-      const resolvedLocation = housing.location === 'both' ? player.location : housing.location;
+      // Resolve location:
+      // - city/suburb-only housing → use housing's location
+      // - 'both' housing → use the location the player explicitly chose (required)
+      if (housing.location === 'both' && !requestedLocation) {
+        res.status(400).json({ error: 'This housing is available in both areas. Please specify a location (city or suburb).' });
+        return;
+      }
+      const resolvedLocation = housing.location === 'both' ? requestedLocation! : housing.location;
 
       // ── Handle sale of current owned home ────────────────────────────────
       let saleProceeds = 0;

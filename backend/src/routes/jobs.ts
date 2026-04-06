@@ -6,7 +6,7 @@
  * POST /api/jobs/:id/apply     — apply for a job
  * POST /api/jobs/:id/quit      — quit a job
  *
- * Requirements: Req 11, Req 44, Req 45, Req 46
+ * Requirements: Req 11, Req 44, Req 45, Req 46, Req 47
  */
 
 import { Router, Request, Response } from 'express';
@@ -18,6 +18,7 @@ import { getIO } from '../socket';
 import { sendNotification } from '../lib/yearCycle';
 import {
   checkJobEligibility,
+  checkBikeRestriction,
   calculateProjectedIncomeAfterJobChange,
   getJobBenefits,
   JobRow,
@@ -39,6 +40,7 @@ async function fetchFullPlayer(userId: string, gameSessionId: string) {
     include: {
       educations: { include: { program: true } },
       employments: { include: { job: true } },
+      vehicleOwnerships: { include: { vehicle: true } },
     },
   });
 }
@@ -81,6 +83,7 @@ const listJobsSchema = z.object({
   maxTimeBlocks: z.coerce.number().optional(),
   maxStress: z.coerce.number().optional(),
   location: z.enum(['city', 'suburb', 'both']).optional(),
+  showAll: z.coerce.boolean().optional(), // Req 47.3: bypass player-location default filter
   partTimeOnly: z.coerce.boolean().optional(),
   fullTimeOnly: z.coerce.boolean().optional(),
   seasonal: z.coerce.boolean().optional(),
@@ -115,6 +118,7 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     maxTimeBlocks,
     maxStress,
     location,
+    showAll,
     partTimeOnly,
     fullTimeOnly,
     seasonal,
@@ -153,7 +157,11 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
       jobs = jobs.filter((j) => j.stressLevel <= maxStress);
     }
     if (location) {
+      // Explicit location filter overrides the player-location default
       jobs = jobs.filter((j) => j.location === 'both' || j.location === location);
+    } else if (!showAll) {
+      // Req 47.3 — default: filter to player's current location (showAll=true bypasses this)
+      jobs = jobs.filter((j) => j.location === 'both' || j.location === player.location);
     }
     if (partTimeOnly) {
       jobs = jobs.filter((j) => j.partTime);
@@ -169,7 +177,6 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     }
 
     // ── Annotate with eligibility + benefits ──────────────────────────────────
-
     const annotated = jobs.map((j) => {
       const eligResult = checkJobEligibility(j, eligPlayer);
       const benefits = getJobBenefits(j.benefits, j);
@@ -177,12 +184,25 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
       const alreadyEmployed = player.employments.some(
         (e) => e.jobId === j.id && e.isActive,
       );
+      // Req 47.6 — bike restriction
+      const bikeRestriction = checkBikeRestriction(
+        j.location,
+        player.location,
+        player.vehicleOwnerships.map((v) => ({
+          endAge: v.endAge,
+          vehicle: { type: v.vehicle.type, restrictedToArea: v.vehicle.restrictedToArea },
+        })),
+      );
+      const bikeBlocked = bikeRestriction !== null;
       return {
         ...j,
-        eligible: eligResult.eligible,
-        eligibilityReasons: eligResult.reasons,
+        eligible: eligResult.eligible && !bikeBlocked,
+        eligibilityReasons: bikeBlocked
+          ? [...eligResult.reasons, bikeRestriction]
+          : eligResult.reasons,
         benefits,
         alreadyEmployed,
+        bikeBlocked,
       };
     });
 
@@ -234,12 +254,24 @@ router.get('/search', authorize, async (req: Request, res: Response): Promise<vo
         const eligPlayer = buildEligibilityPlayer(player);
         const annotated = jobs.map((j) => {
           const eligResult = checkJobEligibility(j, eligPlayer);
+          const bikeRestriction = checkBikeRestriction(
+            j.location,
+            player.location,
+            player.vehicleOwnerships.map((v) => ({
+              endAge: v.endAge,
+              vehicle: { type: v.vehicle.type, restrictedToArea: v.vehicle.restrictedToArea },
+            })),
+          );
+          const bikeBlocked = bikeRestriction !== null;
           return {
             ...j,
-            eligible: eligResult.eligible,
-            eligibilityReasons: eligResult.reasons,
+            eligible: eligResult.eligible && !bikeBlocked,
+            eligibilityReasons: bikeBlocked
+              ? [...eligResult.reasons, bikeRestriction]
+              : eligResult.reasons,
             benefits: getJobBenefits(j.benefits, j),
             alreadyEmployed: player.employments.some((e) => e.jobId === j.id && e.isActive),
+            bikeBlocked,
           };
         });
         res.json({ jobs: annotated });
@@ -339,6 +371,20 @@ router.post(
       const eligResult = checkJobEligibility(job, eligPlayer);
       if (!eligResult.eligible) {
         res.status(400).json({ error: 'Requirements not met', reasons: eligResult.reasons });
+        return;
+      }
+
+      // Req 47.6 — bike restriction: block if player has bike-only transport and job is cross-area
+      const bikeRestriction = checkBikeRestriction(
+        job.location,
+        player.location,
+        player.vehicleOwnerships.map((v) => ({
+          endAge: v.endAge,
+          vehicle: { type: v.vehicle.type, restrictedToArea: v.vehicle.restrictedToArea },
+        })),
+      );
+      if (bikeRestriction) {
+        res.status(400).json({ error: bikeRestriction });
         return;
       }
 

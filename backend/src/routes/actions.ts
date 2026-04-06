@@ -228,6 +228,7 @@ const listActionsSchema = z.object({
   maxTimeBlocks: z.coerce.number().optional(),
   eligibleOnly: z.coerce.boolean().optional(),
   location: z.string().optional(),
+  showAll: z.coerce.boolean().optional(), // Req 47.3: bypass player-location default filter
   goodDeed: z.coerce.boolean().optional(),
   seniorDiscount: z.coerce.boolean().optional(),
   ptoRequired: z.coerce.boolean().optional(),
