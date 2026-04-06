@@ -354,6 +354,28 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       updatedSpouse = { ...spouse, age: (spouse.age as number) + 1 };
     }
 
+    // e2. Spouse CPR auto-renewal — charge $75 every 2 years if spouse has CPR cert
+    const CPR_RENEWAL_COST = 75;
+    const CPR_RENEWAL_INTERVAL = 2;
+    let spouseCprCharge = 0;
+    if (updatedSpouse && Array.isArray(updatedSpouse.certifications) && (updatedSpouse.certifications as string[]).includes('CPR')) {
+      const spouseCprYear = (updatedSpouse as Record<string, unknown>).spouseCprYear as number | undefined;
+      if (spouseCprYear === undefined || (session.currentYear + 1 - spouseCprYear) >= CPR_RENEWAL_INTERVAL) {
+        spouseCprCharge = CPR_RENEWAL_COST;
+        updatedSpouse = { ...updatedSpouse, spouseCprYear: session.currentYear + 1 };
+        await sendNotification(
+          player.id,
+          {
+            type: 'info',
+            category: 'certification',
+            title: 'Spouse CPR Certification Auto-Renewed',
+            message: `Your spouse's CPR certification has been automatically renewed ($${CPR_RENEWAL_COST}).`,
+          },
+          io,
+        );
+      }
+    }
+
     // f. Notify player when they reach retirement age (Req 15.5)
     if (!player.isRetired && newAge === 65) {
       await sendNotification(
@@ -775,8 +797,10 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
           ...(updatedSpouse !== spouse
             ? { spouse: (updatedSpouse ?? Prisma.JsonNull) as Prisma.InputJsonValue }
             : {}),
-          // Add pension income to money
-          ...(pensionIncome > 0 ? { money: { increment: pensionIncome } } : {}),
+          // Add pension income, deduct spouse CPR renewal charge
+          ...(pensionIncome > 0 || spouseCprCharge > 0
+            ? { money: { increment: pensionIncome - spouseCprCharge } }
+            : {}),
           yearComplete: false,
           cardsReceivedThisYear: 0,
         },

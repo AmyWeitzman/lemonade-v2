@@ -227,7 +227,7 @@
   - Implement music career — track EPs and albums released; calculate performance income by type and skill; enforce minimum releases for headline tour eligibility
   - _Requirements: Req 26_
 
-- [ ] 29. Spouse Management
+- [x] 29. Spouse Management
   - Implement Spouse cart item — manage spouse job (one job max), school (PT + PT job allowed), vehicle
   - Track spouse vehicle separately; apply vehicle costs and cards to spouse vehicle
   - Auto-pay spouse minimum loan payments; allow additional payments on spouse/joint loans

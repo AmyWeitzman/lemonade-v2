@@ -34,6 +34,9 @@ import { calculateAnnualHousingCosts, type HousingRow, type HomeImprovement } fr
 import { CHILDCARE_COSTS } from '../lib/timeBlocks';
 import { getJobBenefits } from '../lib/jobs';
 
+const CPR_RENEWAL_COST = 75;
+const CPR_RENEWAL_INTERVAL_YEARS = 2;
+
 const router = Router();
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -43,6 +46,10 @@ interface SpouseData {
   isJobPartTime?: boolean;
   hasAccountingExperience?: boolean;
   salary?: number;
+  educationProgramId?: string | null;
+  isEduPartTime?: boolean;
+  certifications?: string[];
+  spouseCprYear?: number;
   loans?: Array<{ id: string; currentBalance: number; interestRate: number; owner: string; isJoint: boolean }>;
 }
 
@@ -156,7 +163,7 @@ function calculateChronicConditionCosts(player: FullPlayer): number {
   return conditions.length * costPerCondition;
 }
 
-/** Calculate annual tuition */
+/** Calculate annual tuition (player only) */
 function calculateTuition(player: FullPlayer): number {
   let total = 0;
   for (const edu of player.educations) {
@@ -167,6 +174,18 @@ function calculateTuition(player: FullPlayer): number {
     total += tuition;
   }
   return total;
+}
+
+/** Calculate spouse tuition if enrolled in a program */
+async function calculateSpouseTuition(spouse: SpouseData): Promise<number> {
+  if (!spouse.educationProgramId) return 0;
+  const program = await prisma.educationProgram.findUnique({
+    where: { id: spouse.educationProgramId },
+  });
+  if (!program) return 0;
+  return spouse.isEduPartTime
+    ? (program.tuitionPartTime ?? program.tuitionFullTime * 0.5)
+    : program.tuitionFullTime;
 }
 
 /** Calculate childcare costs */
@@ -192,6 +211,9 @@ async function calculateMandatoryExpenses(
   miscellaneous: number;
   chronicConditions: number;
   tuition: number;
+  spouseTuition: number;
+  spouseVehicleCosts: number;
+  spouseCprRenewal: number;
   taxPrepFee: number;
   taxes: number;
   loanMinPayments: number;
@@ -215,9 +237,10 @@ async function calculateMandatoryExpenses(
     housingCost = housingResult.total;
   }
 
-  // Transportation
+  // Transportation — player vehicles only (non-spouse)
   let transportationCost = 0;
   for (const vo of player.vehicleOwnerships) {
+    if (vo.isSpouseVehicle) continue;
     const vehicle = vo.vehicle as unknown as VehicleRow;
     const isMechanic = player.employments.some((e) => {
       const b = getJobBenefits(e.job.benefits, e.job);
@@ -225,6 +248,17 @@ async function calculateMandatoryExpenses(
     });
     const costs = calculateAnnualVehicleCosts(vehicle, vo.yearsOwned, isMechanic);
     transportationCost += costs.total;
+  }
+
+  // Spouse vehicle costs (tracked separately)
+  let spouseVehicleCosts = 0;
+  if (player.maritalStatus === 'married') {
+    for (const vo of player.vehicleOwnerships) {
+      if (!vo.isSpouseVehicle) continue;
+      const vehicle = vo.vehicle as unknown as VehicleRow;
+      const costs = calculateAnnualVehicleCosts(vehicle, vo.yearsOwned, false);
+      spouseVehicleCosts += costs.total;
+    }
   }
 
   // Health insurance
@@ -250,8 +284,29 @@ async function calculateMandatoryExpenses(
   // Chronic conditions
   const chronicConditions = calculateChronicConditionCosts(player);
 
-  // Tuition
+  // Player tuition
   const tuition = calculateTuition(player);
+
+  // Spouse tuition
+  let spouseTuition = 0;
+  if (player.maritalStatus === 'married') {
+    const spouse = player.spouse as SpouseData | null;
+    if (spouse) {
+      spouseTuition = await calculateSpouseTuition(spouse);
+    }
+  }
+
+  // Spouse CPR auto-renewal
+  let spouseCprRenewal = 0;
+  if (player.maritalStatus === 'married') {
+    const spouse = player.spouse as SpouseData | null;
+    if (spouse?.certifications?.includes('CPR')) {
+      const spouseCprYear = (spouse as unknown as Record<string, unknown>).spouseCprYear as number | undefined;
+      if (spouseCprYear !== undefined && (session.currentYear - spouseCprYear) >= CPR_RENEWAL_INTERVAL_YEARS) {
+        spouseCprRenewal = CPR_RENEWAL_COST;
+      }
+    }
+  }
 
   // Taxes
   const taxBrackets = (session.taxBrackets as unknown as TaxBracket[]) ?? [];
@@ -287,6 +342,7 @@ async function calculateMandatoryExpenses(
   const total =
     housingCost +
     transportationCost +
+    spouseVehicleCosts +
     healthInsurance +
     childcare +
     childExpenses +
@@ -295,6 +351,8 @@ async function calculateMandatoryExpenses(
     miscellaneous +
     chronicConditions +
     tuition +
+    spouseTuition +
+    spouseCprRenewal +
     taxPrepFee +
     taxes +
     loanMinPayments;
@@ -310,6 +368,9 @@ async function calculateMandatoryExpenses(
     miscellaneous,
     chronicConditions,
     tuition,
+    spouseTuition,
+    spouseVehicleCosts,
+    spouseCprRenewal,
     taxPrepFee,
     taxes,
     loanMinPayments,
@@ -317,6 +378,7 @@ async function calculateMandatoryExpenses(
     breakdown: {
       housing: housingCost,
       transportation: transportationCost,
+      spouseVehicleCosts,
       healthInsurance,
       childcare,
       childExpenses,
@@ -325,6 +387,8 @@ async function calculateMandatoryExpenses(
       miscellaneous,
       chronicConditions,
       tuition,
+      spouseTuition,
+      spouseCprRenewal,
       taxPrepFee,
       taxes,
       loanMinPayments,
