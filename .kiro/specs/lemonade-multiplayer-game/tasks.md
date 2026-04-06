@@ -221,7 +221,7 @@
   - Implement `sendSystemMessage(sessionId, content)` for automated events (player joined, year started, player died, etc.)
   - _Requirements: Req 25_
 
-- [ ] 28. Career Progression Systems
+- [x] 28. Career Progression Systems
   - Implement writing career — track time blocks toward book (20 TB = complete); self-publish or submit to publisher (check writing + creativity thresholds); calculate author income by published books and skill level
   - Implement acting career — audition rolls (bravery + perseverance); grant role and payment on success; consolation skill gains on failure; 15% agent fee reduction
   - Implement music career — track EPs and albums released; calculate performance income by type and skill; enforce minimum releases for headline tour eligibility
