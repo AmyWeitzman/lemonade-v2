@@ -27,6 +27,11 @@ import { calculatePetLemons } from './pets';
 import { checkYearEndPitcher, recalculatePitcherGoal } from './pitcher';
 import { calculatePTOAccrual } from './pto';
 import { calculateInternshipJobPayReduction } from './internship';
+import {
+  checkCertificationExpiry,
+  revokeCertification,
+  type CertificationEntry,
+} from './certifications';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -378,6 +383,31 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       }
     }
 
+    // e3. Check player CPR certification expiry (Req 43)
+    let updatedCertifications = player.certifications as unknown as CertificationEntry[];
+    const expiredCerts = checkCertificationExpiry(player, session.currentYear + 1);
+    for (const expired of expiredCerts) {
+      if (expired.type === 'cpr') {
+        updatedCertifications = revokeCertification(
+          { certifications: updatedCertifications },
+          'cpr',
+        );
+        await sendNotification(
+          player.id,
+          {
+            type: 'warning',
+            category: 'certification',
+            title: 'CPR Certification Expired',
+            message:
+              'Your CPR certification has expired. Renew it or you will not be eligible for certain jobs and actions that require a CPR certification.',
+            persistent: true,
+            actionRequired: true,
+          },
+          io,
+        );
+      }
+    }
+
     // f. Notify player when they reach retirement age (Req 15.5)
     if (!player.isRetired && newAge === 65) {
       await sendNotification(
@@ -583,13 +613,18 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
         isActive = false;
         clearScholarships = true; // surplus scholarship money goes away on graduation
 
-        // Grant certifications from graduation
+        // Grant certifications from graduation using structured cert system
         if (program.grantsOnGraduation && program.grantsOnGraduation.length > 0) {
-          const existingCerts = (player.certifications as string[]) ?? [];
-          const newCerts = [...new Set([...existingCerts, ...program.grantsOnGraduation])];
+          const { autoGrantFromEducation } = await import('./certifications');
+          const updatedCerts = autoGrantFromEducation(
+            player,
+            program.name,
+            program.grantsOnGraduation,
+            session.currentYear + 1,
+          );
           await prisma.player.update({
             where: { id: player.id },
-            data: { certifications: newCerts },
+            data: { certifications: updatedCerts as unknown as Prisma.InputJsonValue },
           });
         }
 
@@ -833,6 +868,8 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
           ...(updatedSpouse !== spouse
             ? { spouse: (updatedSpouse ?? Prisma.JsonNull) as Prisma.InputJsonValue }
             : {}),
+          // Persist updated certifications (CPR expiry removals)
+          certifications: updatedCertifications as unknown as Prisma.InputJsonValue,
           // Add pension income, deduct spouse CPR renewal charge, deduct internship pay reduction
           ...(pensionIncome > 0 || spouseCprCharge > 0 || internshipPayDeduction > 0
             ? { money: { increment: pensionIncome - spouseCprCharge - internshipPayDeduction } }

@@ -25,6 +25,8 @@ import {
   PlayerForEligibility,
   ActionHistoryRecord,
 } from '../lib/actions';
+import { grantCertification } from '../lib/certifications';
+import { Prisma } from '@prisma/client';
 
 const router = Router();
 
@@ -61,7 +63,7 @@ function asExtended(player: FullPlayer): ExtendedPlayer {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function buildEligibilityPlayer(player: FullPlayer): PlayerForEligibility {
+function buildEligibilityPlayer(player: FullPlayer, currentYear?: number): PlayerForEligibility {
   const p = asExtended(player);
   return {
     age: p.age,
@@ -69,6 +71,7 @@ function buildEligibilityPlayer(player: FullPlayer): PlayerForEligibility {
     skills: p.skills as Record<string, number>,
     traits: p.traits as Record<string, number>,
     certifications: p.certifications,
+    currentYear: currentYear ?? 0,
     isRetired: p.isRetired,
     location: p.location,
     educations: p.educations.map((e) => ({
@@ -281,7 +284,12 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     }
 
     const allActions = (await prisma.action.findMany()) as unknown as ActionRow[];
-    const eligPlayer = buildEligibilityPlayer(player);
+    const session = await prisma.gameSession.findUnique({
+      where: { id: gameSessionId },
+      select: { currentYear: true },
+    });
+    const currentYear = session?.currentYear ?? 0;
+    const eligPlayer = buildEligibilityPlayer(player, currentYear);
     const familySize = getFamilySize(player);
     const jobTitles = getActiveJobTitles(player);
     const hasBike = playerHasBike(player);
@@ -429,7 +437,11 @@ router.get('/search', authorize, async (req: Request, res: Response): Promise<vo
     if (gameSessionId && req.user) {
       const player = await fetchFullPlayer(req.user.userId, gameSessionId);
       if (player) {
-        const eligPlayer = buildEligibilityPlayer(player);
+        const sessionForYear = await prisma.gameSession.findUnique({
+          where: { id: gameSessionId },
+          select: { currentYear: true },
+        });
+        const eligPlayer = buildEligibilityPlayer(player, sessionForYear?.currentYear ?? 0);
         const familySize = getFamilySize(player);
         const jobTitles = getActiveJobTitles(player);
         const hasBike = playerHasBike(player);
@@ -489,20 +501,18 @@ router.get(
       const dbActions = await prisma.action.findMany({ where: { id: { in: actionIds } } });
       const actions = dbActions as unknown as ActionRow[];
 
-      const eligPlayer = buildEligibilityPlayer(player);
-      const familySize = getFamilySize(player);
-      const jobTitles = getActiveJobTitles(player);
-      const hasBike = playerHasBike(player);
-      const availableTimeBlocks = getAvailableTimeBlocks(player);
-      const availableMoney = player.money + player.projectedIncome;
-
       const session = await prisma.gameSession.findUnique({
         where: { id: gameSessionId },
         select: { currentYear: true },
       });
       const currentYear = session?.currentYear ?? 0;
 
-      const errors: string[] = [];
+      const eligPlayer = buildEligibilityPlayer(player, currentYear);
+      const familySize = getFamilySize(player);
+      const jobTitles = getActiveJobTitles(player);
+      const hasBike = playerHasBike(player);
+      const availableTimeBlocks = getAvailableTimeBlocks(player);
+      const availableMoney = player.money + player.projectedIncome;
       let totalTimeBlocks = 0;
       let totalCost = 0;
 
@@ -608,7 +618,7 @@ router.post(
       }
 
       const currentYear = session.currentYear;
-      const eligPlayer = buildEligibilityPlayer(player);
+      const eligPlayer = buildEligibilityPlayer(player, currentYear);
       const familySize = getFamilySize(player);
       const jobTitles = getActiveJobTitles(player);
       const hasBike = playerHasBike(player);
@@ -750,6 +760,20 @@ router.post(
 
       const newStress = Math.min(100, Math.max(0, ep.stress + stressDelta));
 
+      // Grant CPR certification if "Get CPR Certification" action is in the cart (Req 43.5)
+      let newCertifications: unknown = player.certifications;
+      const hasCprAction = cartItems.some((item) => {
+        const action = actionMap.get(item.actionId);
+        return action?.name === 'Get CPR Certification';
+      });
+      if (hasCprAction) {
+        newCertifications = grantCertification(
+          { certifications: player.certifications },
+          'cpr',
+          currentYear,
+        );
+      }
+
       // Pitcher contributions
       const contributions = (session.pitcherContributionsByPlayer ?? {}) as Record<string, number>;
       if (totalLemonsEarned > 0) {
@@ -811,6 +835,7 @@ router.post(
             totalLemonsEarned: { increment: totalLemonsEarned },
             skills: newSkills,
             traits: newTraits,
+            certifications: newCertifications as Prisma.InputJsonValue,
           } as Parameters<typeof tx.player.update>[0]['data'],
         });
 

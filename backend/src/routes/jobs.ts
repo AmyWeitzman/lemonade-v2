@@ -24,6 +24,8 @@ import {
   PlayerForJobEligibility,
 } from '../lib/jobs';
 import { resetPTOOnJobChange } from '../lib/pto';
+import { autoGrantFromJob } from '../lib/certifications';
+import { Prisma } from '@prisma/client';
 
 const router = Router();
 
@@ -412,6 +414,19 @@ router.post(
 
         return created;
       });
+
+      // Grant professional license if this job awards one (Req 43.7)
+      const session = await prisma.gameSession.findUnique({
+        where: { id: gameSessionId },
+        select: { currentYear: true },
+      });
+      const updatedCerts = autoGrantFromJob(player, job.title, session?.currentYear ?? 0);
+      if (updatedCerts !== null) {
+        await prisma.player.update({
+          where: { id: player.id },
+          data: { certifications: updatedCerts as unknown as Prisma.InputJsonValue },
+        });
+      }
 
       // Notify player
       await sendNotification(

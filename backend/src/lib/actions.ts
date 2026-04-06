@@ -82,7 +82,8 @@ export interface PlayerForEligibility {
   health: number;
   skills: Record<string, number>;
   traits: Record<string, number>;
-  certifications: unknown; // string[] stored as JSON
+  certifications: unknown; // string[] or CertificationEntry[] stored as JSON
+  currentYear?: number;    // used for cert expiry checks
   isRetired: boolean;
   location: string;
   // Relations
@@ -174,21 +175,36 @@ export function checkActionEligibility(
     reasons.push(`Requires health >= ${reqs.health} (you have ${player.health})`);
   }
 
-  // Certifications
-  const playerCerts = (player.certifications as string[]) ?? [];
+  // Certifications — support both legacy string[] and structured CertificationEntry[]
+  // A cert is valid if it exists and is not expired (expiresYear is null or >= currentYear)
+  const currentYear = player.currentYear ?? 0;
+  const rawCerts = (player.certifications as unknown[]) ?? [];
+  const hasCert = (certType: string): boolean => {
+    return rawCerts.some((c: unknown) => {
+      if (typeof c === 'string') return c.toLowerCase() === certType.toLowerCase();
+      if (typeof c === 'object' && c !== null) {
+        const entry = c as { type: string; expiresYear: number | null };
+        if (entry.type.toLowerCase() !== certType.toLowerCase()) return false;
+        if (entry.expiresYear !== null && currentYear > entry.expiresYear) return false;
+        return true;
+      }
+      return false;
+    });
+  };
+
   if (reqs.certifications && reqs.certifications.length > 0) {
     for (const cert of reqs.certifications) {
-      if (!playerCerts.includes(cert)) {
+      if (!hasCert(cert)) {
         reasons.push(`Requires certification: ${cert}`);
       }
     }
   }
 
   // CPR cert shortcut
-  if (reqs.hasCPRCert === true && !playerCerts.includes('CPR')) {
+  if (reqs.hasCPRCert === true && !hasCert('CPR')) {
     reasons.push('Requires CPR certification');
   }
-  if (reqs.hasCPRCert === false && playerCerts.includes('CPR')) {
+  if (reqs.hasCPRCert === false && hasCert('CPR')) {
     reasons.push('Cannot already have CPR certification');
   }
 

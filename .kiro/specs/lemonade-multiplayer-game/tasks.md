@@ -241,7 +241,7 @@
   - Implement unpaid time off for eligible jobs (teacher, professor: 4 TBs; flight attendant/pilot: 8 discounted travel tickets)
   - _Requirements: Req 31, Req 35_
 
-- [ ] 31. Certification and License System
+- [x] 31. Certification and License System
   - Track CPR certification status and 2-year expiration
   - Notify player on expiration; block actions requiring CPR
   - Auto-grant certifications from educational programs
