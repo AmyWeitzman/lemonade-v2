@@ -258,7 +258,7 @@
 
 ## Phase 5: Frontend — Core UI
 
-- [ ] 33. App Shell and Navigation
+- [x] 33. App Shell and Navigation
   - Build responsive app shell with primary navigation bar (health bar, stress bar, money display, mini pitcher, notification badge, message badge, player name)
   - Implement themed page routes: Lemonade (home), Squeeze the Day (actions), Harvest (finances), Seeds to Trees (jobs), Zest for Learning (education), You Won't Get A 🍋 (transportation), Home Sour Home (housing), Lemonade Stand (pitcher), Life's Lemons (scrapbook)
   - Implement secondary navigation drawer: Tending the Garden (profile), Lemon Tea (chat), Planting & Pruning (notifications), Nutrients (settings)
