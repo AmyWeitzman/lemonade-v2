@@ -1,6 +1,8 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export interface AuthState {
+  userId: string | null;
+  username: string | null;
   playerId: string | null;
   gameSessionId: string | null;
   playerName: string | null;
@@ -15,6 +17,8 @@ export interface AuthState {
 }
 
 const initialState: AuthState = {
+  userId: null,
+  username: null,
   playerId: null,
   gameSessionId: null,
   playerName: null,
@@ -31,6 +35,15 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
+    setUser(
+      state,
+      action: PayloadAction<{ userId: string; username: string; token: string }>,
+    ) {
+      state.userId = action.payload.userId;
+      state.username = action.payload.username;
+      state.token = action.payload.token;
+      localStorage.setItem('token', action.payload.token);
+    },
     setAuth(
       state,
       action: PayloadAction<{
@@ -66,6 +79,8 @@ const authSlice = createSlice({
       state.isAlive = false;
     },
     logout(state) {
+      state.userId = null;
+      state.username = null;
       state.playerId = null;
       state.gameSessionId = null;
       state.playerName = null;
@@ -81,5 +96,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { setAuth, setPlayerStats, setPlayerDied, logout } = authSlice.actions;
+export const { setUser, setAuth, setPlayerStats, setPlayerDied, logout } = authSlice.actions;
 export default authSlice.reducer;

@@ -266,7 +266,7 @@
   - Store collapse/expand preferences and filter preferences in browser cookies
   - _Requirements: Req 50, Req 41_
 
-- [ ] 34. Home Page and Game Lobby
+- [x] 34. Home Page and Game Lobby
   - Build landing page with username entry (firstname.lastname format validation)
   - Build game lobby showing active and completed game history
   - Build "Create New Game" flow — display name, theme, max players; show generated 6-character code with copy button; waiting room with player list; enable "Start Game" at 2+ players

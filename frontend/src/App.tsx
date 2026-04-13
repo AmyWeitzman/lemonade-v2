@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from './store';
 import AppShell from './components/layout/AppShell';
+import LoginPage from './pages/LoginPage';
+import LobbyPage from './pages/LobbyPage';
 import HomePage from './pages/HomePage';
 import ActionsPage from './pages/ActionsPage';
 import FinancesPage from './pages/FinancesPage';
@@ -13,17 +15,29 @@ import PitcherPage from './pages/PitcherPage';
 import ScrapbookPage from './pages/ScrapbookPage';
 
 export default function App() {
+  const token = useSelector((state: RootState) => state.auth.token);
   const isInGame = useSelector((state: RootState) => state.auth.isInGame);
   const isAlive = useSelector((state: RootState) => state.auth.isAlive);
 
-  if (!isInGame) {
+  // Not logged in → login page
+  if (!token) {
     return (
       <Routes>
-        <Route path="*" element={<HomePage />} />
+        <Route path="*" element={<LoginPage />} />
       </Routes>
     );
   }
 
+  // Logged in but not in a game → lobby
+  if (!isInGame) {
+    return (
+      <Routes>
+        <Route path="*" element={<LobbyPage />} />
+      </Routes>
+    );
+  }
+
+  // In a game → full app shell
   return (
     <AppShell>
       <Routes>
@@ -35,7 +49,6 @@ export default function App() {
         <Route path="/transportation" element={<TransportationPage />} />
         <Route path="/housing" element={<HousingPage />} />
         <Route path="/pitcher" element={<PitcherPage />} />
-        {/* Scrapbook only accessible after death */}
         <Route
           path="/scrapbook"
           element={isAlive ? <Navigate to="/" replace /> : <ScrapbookPage />}
