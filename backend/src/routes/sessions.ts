@@ -100,7 +100,7 @@ router.post('/', authorize, async (req: Request, res: Response): Promise<void> =
   }
 });
 
-// GET /api/sessions — list all waiting sessions, excluding ones the user has hidden
+// GET /api/sessions — list all waiting/active sessions the user is part of, excluding hidden
 router.get('/', authorize, async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!.userId;
   try {
@@ -112,17 +112,57 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
 
     const sessions = await prisma.gameSession.findMany({
       where: {
-        status: 'waiting',
-        id: { notIn: hiddenIds.length ? hiddenIds : [''] },
+        status: { in: ['waiting', 'active'] },
+        id: { notIn: hiddenIds.length ? hiddenIds : ['__none__'] },
       },
       include: {
-        players: { select: { id: true, name: true, userId: true } },
+        players: { select: { id: true, name: true, userId: true }, where: { leftAt: null } },
       },
       orderBy: { createdAt: 'desc' },
     });
     res.json({ sessions });
   } catch (err) {
     console.error('[sessions/list]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/sessions/archived — sessions the user was in but has since left (or been removed from)
+router.get('/archived', authorize, async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!.userId;
+  try {
+    const hidden = await prisma.sessionHide.findMany({
+      where: { userId },
+      select: { gameSessionId: true },
+    });
+    const hiddenIds = hidden.map((h) => h.gameSessionId);
+
+    // Sessions where this user has a player record with leftAt set (left or kicked)
+    // OR sessions that ended while they were still active (leftAt is null, session is ended)
+    const archivedSessions = await prisma.gameSession.findMany({
+      where: {
+        players: { some: { userId } },
+        OR: [
+          // Left/kicked from any status session
+          { players: { some: { userId, leftAt: { not: null } } } },
+          // Session ended while still active in it
+          { status: 'ended', players: { some: { userId, leftAt: null } } },
+        ],
+      },
+      include: {
+        players: { select: { id: true, name: true, userId: true, leftAt: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const result = archivedSessions.map((s) => ({
+      ...s,
+      isHidden: hiddenIds.includes(s.id),
+    }));
+
+    res.json({ sessions: result });
+  } catch (err) {
+    console.error('[sessions/archived]', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -219,14 +259,14 @@ router.post('/:id/join', authorize, async (req: Request, res: Response): Promise
   }
 });
 
-// POST /api/sessions/:id/leave — leave a session
+// POST /api/sessions/:id/leave — leave a session (marks player as left, preserves record for archive)
 router.post('/:id/leave', authorize, async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
   const userId = req.user!.userId;
 
   try {
     const player = await prisma.player.findFirst({
-      where: { gameSessionId: id, userId },
+      where: { gameSessionId: id, userId, leftAt: null },
     });
 
     if (!player) {
@@ -240,33 +280,34 @@ router.post('/:id/leave', authorize, async (req: Request, res: Response): Promis
       return;
     }
 
-    // If the host is leaving, either transfer host or end the session
+    const now = new Date();
+
+    // If the host is leaving, transfer host to another active player
     if (session.hostPlayerId === player.id) {
-      // Find another player to transfer host to
       const nextHost = await prisma.player.findFirst({
-        where: { gameSessionId: id, id: { not: player.id }, isAlive: true },
+        where: { gameSessionId: id, id: { not: player.id }, isAlive: true, leftAt: null },
       });
 
       if (nextHost) {
         await prisma.$transaction([
-          prisma.player.delete({ where: { id: player.id } }),
-          prisma.gameSession.update({
-            where: { id },
-            data: { hostPlayerId: nextHost.id },
-          }),
+          prisma.player.update({ where: { id: player.id }, data: { leftAt: now } }),
+          prisma.gameSession.update({ where: { id }, data: { hostPlayerId: nextHost.id } }),
         ]);
         await recalculatePitcherGoal(id);
         res.json({ message: 'Left session; host transferred', newHostPlayerId: nextHost.id });
       } else {
-        // No other players — delete the session
-        await prisma.gameSession.delete({ where: { id } });
-        res.json({ message: 'Left session; session deleted (no remaining players)' });
+        // No other active players — mark session ended
+        await prisma.$transaction([
+          prisma.player.update({ where: { id: player.id }, data: { leftAt: now } }),
+          prisma.gameSession.update({ where: { id }, data: { status: 'ended', endReason: 'player_ended' } }),
+        ]);
+        res.json({ message: 'Left session; session ended (no remaining players)' });
       }
       return;
     }
 
-    // Non-host player leaving: delete player record, recalculate pitcher
-    await prisma.player.delete({ where: { id: player.id } });
+    // Non-host player leaving
+    await prisma.player.update({ where: { id: player.id }, data: { leftAt: now } });
     await recalculatePitcherGoal(id);
 
     res.json({ message: 'Left session' });
@@ -276,7 +317,7 @@ router.post('/:id/leave', authorize, async (req: Request, res: Response): Promis
   }
 });
 
-// POST /api/sessions/:id/kick — any player can kick another player
+// POST /api/sessions/:id/kick — mark a player as kicked (preserves record for archive)
 router.post('/:id/kick', authorize, async (req: Request, res: Response): Promise<void> => {
   const result = kickSchema.safeParse(req.body);
   if (!result.success) {
@@ -291,7 +332,7 @@ router.post('/:id/kick', authorize, async (req: Request, res: Response): Promise
   try {
     const session = await prisma.gameSession.findUnique({
       where: { id },
-      include: { players: true },
+      include: { players: { where: { leftAt: null } } },
     });
 
     if (!session) {
@@ -299,27 +340,24 @@ router.post('/:id/kick', authorize, async (req: Request, res: Response): Promise
       return;
     }
 
-    // Verify requester is in this session
     const requestingPlayer = session.players.find((p) => p.userId === userId);
     if (!requestingPlayer) {
       res.status(403).json({ error: 'You are not in this session' });
       return;
     }
 
-    // Verify target player exists in session
     const targetPlayer = session.players.find((p) => p.id === playerId);
     if (!targetPlayer) {
       res.status(404).json({ error: 'Player not found in this session' });
       return;
     }
 
-    // Cannot kick yourself
     if (targetPlayer.id === requestingPlayer.id) {
       res.status(400).json({ error: 'Cannot kick yourself; use leave instead' });
       return;
     }
 
-    await prisma.player.delete({ where: { id: playerId } });
+    await prisma.player.update({ where: { id: playerId }, data: { leftAt: new Date() } });
     await recalculatePitcherGoal(id);
 
     res.json({ message: 'Player kicked' });
@@ -350,6 +388,22 @@ router.post('/:id/hide', authorize, async (req: Request, res: Response): Promise
     res.json({ message: 'Session hidden from your history' });
   } catch (err) {
     console.error('[sessions/hide]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/sessions/:id/hide — unhide a session
+router.delete('/:id/hide', authorize, async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+  const userId = req.user!.userId;
+
+  try {
+    await prisma.sessionHide.deleteMany({
+      where: { userId, gameSessionId: id },
+    });
+    res.json({ message: 'Session unhidden' });
+  } catch (err) {
+    console.error('[sessions/unhide]', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -95,6 +95,7 @@ model Player {
   isRetired      Boolean @default(false)
   isInitialized  Boolean @default(false)
   yearComplete   Boolean @default(false)
+  leftAt         DateTime? // set when player voluntarily leaves or is kicked
 
   // Chronic conditions & certifications
   chronicConditions Json @default("[]") // string[]
