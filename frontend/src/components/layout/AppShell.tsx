@@ -12,6 +12,8 @@ import { Box, useMediaQuery, useTheme } from '@mui/material';
 import TopNavBar from './TopNavBar';
 import SideNavDrawer from './SideNavDrawer';
 import BottomNavBar from './BottomNavBar';
+import ProfileDrawer from './ProfileDrawer';
+import ChatPanel from '../../features/messages/ChatPanel';
 import { useNavPreferences } from '../../hooks/useNavPreferences';
 
 const DRAWER_WIDTH = 240;
@@ -30,6 +32,7 @@ export default function AppShell({ children }: Props) {
 
   const { prefs, setDrawerOpen } = useNavPreferences();
   const [drawerOpen, setDrawerOpenState] = useState(prefs.drawerOpen);
+  const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
 
   const handleMenuClick = () => {
     const next = !drawerOpen;
@@ -40,6 +43,14 @@ export default function AppShell({ children }: Props) {
   const handleDrawerClose = () => {
     setDrawerOpenState(false);
     setDrawerOpen(false);
+  };
+
+  const handleOpenProfile = () => {
+    setProfileDrawerOpen(true);
+  };
+
+  const handleCloseProfile = () => {
+    setProfileDrawerOpen(false);
   };
 
   // On desktop, sidebar is always visible; calculate its current width
@@ -53,7 +64,13 @@ export default function AppShell({ children }: Props) {
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <TopNavBar onMenuClick={handleMenuClick} />
 
-      <SideNavDrawer open={drawerOpen} onClose={handleDrawerClose} />
+      <SideNavDrawer open={drawerOpen} onClose={handleDrawerClose} onOpenProfile={handleOpenProfile} />
+
+      {/* Profile Drawer (Tending the Garden) */}
+      <ProfileDrawer open={profileDrawerOpen} onClose={handleCloseProfile} />
+
+      {/* Chat Panel (Lemon Tea) */}
+      <ChatPanel />
 
       {/* Main content area */}
       <Box

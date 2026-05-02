@@ -9,7 +9,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import {
   Drawer,
   List,
@@ -28,6 +28,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { PRIMARY_NAV_ITEMS, SECONDARY_NAV_ITEMS } from './NavItems';
 import { useNavPreferences } from '../../hooks/useNavPreferences';
 import type { RootState } from '../../store';
+import { setChatOpen } from '../../features/messages/messagesSlice';
 
 const DRAWER_WIDTH = 240;
 const DRAWER_COLLAPSED_WIDTH = 64;
@@ -35,9 +36,11 @@ const DRAWER_COLLAPSED_WIDTH = 64;
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** Called when the user clicks "Tending the Garden" to open the profile drawer */
+  onOpenProfile?: () => void;
 }
 
-export default function SideNavDrawer({ open, onClose }: Props) {
+export default function SideNavDrawer({ open, onClose, onOpenProfile }: Props) {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -49,6 +52,7 @@ export default function SideNavDrawer({ open, onClose }: Props) {
     (item) => item.path !== '/scrapbook' || !isAlive,
   );
 
+  const dispatch = useDispatch();
   const { prefs, setSidebarCollapsed } = useNavPreferences();
   const [collapsed, setCollapsed] = useState(prefs.sidebarCollapsed);
 
@@ -128,7 +132,18 @@ export default function SideNavDrawer({ open, onClose }: Props) {
             placement="right"
             disableHoverListener={!collapsed}
           >
-            <ListItemButton sx={{ minHeight: 44, px: collapsed ? 2 : 2.5 }}>
+            <ListItemButton
+              sx={{ minHeight: 44, px: collapsed ? 2 : 2.5 }}
+              onClick={() => {
+                if (key === 'profile') {
+                  onOpenProfile?.();
+                  if (!isDesktop) onClose();
+                } else if (key === 'chat') {
+                  dispatch(setChatOpen(true));
+                  if (!isDesktop) onClose();
+                }
+              }}
+            >
               <ListItemIcon sx={{ minWidth: collapsed ? 0 : 36 }}>
                 <Icon fontSize="small" />
               </ListItemIcon>

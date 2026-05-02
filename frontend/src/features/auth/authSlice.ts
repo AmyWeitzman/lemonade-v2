@@ -14,6 +14,8 @@ export interface AuthState {
   lemons: number; // lemons in pitcher contributed by this player
   isInGame: boolean;
   isAlive: boolean;
+  isInitialized: boolean;
+  hasRolledProfile: boolean;
 }
 
 const initialState: AuthState = {
@@ -29,6 +31,8 @@ const initialState: AuthState = {
   lemons: 0,
   isInGame: false,
   isAlive: true,
+  isInitialized: false,
+  hasRolledProfile: false,
 };
 
 const authSlice = createSlice({
@@ -51,6 +55,8 @@ const authSlice = createSlice({
         gameSessionId: string;
         playerName: string;
         token: string;
+        isInitialized?: boolean;
+        hasRolledProfile?: boolean;
       }>,
     ) {
       state.playerId = action.payload.playerId;
@@ -59,6 +65,8 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.isInGame = true;
       state.isAlive = true;
+      state.isInitialized = action.payload.isInitialized ?? false;
+      state.hasRolledProfile = action.payload.hasRolledProfile ?? false;
       localStorage.setItem('token', action.payload.token);
     },
     setPlayerStats(
@@ -78,6 +86,12 @@ const authSlice = createSlice({
     setPlayerDied(state) {
       state.isAlive = false;
     },
+    setPlayerInitialized(state) {
+      state.isInitialized = true;
+    },
+    setHasRolledProfile(state) {
+      state.hasRolledProfile = true;
+    },
     logout(state) {
       state.userId = null;
       state.username = null;
@@ -87,6 +101,8 @@ const authSlice = createSlice({
       state.token = null;
       state.isInGame = false;
       state.isAlive = true;
+      state.isInitialized = false;
+      state.hasRolledProfile = false;
       state.health = 100;
       state.stress = 0;
       state.money = 0;
@@ -96,5 +112,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { setUser, setAuth, setPlayerStats, setPlayerDied, logout } = authSlice.actions;
+export const { setUser, setAuth, setPlayerStats, setPlayerDied, setPlayerInitialized, setHasRolledProfile, logout } = authSlice.actions;
 export default authSlice.reducer;

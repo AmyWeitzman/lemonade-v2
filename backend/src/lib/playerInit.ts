@@ -97,16 +97,14 @@ export function rollTraits(): Record<string, number> {
 }
 
 /**
- * Roll all skills. Starting ranges are 0-10 scale; stored as percentages (0-100).
- * Multiply by 10 to convert to percentage scale.
+ * Roll all skills. Ranges are on the 0-10 scale; stored as-is.
  */
 export function rollSkills(): Record<string, number> {
   const skills: Record<string, number> = {};
   for (const [skill, { range, dist }] of Object.entries(SKILL_CONFIG)) {
     const [min, max] = range;
     const raw = dist === 'bell' ? bellCurve(min, max) : rightSkewed(min, max);
-    // Convert from 0-10 scale to 0-100 percentage scale
-    skills[skill] = Math.round(raw * 10);
+    skills[skill] = Math.round(raw);
   }
   return skills;
 }

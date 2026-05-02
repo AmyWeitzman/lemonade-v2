@@ -7,7 +7,7 @@ import {
   InterServerEvents,
   SocketData,
 } from './events';
-import { handleJoinGame, handleLeaveGame, handleDisconnect, handleReconnect } from './handlers';
+import { handleJoinGame, handleLeaveGame, handleDisconnect, handleReconnect, handleSendMessage, handleReactToMessage } from './handlers';
 
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev_jwt_secret_change_in_production';
 const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
@@ -74,6 +74,18 @@ export function initSocket(server: HttpServer): Server<ClientToServerEvents, Ser
     socket.on('leaveGame', (payload) => {
       handleLeaveGame(socket, io, payload.gameSessionId).catch((err) => {
         console.error('[socket] leaveGame error:', err);
+      });
+    });
+
+    socket.on('sendMessage', (payload) => {
+      handleSendMessage(socket, io, payload).catch((err) => {
+        console.error('[socket] sendMessage error:', err);
+      });
+    });
+
+    socket.on('reactToMessage', (payload) => {
+      handleReactToMessage(socket, io, payload).catch((err) => {
+        console.error('[socket] reactToMessage error:', err);
       });
     });
 

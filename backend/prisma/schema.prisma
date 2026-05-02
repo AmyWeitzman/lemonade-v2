@@ -137,6 +137,10 @@ model Player {
   // Marriage compatibility
   marriageCompatibility Json? // MarriageCompatibility
 
+  // Bookmarks (for profile setup workflow and normal gameplay)
+  jobBookmarks       String[] @default([])
+  educationBookmarks String[] @default([])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
