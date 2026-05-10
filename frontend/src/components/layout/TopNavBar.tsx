@@ -3,7 +3,7 @@
  * Shows health bar, stress bar, money, mini pitcher, notification badge,
  * message badge, and player name.
  */
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -18,17 +18,86 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChatIcon from '@mui/icons-material/Chat';
-import LocalDrinkIcon from '@mui/icons-material/LocalDrink';
 import type { RootState } from '../../store';
 import NotificationBadge from '../../features/notifications/NotificationBadge';
+import { setChatOpen } from '../../features/messages/messagesSlice';
 
 interface Props {
   onMenuClick: () => void;
 }
 
+// ─── Mini Pitcher SVG ─────────────────────────────────────────────────────────
+
+function MiniPitcher({ fillPercent }: { fillPercent: number }) {
+  const clampedFill = Math.min(Math.max(fillPercent, 0), 100);
+  const isSuccess = clampedFill >= 100;
+
+  // Pitcher body: 24×32 viewBox
+  const BODY_TOP = 4;
+  const BODY_BOTTOM = 28;
+  const BODY_HEIGHT = BODY_BOTTOM - BODY_TOP;
+  const fillY = BODY_TOP + BODY_HEIGHT * (1 - clampedFill / 100);
+  const fillH = BODY_HEIGHT * (clampedFill / 100);
+
+  return (
+    <svg
+      width={20}
+      height={32}
+      viewBox="0 0 24 34"
+      aria-hidden="true"
+      style={{ display: 'block' }}
+    >
+      <defs>
+        <clipPath id="mini-pitcher-clip">
+          <path d={`M 4 ${BODY_TOP} L 20 ${BODY_TOP} L 22 ${BODY_BOTTOM} L 2 ${BODY_BOTTOM} Z`} />
+        </clipPath>
+      </defs>
+      {/* Body background */}
+      <path
+        d={`M 4 ${BODY_TOP} L 20 ${BODY_TOP} L 22 ${BODY_BOTTOM} L 2 ${BODY_BOTTOM} Z`}
+        fill="rgba(255,255,255,0.25)"
+        stroke="rgba(255,255,255,0.7)"
+        strokeWidth="1.2"
+      />
+      {/* Fill */}
+      {clampedFill > 0 && (
+        <rect
+          x={2}
+          y={fillY}
+          width={20}
+          height={fillH}
+          fill={isSuccess ? '#66BB6A' : '#FFD600'}
+          clipPath="url(#mini-pitcher-clip)"
+          opacity={0.9}
+        />
+      )}
+      {/* Outline on top */}
+      <path
+        d={`M 4 ${BODY_TOP} L 20 ${BODY_TOP} L 22 ${BODY_BOTTOM} L 2 ${BODY_BOTTOM} Z`}
+        fill="none"
+        stroke="rgba(255,255,255,0.8)"
+        strokeWidth="1.2"
+      />
+      {/* Rim */}
+      <rect x={3} y={BODY_TOP - 2} width={18} height={3} rx={1} fill="rgba(255,255,255,0.6)" />
+      {/* Handle */}
+      <path
+        d={`M 22 ${BODY_TOP + 5} Q 27 ${BODY_TOP + 10} 24 ${BODY_TOP + 18}`}
+        fill="none"
+        stroke="rgba(255,255,255,0.6)"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      {/* Base */}
+      <rect x={1} y={BODY_BOTTOM} width={22} height={3} rx={1} fill="rgba(255,255,255,0.5)" />
+    </svg>
+  );
+}
+
 export default function TopNavBar({ onMenuClick }: Props) {
   const navigate = useNavigate();
-  const { playerName, health, stress, money, lemons } = useSelector(
+  const dispatch = useDispatch();
+  const { playerName, health, stress, money } = useSelector(
     (state: RootState) => state.auth,
   );
   const { pitcherLemons, pitcherGoal, unreadMessages } = useSelector(
@@ -131,14 +200,9 @@ export default function TopNavBar({ onMenuClick }: Props) {
             size="small"
             onClick={() => navigate('/pitcher')}
             aria-label="view pitcher"
+            sx={{ p: 0.5 }}
           >
-            <Badge
-              badgeContent={lemons > 0 ? lemons : undefined}
-              color="secondary"
-              max={99}
-            >
-              <LocalDrinkIcon fontSize="small" />
-            </Badge>
+            <MiniPitcher fillPercent={pitcherPercent} />
           </IconButton>
         </Tooltip>
 
@@ -151,9 +215,7 @@ export default function TopNavBar({ onMenuClick }: Props) {
             color="inherit"
             size="small"
             aria-label="open chat"
-            onClick={() => {
-              /* chat drawer opened via secondary nav */
-            }}
+            onClick={() => dispatch(setChatOpen(true))}
           >
             <Badge badgeContent={unreadMessages || undefined} color="error" max={99}>
               <ChatIcon fontSize="small" />

@@ -75,7 +75,7 @@ const listProgramsSchema = z.object({
   partTimeOnly: z.coerce.boolean().optional(),
   maxTuition: z.coerce.number().optional(),
   eligibleOnly: z.coerce.boolean().optional(),
-  sort: z.enum(['tuition_asc', 'tuition_desc', 'name_asc', 'duration_asc']).optional(),
+  sort: z.enum(['tuition_asc', 'stress_asc', 'grad_salary_desc']).optional(),
 });
 
 const enrollSchema = z.object({
@@ -96,6 +96,38 @@ const changeMajorSchema = z.object({
 
 const dropSchema = z.object({
   gameSessionId: z.string().min(1),
+});
+
+// ─── GET /api/education/majors ───────────────────────────────────────────────
+// Returns distinct program names (majors) grouped by field for degree programs.
+// Used to populate the "Required Major" filter dropdown on the jobs page.
+
+router.get('/majors', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const programs = await prisma.educationProgram.findMany({
+      where: { type: { in: ['associates', 'bachelors', 'masters', 'doctorate'] } },
+      select: { name: true, field: true },
+      distinct: ['name'],
+      orderBy: [{ field: 'asc' }, { name: 'asc' }],
+    });
+    // Group by field
+    const grouped: Record<string, string[]> = {};
+    for (const p of programs) {
+      if (!grouped[p.field]) grouped[p.field] = [];
+      if (!grouped[p.field].includes(p.name)) {
+        grouped[p.field].push(p.name);
+      }
+    }
+    // Sort majors within each field
+    for (const field of Object.keys(grouped)) {
+      grouped[field].sort();
+    }
+    const majors = programs.map((p) => p.name).filter((v, i, a) => a.indexOf(v) === i).sort();
+    res.json({ majors, grouped });
+  } catch (err) {
+    console.error('[education/majors]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // ─── GET /api/education/programs ─────────────────────────────────────────────
@@ -174,14 +206,48 @@ router.get('/programs', authorize, async (req: Request, res: Response): Promise<
 
     // ── Sort ──────────────────────────────────────────────────────────────────
 
-    if (sort) {
+    if (sort === 'grad_salary_desc') {
+      // Compute average starting salary of jobs that require each program
+      const allJobs = await prisma.job.findMany({ select: { requirements: true, baseSalary: true, raiseSchedule: true } });
+      const programSalaryMap = new Map<string, number[]>();
+
+      for (const job of allJobs) {
+        const reqs = job.requirements as Record<string, unknown>;
+        const eduIds = (reqs.educationIds ?? []) as string[];
+        const schedule = job.raiseSchedule as Record<string, unknown>;
+        const byDegree = schedule.byDegree as Record<string, number> | undefined;
+
+        for (const programId of eduIds) {
+          // Find the salary for this specific program's degree level
+          const program = filtered.find((p) => p.id === programId);
+          if (!program) continue;
+
+          let salary = job.baseSalary;
+          if (byDegree) {
+            const typeKey = program.type === 'doctorate' ? 'phd' : program.type;
+            if (byDegree[typeKey]) salary = byDegree[typeKey];
+            else if (byDegree[program.type]) salary = byDegree[program.type];
+          }
+
+          if (!programSalaryMap.has(programId)) programSalaryMap.set(programId, []);
+          programSalaryMap.get(programId)!.push(salary);
+        }
+      }
+
+      // Average salary per program
+      const avgSalary = (programId: string) => {
+        const salaries = programSalaryMap.get(programId) ?? [];
+        if (salaries.length === 0) return 0;
+        return salaries.reduce((s, v) => s + v, 0) / salaries.length;
+      };
+
+      filtered.sort((a, b) => avgSalary(b.id) - avgSalary(a.id));
+    } else if (sort) {
       filtered.sort((a, b) => {
         switch (sort) {
-          case 'tuition_asc':    return a.tuitionFullTime - b.tuitionFullTime;
-          case 'tuition_desc':   return b.tuitionFullTime - a.tuitionFullTime;
-          case 'name_asc':       return a.name.localeCompare(b.name);
-          case 'duration_asc':   return a.durationFT - b.durationFT;
-          default:               return 0;
+          case 'tuition_asc': return a.tuitionFullTime - b.tuitionFullTime;
+          case 'stress_asc':  return a.stressLevel - b.stressLevel;
+          default:            return 0;
         }
       });
     }

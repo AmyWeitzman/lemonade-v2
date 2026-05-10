@@ -41,6 +41,13 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
   { label: "Life's Lemons", path: '/scrapbook', Icon: MenuBookIcon },
 ];
 
+/** Nav items for the profile setup workflow */
+export const SETUP_NAV_ITEMS: NavItem[] = [
+  { label: 'Seeds to Trees', path: '/setup/jobs', Icon: WorkIcon },
+  { label: 'Zest for Learning', path: '/setup/education', Icon: SchoolIcon },
+  { label: 'Profile Setup', path: '/setup/profile', Icon: PersonIcon },
+];
+
 /** Secondary drawer items (profile, chat, notifications, settings) */
 export const SECONDARY_NAV_ITEMS: SecondaryNavItem[] = [
   { label: 'Tending the Garden', key: 'profile', Icon: PersonIcon },

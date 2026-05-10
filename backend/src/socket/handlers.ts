@@ -1,5 +1,6 @@
 import type { Server, Socket } from 'socket.io';
 import { prisma } from '../lib/prisma';
+import { stripHtml } from '../lib/messages';
 import {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -170,4 +171,122 @@ export async function handleReconnect(socket: AppSocket, io: IO): Promise<void> 
   }
 
   console.log(`[socket] ${player.name} (${socket.id}) reconnected to room ${roomName(gameSessionId)}`);
+}
+
+const SUPPORTED_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🍋', '💪', '🤔', '👏'];
+
+/**
+ * Handle sendMessage socket event.
+ * Sanitizes content, saves to DB, and broadcasts messageReceived to the session room.
+ */
+export async function handleSendMessage(
+  socket: AppSocket,
+  io: IO,
+  payload: { gameSessionId: string; content: string },
+): Promise<void> {
+  const { playerId, playerName } = socket.data;
+
+  if (!playerId || !playerName) {
+    return; // Not in a game session
+  }
+
+  const { gameSessionId, content } = payload;
+
+  if (!gameSessionId || typeof content !== 'string') return;
+
+  // Sanitize: strip HTML, trim, enforce max 500 chars
+  const sanitized = stripHtml(content).trim().slice(0, 500);
+  if (!sanitized) return;
+
+  try {
+    const message = await prisma.message.create({
+      data: {
+        gameSessionId,
+        playerId,
+        playerName,
+        content: sanitized,
+        isSystemMessage: false,
+        reactions: [],
+      },
+    });
+
+    io.to(roomName(gameSessionId)).emit('messageReceived', {
+      id: message.id,
+      gameSessionId: message.gameSessionId,
+      playerId: message.playerId ?? '',
+      playerName: message.playerName,
+      content: message.content,
+      timestamp: message.createdAt.toISOString(),
+      reactions: [],
+      isSystemMessage: false,
+    });
+  } catch (err) {
+    console.error('[socket] sendMessage error:', err);
+  }
+}
+
+/**
+ * Handle reactToMessage socket event.
+ * Toggles an emoji reaction on a message and broadcasts messageReactionUpdated.
+ */
+export async function handleReactToMessage(
+  socket: AppSocket,
+  io: IO,
+  payload: { messageId: string; emoji: string },
+): Promise<void> {
+  const { playerId } = socket.data;
+
+  if (!playerId) return;
+
+  const { messageId, emoji } = payload;
+
+  if (!messageId || !emoji || !SUPPORTED_EMOJIS.includes(emoji)) return;
+
+  try {
+    const message = await prisma.message.findUnique({ where: { id: messageId } });
+    if (!message) return;
+
+    const reactions = (message.reactions as { emoji: string; playerIds: string[] }[]) ?? [];
+    const existing = reactions.find((r) => r.emoji === emoji);
+
+    let updatedReactions: { emoji: string; playerIds: string[] }[];
+
+    if (existing) {
+      const alreadyReacted = existing.playerIds.includes(playerId);
+      if (alreadyReacted) {
+        const newPlayerIds = existing.playerIds.filter((id) => id !== playerId);
+        if (newPlayerIds.length === 0) {
+          updatedReactions = reactions.filter((r) => r.emoji !== emoji);
+        } else {
+          updatedReactions = reactions.map((r) =>
+            r.emoji === emoji ? { ...r, playerIds: newPlayerIds } : r,
+          );
+        }
+      } else {
+        updatedReactions = reactions.map((r) =>
+          r.emoji === emoji ? { ...r, playerIds: [...r.playerIds, playerId] } : r,
+        );
+      }
+    } else {
+      updatedReactions = [...reactions, { emoji, playerIds: [playerId] }];
+    }
+
+    const updated = await prisma.message.update({
+      where: { id: messageId },
+      data: { reactions: updatedReactions },
+    });
+
+    const reactionForEmoji = (
+      updated.reactions as { emoji: string; playerIds: string[] }[]
+    ).find((r) => r.emoji === emoji) ?? { emoji, playerIds: [], count: 0 };
+
+    io.to(roomName(message.gameSessionId)).emit('messageReactionUpdated', {
+      messageId,
+      emoji,
+      playerIds: reactionForEmoji.playerIds,
+      count: reactionForEmoji.playerIds.length,
+    });
+  } catch (err) {
+    console.error('[socket] reactToMessage error:', err);
+  }
 }

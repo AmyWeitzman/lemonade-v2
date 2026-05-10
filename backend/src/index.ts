@@ -25,6 +25,7 @@ import spouseRouter from './routes/spouse';
 import internshipRouter from './routes/internship';
 import ptoRouter from './routes/pto';
 import certificationsRouter from './routes/certifications';
+import bookmarksRouter from './routes/bookmarks';
 import { initSocket, getIO } from './socket';
 
 const PORT = process.env.PORT ?? 3001;
@@ -70,6 +71,7 @@ app.use('/api/spouse', spouseRouter);
 app.use('/api/internship', internshipRouter);
 app.use('/api/pto', ptoRouter);
 app.use('/api/certifications', certificationsRouter);
+app.use('/api/players', bookmarksRouter);
 
 // Socket.IO — full typed setup with JWT auth and room management
 const io = initSocket(httpServer);

@@ -16,6 +16,9 @@ const queryClient = new QueryClient({
 });
 
 const theme = createTheme({
+  typography: {
+    fontFamily: '"Playpen Sans", sans-serif',
+  },
   palette: {
     primary: {
       main: '#2FB6D3',
@@ -28,7 +31,7 @@ const theme = createTheme({
     },
     background: {
       default: '#FFFFE8',
-      paper: '#FFFFE8',
+      paper: '#FFFFFF',
     },
     text: {
       primary: '#1a1a1a',

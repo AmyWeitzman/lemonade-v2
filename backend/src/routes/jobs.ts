@@ -78,18 +78,19 @@ function currentTotalSalary(player: FullPlayer): number {
 const listJobsSchema = z.object({
   gameSessionId: z.string().min(1),
   minSalary: z.coerce.number().optional(),
-  maxSalary: z.coerce.number().optional(),
   minPto: z.coerce.number().optional(),
   maxTimeBlocks: z.coerce.number().optional(),
   maxStress: z.coerce.number().optional(),
   location: z.enum(['city', 'suburb', 'both']).optional(),
-  showAll: z.coerce.boolean().optional(), // Req 47.3: bypass player-location default filter
+  requiredMajor: z.string().optional(),
   partTimeOnly: z.coerce.boolean().optional(),
   fullTimeOnly: z.coerce.boolean().optional(),
   seasonal: z.coerce.boolean().optional(),
   hasPension: z.coerce.boolean().optional(),
+  hasTips: z.coerce.boolean().optional(),
+  hasDiscounts: z.coerce.boolean().optional(),
   eligibleOnly: z.coerce.boolean().optional(),
-  sort: z.enum(['salary_asc', 'salary_desc', 'stress_asc', 'time_blocks_asc', 'pto_desc']).optional(),
+  sort: z.enum(['salary_desc', 'stress_asc', 'time_blocks_asc', 'pto_desc']).optional(),
 });
 
 const applyJobSchema = z.object({
@@ -113,16 +114,17 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
   const {
     gameSessionId,
     minSalary,
-    maxSalary,
     minPto,
     maxTimeBlocks,
     maxStress,
     location,
-    showAll,
+    requiredMajor,
     partTimeOnly,
     fullTimeOnly,
     seasonal,
     hasPension,
+    hasTips,
+    hasDiscounts,
     eligibleOnly,
     sort,
   } = result.data;
@@ -142,10 +144,35 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     // ── Filters ───────────────────────────────────────────────────────────────
 
     if (minSalary !== undefined) {
-      jobs = jobs.filter((j) => j.baseSalary >= minSalary);
-    }
-    if (maxSalary !== undefined) {
-      jobs = jobs.filter((j) => j.baseSalary <= maxSalary);
+      // Use the highest salary tier the player qualifies for (from raiseSchedule.byDegree)
+      // If no byDegree, fall back to baseSalary
+      const playerDegrees = new Set<string>();
+      for (const edu of player.educations) {
+        if (edu.graduated) {
+          const progType = edu.program.type;
+          if (progType === 'associates') playerDegrees.add('associates');
+          if (progType === 'bachelors') { playerDegrees.add('associates'); playerDegrees.add('bachelors'); }
+          if (progType === 'masters') { playerDegrees.add('associates'); playerDegrees.add('bachelors'); playerDegrees.add('masters'); }
+          if (progType === 'doctorate') { playerDegrees.add('associates'); playerDegrees.add('bachelors'); playerDegrees.add('masters'); playerDegrees.add('phd'); }
+        }
+      }
+
+      jobs = jobs.filter((j) => {
+        const schedule = j.raiseSchedule as Record<string, unknown>;
+        const byDegree = schedule.byDegree as Record<string, number> | undefined;
+        if (byDegree && Object.keys(byDegree).length > 0) {
+          // Find the highest salary tier the player qualifies for
+          let bestSalary = j.baseSalary;
+          for (const [degreeKey, salary] of Object.entries(byDegree)) {
+            const normalizedKey = degreeKey === 'phd' ? 'phd' : degreeKey;
+            if (playerDegrees.has(normalizedKey) && salary > bestSalary) {
+              bestSalary = salary;
+            }
+          }
+          return bestSalary >= minSalary;
+        }
+        return j.baseSalary >= minSalary;
+      });
     }
     if (minPto !== undefined) {
       jobs = jobs.filter((j) => j.ptoTimeBlocks >= minPto);
@@ -156,12 +183,26 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     if (maxStress !== undefined) {
       jobs = jobs.filter((j) => j.stressLevel <= maxStress);
     }
+    // Location filter: "city" shows city+both, "suburb" shows suburb+both, "both" shows only both, empty shows all
     if (location) {
-      // Explicit location filter overrides the player-location default
-      jobs = jobs.filter((j) => j.location === 'both' || j.location === location);
-    } else if (!showAll) {
-      // Req 47.3 — default: filter to player's current location (showAll=true bypasses this)
-      jobs = jobs.filter((j) => j.location === 'both' || j.location === player.location);
+      if (location === 'both') {
+        jobs = jobs.filter((j) => j.location === 'both');
+      } else {
+        jobs = jobs.filter((j) => j.location === 'both' || j.location === location);
+      }
+    }
+    // Required major filter: show jobs whose educationIds include a program with this name
+    if (requiredMajor) {
+      const matchingProgramIds = await prisma.educationProgram.findMany({
+        where: { name: requiredMajor },
+        select: { id: true },
+      });
+      const programIdSet = new Set(matchingProgramIds.map((p) => p.id));
+      jobs = jobs.filter((j) => {
+        const reqs = j.requirements as Record<string, unknown>;
+        const eduIds = (reqs.educationIds ?? []) as string[];
+        return eduIds.some((id) => programIdSet.has(id));
+      });
     }
     if (partTimeOnly) {
       jobs = jobs.filter((j) => j.partTime);
@@ -175,16 +216,60 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     if (hasPension) {
       jobs = jobs.filter((j) => j.hasPension);
     }
+    // Tips filter: jobs with baseTips, incomePerTimeBlock, or tipsPerSkillAvg5pct
+    if (hasTips) {
+      jobs = jobs.filter((j) => {
+        const b = j.benefits as Record<string, unknown>;
+        return (
+          (typeof b.baseTips === 'number' && b.baseTips > 0) ||
+          (typeof b.incomePerTimeBlock === 'number' && b.incomePerTimeBlock > 0) ||
+          (typeof b.tipsPerSkillAvg5pct === 'number' && b.tipsPerSkillAvg5pct > 0)
+        );
+      });
+    }
+    // Discounts filter: jobs with any discount/free perk
+    if (hasDiscounts) {
+      jobs = jobs.filter((j) => {
+        const b = j.benefits as Record<string, unknown>;
+        // Check for any key that indicates a discount or free perk
+        return Object.entries(b).some(([key, val]) => {
+          if (key.toLowerCase().includes('discount') && typeof val === 'number' && val > 0) return true;
+          if (key.toLowerCase().includes('free') && val) return true;
+          if (key === 'travelTickets' && val) return true;
+          return false;
+        });
+      });
+    }
 
-    // ── Annotate with eligibility + benefits ──────────────────────────────────
+    // ── Annotate with eligibility + benefits + degree info ───────────────────
+    // Build a lookup of education program IDs to names/types
+    const allPrograms = await prisma.educationProgram.findMany({
+      select: { id: true, name: true, type: true },
+    });
+    const programById = new Map(allPrograms.map((p) => [p.id, p]));
+
+    // Count total programs per type (for "any" detection)
+    const totalByType = new Map<string, number>();
+    for (const p of allPrograms) {
+      totalByType.set(p.type, (totalByType.get(p.type) ?? 0) + 1);
+    }
+
+    const degreeTypeOrder = ['vocational', 'certificate', 'associates', 'bachelors', 'masters', 'doctorate'];
+    const degreeTypeLabel: Record<string, string> = {
+      vocational: 'Vocational',
+      certificate: 'Certificate',
+      associates: "Associate's",
+      bachelors: "Bachelor's",
+      masters: "Master's",
+      doctorate: 'Doctorate',
+    };
+
     const annotated = jobs.map((j) => {
       const eligResult = checkJobEligibility(j, eligPlayer);
       const benefits = getJobBenefits(j.benefits, j);
-      // Check if player already holds this job
       const alreadyEmployed = player.employments.some(
         (e) => e.jobId === j.id && e.isActive,
       );
-      // Req 47.6 — bike restriction
       const bikeRestriction = checkBikeRestriction(
         j.location,
         player.location,
@@ -194,6 +279,55 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
         })),
       );
       const bikeBlocked = bikeRestriction !== null;
+
+      // Resolve required degrees
+      const reqs = j.requirements as Record<string, unknown>;
+      const eduIds = (reqs.educationIds ?? []) as string[];
+      const resolvedDegrees = eduIds
+        .map((id) => programById.get(id))
+        .filter(Boolean)
+        .map((p) => ({ name: p!.name, type: p!.type }));
+
+      // Salary tiers from raiseSchedule.byDegree (must be before degree display logic)
+      const schedule = j.raiseSchedule as Record<string, unknown>;
+      const byDegree = (schedule.byDegree ?? null) as Record<string, number> | null;
+
+      // Build smart degree display — array of labels for separate chips
+      // If salary tiers include 'none' or 'cc', the job doesn't require a degree
+      const hasByDegreeNone = byDegree && ('none' in byDegree || 'cc' in byDegree);
+      const hasEducationNone = (reqs.education as string | undefined) === 'none';
+      const actuallyRequiresDegree = eduIds.length > 0 && !hasByDegreeNone && !hasEducationNone;
+
+      let degreeDisplayList: string[] = [];
+      if (actuallyRequiresDegree) {
+        // Group by type
+        const byType = new Map<string, string[]>();
+        for (const d of resolvedDegrees) {
+          if (!byType.has(d.type)) byType.set(d.type, []);
+          byType.get(d.type)!.push(d.name);
+        }
+
+        // Find the lowest degree type (entry-level for this job)
+        const sortedTypes = [...byType.keys()].sort(
+          (a, b) => degreeTypeOrder.indexOf(a) - degreeTypeOrder.indexOf(b),
+        );
+        const lowestType = sortedTypes[0];
+        const namesForLowest = byType.get(lowestType) ?? [];
+
+        if (lowestType === 'vocational' || lowestType === 'certificate') {
+          degreeDisplayList = namesForLowest;
+        } else {
+          const totalOfType = totalByType.get(lowestType) ?? 0;
+          if (namesForLowest.length >= totalOfType && totalOfType > 0) {
+            degreeDisplayList = [`Any ${degreeTypeLabel[lowestType] ?? lowestType}`];
+          } else {
+            const label = degreeTypeLabel[lowestType] ?? lowestType;
+            degreeDisplayList = namesForLowest.map((n) => `${label} in ${n}`);
+          }
+        }
+      }
+      const degreeDisplay = degreeDisplayList.length > 0 ? degreeDisplayList.join(', ') : 'None';
+
       return {
         ...j,
         eligible: eligResult.eligible && !bikeBlocked,
@@ -203,6 +337,10 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
         benefits,
         alreadyEmployed,
         bikeBlocked,
+        resolvedDegrees,
+        degreeDisplay,
+        degreeDisplayList,
+        salaryTiers: byDegree,
       };
     });
 
@@ -213,7 +351,6 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     if (sort) {
       filtered.sort((a, b) => {
         switch (sort) {
-          case 'salary_asc':   return a.baseSalary - b.baseSalary;
           case 'salary_desc':  return b.baseSalary - a.baseSalary;
           case 'stress_asc':   return a.stressLevel - b.stressLevel;
           case 'time_blocks_asc': return a.timeBlocks - b.timeBlocks;

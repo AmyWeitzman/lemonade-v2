@@ -280,13 +280,13 @@
   - Show parent contribution results (die roll outcome)
   - _Requirements: Req 2_
 
-- [ ] 36. Profile Drawer (Tending the Garden)
+- [x] 36. Profile Drawer (Tending the Garden)
   - Build collapsible profile drawer with sections: skills progress bar (all skills plotted), traits progress bar (all traits plotted), health/stress bars with max health indicator (grayed out above max with tooltip), finances summary, family (spouse, children, pets), certifications, timeline
   - Notes feature: text input, speech-to-text, drawing canvas, timeline placement
   - Show chronic condition health cap explanation in tooltip
   - _Requirements: Req 23_
 
-- [ ] 37. Actions Page (Squeeze the Day)
+- [x] 37. Actions Page (Squeeze the Day)
   - Build action catalog with search bar, filter panel (category, cost, time blocks, health/stress impact, eligibility toggle, location, favorites, good deed, senior discount, PTO required, etc.), and sort dropdown
   - Build time block visualizer — 60-block scale showing sleep/work/childcare/commute/pets/activities allocation
   - Build action card component — name, description, requirements (with eligibility indicators), cost, time blocks, effects (lemons, health, stress, skills)
@@ -296,14 +296,14 @@
   - Re-filter actions in real-time on cart changes
   - _Requirements: Req 8, Req 22_
 
-- [ ] 38. Jobs Page (Seeds to Trees)
+- [x] 38. Jobs Page (Seeds to Trees)
   - Build job catalog with search, filters (salary, PTO, time blocks, stress, degree, skills/traits, location, perks, raise type), and sort
   - Build job card — title, requirements, salary, raise schedule, time blocks, stress, PTO, benefits, skill/trait gains
   - Implement apply flow — show requirement check results; on success assign job and update time blocks/projected income
   - Show current employment status and history
   - _Requirements: Req 11_
 
-- [ ] 39. Education Page (Zest for Learning)
+- [x] 39. Education Page (Zest for Learning)
   - Build program catalog with search, filters, and sort
   - Build program card — name, type, field, requirements, tuition, skill gains, stress level
   - Implement enrollment flow — full-time vs part-time selection, requirement check with hints on rejection
@@ -312,7 +312,7 @@
   - Show change major and drop out options
   - _Requirements: Req 10_
 
-- [ ] 40. Housing Page (Home Sour Home)
+- [x] 40. Housing Page (Home Sour Home)
   - Build housing catalog sorted by cost (low→high) with filters (location, recommended/legal max occupancy, pet limits, rent vs buy, max cost) and compare feature (side-by-side)
   - Build housing card — name, type, location, costs (rent/purchase, utilities, insurance), occupancy limits, pet limit, improvement options
   - Implement selection flow — occupancy validation, stress notification on change
@@ -320,14 +320,14 @@
   - Show current home value for owned homes
   - _Requirements: Req 12, Req 42_
 
-- [ ] 41. Transportation Page (You Won't Get A 🍋)
+- [x] 41. Transportation Page (You Won't Get A 🍋)
   - Build vehicle catalog sorted by cost with filters (max cost, min people, car vs non-car, fuel type, age) and compare feature
   - Build vehicle card — name, type, fuel, purchase price, annual costs (insurance, gas, maintenance), capacity
   - Implement purchase/sell flow — family capacity validation, depreciation calculation on sale
   - Show both player and spouse vehicles with individual cost breakdowns
   - _Requirements: Req 13_
 
-- [ ] 42. Finances Page (Harvest)
+- [x] 42. Finances Page (Harvest)
   - Build financial summary — current money, projected income, retirement savings, loans (own/spouse/joint), college fund
   - Build annual expenses breakdown — all mandatory expense line items with totals
   - Build loan management — take out loan, make payments (own/spouse/joint separately), show interest accrual
@@ -337,14 +337,14 @@
   - Show net health and stress changes for the year
   - _Requirements: Req 6, Req 18, Req 37_
 
-- [ ] 43. Lemonade Pitcher Page (Lemonade Stand)
+- [x] 43. Lemonade Pitcher Page (Lemonade Stand)
   - Build pitcher visualization — animated pitcher filling with lemons, current count, yearly goal line, recommended per-player contribution
   - Show contributions breakdown by player
   - Show grace year status if applicable
   - Display mini pitcher in navbar with tooltip
   - _Requirements: Req 7_
 
-- [ ] 44. Messaging Interface (Lemon Tea)
+- [x] 44. Messaging Interface (Lemon Tea)
   - Build chat panel accessible from all pages
   - Show message history (paginated, scrollable) with player names color-coded
   - System messages styled in gray italic

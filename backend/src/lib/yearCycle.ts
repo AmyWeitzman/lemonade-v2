@@ -577,7 +577,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       const program = edu.program as unknown as EduProgramRow;
       const credits = edu.creditsCompleted as { generalEducation: number; field: number; major: number };
 
-      // Grant annual skill gains
+      // Grant annual skill/trait gains
       const gains = calculateAnnualSkillGains(program, edu.isPartTime);
       for (const [skill, gain] of Object.entries(gains)) {
         if (skill in newSkills) {

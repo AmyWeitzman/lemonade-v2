@@ -472,4 +472,68 @@ router.post(
   },
 );
 
+// ─── GET /api/vehicles/owned ──────────────────────────────────────────────────
+
+router.get(
+  '/owned',
+  authorize,
+  async (req: Request, res: Response): Promise<void> => {
+    const { gameSessionId } = req.query as { gameSessionId?: string };
+    if (!gameSessionId) {
+      res.status(400).json({ error: 'gameSessionId is required' });
+      return;
+    }
+
+    try {
+      const player = await fetchFullPlayer(req.user!.userId, gameSessionId);
+      if (!player) {
+        res.status(404).json({ error: 'Player not found in this session' });
+        return;
+      }
+
+      const vehiclePlayer = buildVehiclePlayer(player);
+      const isMechanic = hasMechanicBenefit(vehiclePlayer);
+
+      const playerOwnership = getCurrentPlayerOwnership(player);
+      const spouseOwnership = getCurrentSpouseOwnership(player);
+
+      function annotateOwnership(ownership: typeof playerOwnership) {
+        if (!ownership) return null;
+        const v = ownership.vehicle as unknown as VehicleRow;
+        const annualCosts = calculateAnnualVehicleCosts(v, ownership.yearsOwned, isMechanic);
+        const depreciatedValue =
+          v.type !== 'bike' && v.type !== 'public_transit' && ownership.purchasePrice
+            ? calculateDepreciatedValue(v, ownership.purchasePrice, ownership.yearsOwned)
+            : null;
+        return {
+          ownership: {
+            id: ownership.id,
+            vehicleId: ownership.vehicleId,
+            startAge: ownership.startAge,
+            purchasePrice: ownership.purchasePrice,
+            wasParentGift: ownership.wasParentGift,
+            isSpouseVehicle: ownership.isSpouseVehicle,
+            totalMaintenancePaid: ownership.totalMaintenancePaid,
+            totalInsurancePaid: ownership.totalInsurancePaid,
+            yearsOwned: ownership.yearsOwned,
+          },
+          vehicle: v,
+          annualCosts,
+          depreciatedValue,
+          isMechanicDiscount: isMechanic,
+        };
+      }
+
+      res.json({
+        player: annotateOwnership(playerOwnership),
+        spouse: annotateOwnership(spouseOwnership),
+        isMechanic,
+      });
+    } catch (err) {
+      console.error('[vehicles/owned]', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
 export default router;

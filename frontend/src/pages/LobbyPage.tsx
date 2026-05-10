@@ -212,7 +212,7 @@ export default function LobbyPage() {
           </Tooltip>
         </Stack>
 
-        <Box sx={{ bgcolor: theme.palette.background.paper, borderRadius: 2, boxShadow: 1 }}>
+        <Box sx={{ bgcolor: 'rgba(255,255,255,0.6)', borderRadius: 2, boxShadow: 1 }}>
           <Tabs
             value={tab} onChange={(_e, v) => setTab(v)}
             sx={{ borderBottom: '1px solid', borderColor: 'divider', px: 2, '& .MuiTab-root': { fontWeight: 700, textTransform: 'none', fontSize: '1rem' }, '& .Mui-selected': { color: theme.palette.primary.main }, '& .MuiTabs-indicator': { bgcolor: theme.palette.primary.main } }}
@@ -376,6 +376,7 @@ function SessionCard({ session, userId, mode, onEnter, onLeave, onDelete, onHide
         display: 'flex',
         flexDirection: 'column',
         opacity: session.isHidden ? 0.6 : 1,
+        bgcolor: 'rgba(255,255,255,0.6)',
       }}
       onClick={isClickable ? onEnter : undefined}
     >

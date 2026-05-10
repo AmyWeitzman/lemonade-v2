@@ -255,7 +255,7 @@ export async function seedJobs(prisma: PrismaClient) {
       requirements: { educationIds: [pid('Police Academy', 'certificate')], skills: { bravery: 70, organization: 40, patience: 60, caution: 75, analysis: 20, stressTolerance: 80, physicalAbility: 75, communication: 70, health: 90 }, certifications: ['CPR'] },
       baseSalary: 40000, raiseSchedule: { type: 'SM' }, timeBlocks: 20, stressLevel: 60, ptoTimeBlocks: pto(15),
       fullTime: true, partTime: false, seasonal: false,
-      benefits: {},
+      benefits: { freeGymMembership: true },
       annualGains: { organization: 2, patience: 2, analysis: 2, stressTolerance: 1, communication: 2 }, location: 'both', hasPension: true, easeOfGetting: 3,
     },
     {
@@ -479,7 +479,7 @@ export async function seedJobs(prisma: PrismaClient) {
       requirements: { educationIds: [pid('Astronaut Academy', 'certificate'), ...byType('doctorate')], skills: { bravery: 80, caution: 90, stressTolerance: 85, physicalAbility: 60, communication: 65, technology: 40, homeRepair: 50, health: 90 }, certifications: ['CPR'], other: 'math OR science >= 75' },
       baseSalary: 0, raiseSchedule: { type: 'MS', byDegree: { masters: 65000, phd: 145000 } }, timeBlocks: 24, stressLevel: 70, ptoTimeBlocks: pto(15),
       fullTime: true, partTime: false, seasonal: false,
-      benefits: {},
+      benefits: { freeGymMembership: true },
       annualGains: { health: -1 }, location: 'city', hasPension: true, easeOfGetting: 5,
     },
     {
