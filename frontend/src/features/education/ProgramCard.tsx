@@ -12,6 +12,7 @@ import SchoolIcon from '@mui/icons-material/School';
 import { useSetupMode } from '../../contexts/SetupModeContext';
 import BookmarkToggle from '../../features/bookmarks/BookmarkToggle';
 import type { EducationProgram } from './types';
+import { stressOutlineSx, EDU_TYPE_COLORS, EDU_FIELD_OUTLINE, EDU_TRACK_OUTLINE, skillTraitChipSx, SKILL_TRAIT_ICONS } from '../../lib/colorMaps';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -169,9 +170,16 @@ export default function ProgramCard({
         <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.3, fontSize: '1.1rem', mb: 0.1 }}>
           {program.name}
         </Typography>
-        <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: 'text.secondary', mb: 0.75 }}>
-          {typeLabel(program.type)}
-        </Typography>
+        {(() => {
+          const tc = EDU_TYPE_COLORS[program.type] ?? { bg: 'rgba(47,182,211,0.15)', text: 'inherit' };
+          return (
+            <Chip
+              label={typeLabel(program.type)}
+              size="small"
+              sx={{ fontSize: '0.8rem', height: 22, mb: 0.75, bgcolor: tc.bg, color: tc.text, fontWeight: 700 }}
+            />
+          );
+        })()}
 
         {/* 2-column stats grid */}
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5, mb: 0.75 }}>
@@ -204,7 +212,11 @@ export default function ProgramCard({
             <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
               Stress:
             </Typography>
-            <Chip label={`${getStress(program.type, program.isStem, studiousness)}%`} size="small" sx={chipSx} />
+            <Chip
+              label={`${getStress(program.type, program.isStem, studiousness)}%`}
+              size="small"
+              sx={stressOutlineSx(getStress(program.type, program.isStem, studiousness))}
+            />
           </Box>
 
           {/* Row 3: Track | Field */}
@@ -212,23 +224,38 @@ export default function ProgramCard({
             <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
               Track:
             </Typography>
-            <Chip label={program.isStem ? 'STEM' : 'Humanities'} size="small" sx={chipSx} />
+            {(() => {
+              const trackKey = program.isStem ? 'stem' : 'humanities';
+              const tc = EDU_TRACK_OUTLINE[trackKey] ?? { border: '#aaa', color: '#333' };
+              return (
+                <Chip
+                  label={program.isStem ? 'STEM' : 'Humanities'}
+                  size="small"
+                  sx={{ fontSize: '0.85rem', height: 26, bgcolor: 'transparent', border: `1.5px solid ${tc.border}`, color: tc.color, fontWeight: 600 }}
+                />
+              );
+            })()}
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
               Field:
             </Typography>
-            <Chip
-              label={
-                (program.type === 'vocational') ? 'Vocational' :
-                (program.type === 'certificate') ? 'Professional' :
-                program.field
-                  ? program.field.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-                  : 'General'
-              }
-              size="small"
-              sx={chipSx}
-            />
+            {(() => {
+              const rawField =
+                program.type === 'vocational' ? 'vocational' :
+                program.type === 'certificate' ? 'professional' :
+                (program.field ?? 'general');
+              const fieldKey = rawField.toLowerCase();
+              const fc = EDU_FIELD_OUTLINE[fieldKey] ?? { border: '#aaa', color: '#333' };
+              const fieldLabel = rawField.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+              return (
+                <Chip
+                  label={fieldLabel}
+                  size="small"
+                  sx={{ fontSize: '0.85rem', height: 26, bgcolor: 'transparent', border: `1.5px solid ${fc.border}`, color: fc.color, fontWeight: 600 }}
+                />
+              );
+            })()}
           </Box>
         </Box>
 
@@ -255,9 +282,27 @@ export default function ProgramCard({
               Annual Skill/Trait Gains
             </Typography>
             <Stack direction="row" flexWrap="wrap" gap={0.4}>
-              {[...autoGains, ...majorGains].map((g) => (
-                <Chip key={g} label={g} size="small" sx={{ fontSize: '0.8rem', height: 24, bgcolor: 'rgba(47, 182, 211, 0.15)' }} />
-              ))}
+              {[...autoGains, ...majorGains].map((g) => {
+                const keyRaw = g.replace(/ \+\d+%$/, '');
+                const camelKey = keyRaw
+                  .split(' ')
+                  .map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                  .join('');
+                const icon = SKILL_TRAIT_ICONS[camelKey] ?? '';
+                return (
+                  <Chip
+                    key={g}
+                    label={
+                      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                        {icon && <Box component="span" sx={{ fontSize: '0.75rem', lineHeight: 1 }}>{icon}</Box>}
+                        {g}
+                      </Box>
+                    }
+                    size="small"
+                    sx={skillTraitChipSx(camelKey)}
+                  />
+                );
+              })}
             </Stack>
           </Box>
         )}

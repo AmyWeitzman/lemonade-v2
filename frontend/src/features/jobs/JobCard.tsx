@@ -15,6 +15,7 @@ import WorkOffIcon from '@mui/icons-material/WorkOff';
 import type { JobItem } from './types';
 import { useSetupMode } from '../../contexts/SetupModeContext';
 import BookmarkToggle from '../../features/bookmarks/BookmarkToggle';
+import { stressColorJob, skillTraitChipSx, appTimeChipSx, easeToTimeBlocks, SKILL_TRAIT_ICONS } from '../../lib/colorMaps';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -26,7 +27,7 @@ function fmtSalary(n: number): string {
 function formatRaise(schedule: Record<string, unknown>): string {
   const type = schedule.type as string | undefined;
   if (!type) return 'None';
-  if (type === 'commission') return 'Commission-based';
+  if (type === 'commission') return 'None';
   const freqMap: Record<string, number> = { S: 3, M: 2, F: 1 };
   const amtMap: Record<string, number> = { S: 3, M: 5, L: 7 };
   const freq = freqMap[type[0]] ?? 2;
@@ -284,7 +285,9 @@ export default function JobCard({ job, onApply, onQuit, applying, quitting, isBo
             <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
               Stress:
             </Typography>
-            <Chip label={`${job.stressLevel}%`} size="small" sx={chipSx} />
+            {(() => { const sc = stressColorJob(job.stressLevel); return (
+              <Chip label={`${job.stressLevel}%`} size="small" sx={{ fontSize: '0.85rem', height: 26, bgcolor: sc.bg, color: sc.text, fontWeight: 600 }} />
+            ); })()}
           </Box>
 
           {/* Row 3: Type | PTO */}
@@ -332,7 +335,10 @@ export default function JobCard({ job, onApply, onQuit, applying, quitting, isBo
           <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
             Avg Application Time:
           </Typography>
-          <Chip label={`${job.easeOfGetting} time block${job.easeOfGetting === 1 ? '' : 's'}`} size="small" sx={chipSx} />
+          {(() => {
+            const tb = easeToTimeBlocks(job.easeOfGetting, job.title);
+            return <Chip label={`${tb} time block${tb === 1 ? '' : 's'}`} size="small" sx={appTimeChipSx(job.easeOfGetting, job.title)} />;
+          })()}
         </Box>
 
         {/* Requirements */}
@@ -345,17 +351,19 @@ export default function JobCard({ job, onApply, onQuit, applying, quitting, isBo
               {Object.entries(reqSkills).map(([skill, val]) => {
                 const numVal = Array.isArray(val) ? (val[0] as number) : (val as number);
                 const level = reqLevel(numVal);
+                const icon = SKILL_TRAIT_ICONS[skill] ?? '';
                 return (
                   <Chip
                     key={skill}
                     label={
                       <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                        <Box component="span" sx={{ color: level.color, fontWeight: 700 }}>{level.icon}</Box>
+                        <Box component="span" sx={{ fontWeight: 700, fontSize: '0.7rem' }}>{level.icon}</Box>
+                        {icon && <Box component="span" sx={{ fontSize: '0.75rem', lineHeight: 1 }}>{icon}</Box>}
                         {formatKey(skill)}
                       </Box>
                     }
                     size="small"
-                    sx={{ fontSize: '0.8rem', height: 24, bgcolor: 'rgba(47, 182, 211, 0.15)' }}
+                    sx={skillTraitChipSx(skill)}
                   />
                 );
               })}
@@ -379,12 +387,28 @@ export default function JobCard({ job, onApply, onQuit, applying, quitting, isBo
               Annual Gains
             </Typography>
             <Stack direction="row" flexWrap="wrap" gap={0.4}>
-              {skillGains.map(([key, val]) => (
-                <Chip key={key} label={`${formatKey(key)} +${val}%`} size="small" sx={{ fontSize: '0.8rem', height: 24, bgcolor: 'rgba(47, 182, 211, 0.15)' }} />
-              ))}
-              {traitGains.map(([key, val]) => (
-                <Chip key={key} label={`${formatKey(key)} +${val}%`} size="small" sx={{ fontSize: '0.8rem', height: 24, bgcolor: 'rgba(47, 182, 211, 0.15)' }} />
-              ))}
+              {skillGains.map(([key, val]) => {
+                const icon = SKILL_TRAIT_ICONS[key] ?? '';
+                return (
+                  <Chip key={key} label={
+                    <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                      {icon && <Box component="span" sx={{ fontSize: '0.75rem', lineHeight: 1 }}>{icon}</Box>}
+                      {`${formatKey(key)} +${val}%`}
+                    </Box>
+                  } size="small" sx={skillTraitChipSx(key)} />
+                );
+              })}
+              {traitGains.map(([key, val]) => {
+                const icon = SKILL_TRAIT_ICONS[key] ?? '';
+                return (
+                  <Chip key={key} label={
+                    <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                      {icon && <Box component="span" sx={{ fontSize: '0.75rem', lineHeight: 1 }}>{icon}</Box>}
+                      {`${formatKey(key)} +${val}%`}
+                    </Box>
+                  } size="small" sx={skillTraitChipSx(key)} />
+                );
+              })}
             </Stack>
             {benefits.length > 0 && <Divider sx={{ mt: 0.75 }} />}
           </Box>
