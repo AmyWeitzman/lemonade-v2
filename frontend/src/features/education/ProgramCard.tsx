@@ -5,14 +5,14 @@
  * Requirements: Req 10, 3.1, 3.2, 3.5, 9.6
  */
 import {
-  Box, Card, CardContent, CardActions, Typography, Chip, Stack,
-  Button, CircularProgress,
+  Box, Card, CardContent, CardActions, Typography, Chip,
+  Button, CircularProgress, Tooltip,
 } from '@mui/material';
 import SchoolIcon from '@mui/icons-material/School';
 import { useSetupMode } from '../../contexts/SetupModeContext';
 import BookmarkToggle from '../../features/bookmarks/BookmarkToggle';
 import type { EducationProgram } from './types';
-import { stressOutlineSx, EDU_TYPE_COLORS, EDU_FIELD_OUTLINE, EDU_TRACK_OUTLINE, skillTraitChipSx, SKILL_TRAIT_ICONS } from '../../lib/colorMaps';
+import { stressOutlineSx, EDU_TYPE_COLORS, EDU_FIELD_OUTLINE, EDU_TRACK_OUTLINE, SKILL_TRAIT_ICONS, SKILL_TRAIT_COLORS } from '../../lib/colorMaps';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -275,35 +275,50 @@ export default function ProgramCard({
           </Box>
         )}
 
-        {/* Annual Skill/Trait Gains — always visible, single merged list */}
+        {/* Annual Skill/Trait Gains — always visible, icon badges with tooltips */}
         {(autoGains.length > 0 || majorGains.length > 0) && (
           <Box sx={{ mb: 0.75 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontWeight: 600, mb: 0.25 }}>
+            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontWeight: 600, mb: 0.5 }}>
               Annual Skill/Trait Gains
             </Typography>
-            <Stack direction="row" flexWrap="wrap" gap={0.4}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(6, auto)', justifyContent: 'start', gap: 1 }}>
               {[...autoGains, ...majorGains].map((g) => {
                 const keyRaw = g.replace(/ \+\d+%$/, '');
                 const camelKey = keyRaw
                   .split(' ')
                   .map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
                   .join('');
-                const icon = SKILL_TRAIT_ICONS[camelKey] ?? '';
+                const icon = SKILL_TRAIT_ICONS[camelKey] ?? '?';
+                const c = SKILL_TRAIT_COLORS[camelKey];
                 return (
-                  <Chip
+                  <Tooltip
                     key={g}
-                    label={
-                      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                        {icon && <Box component="span" sx={{ fontSize: '0.75rem', lineHeight: 1 }}>{icon}</Box>}
-                        {g}
-                      </Box>
-                    }
-                    size="small"
-                    sx={skillTraitChipSx(camelKey)}
-                  />
+                    title={<Typography sx={{ fontSize: '0.85rem' }}>{g}</Typography>}
+                    arrow
+                    placement="top"
+                    slotProps={{ popper: { modifiers: [{ name: 'offset', options: { offset: [0, -6] } }] } }}
+                  >
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 44,
+                        height: 44,
+                        borderRadius: 1.5,
+                        border: c ? `2px solid ${c.border}` : '2px solid rgba(47,182,211,0.6)',
+                        color: c ? c.color : 'text.primary',
+                        bgcolor: 'transparent',
+                        cursor: 'default',
+                        userSelect: 'none',
+                      }}
+                    >
+                      <Box sx={{ fontSize: '1.35rem', lineHeight: 1 }}>{icon}</Box>
+                    </Box>
+                  </Tooltip>
                 );
               })}
-            </Stack>
+            </Box>
           </Box>
         )}
 

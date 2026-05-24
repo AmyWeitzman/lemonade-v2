@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import {
   Box, Card, CardContent, CardActions, Typography, Chip, Stack,
-  Button, Divider, CircularProgress, Collapse, IconButton,
+  Button, Divider, CircularProgress, Collapse, IconButton, Tooltip,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -15,7 +15,7 @@ import WorkOffIcon from '@mui/icons-material/WorkOff';
 import type { JobItem } from './types';
 import { useSetupMode } from '../../contexts/SetupModeContext';
 import BookmarkToggle from '../../features/bookmarks/BookmarkToggle';
-import { stressColorJob, skillTraitChipSx, appTimeChipSx, easeToTimeBlocks, SKILL_TRAIT_ICONS } from '../../lib/colorMaps';
+import { stressColorJob, appTimeChipSx, easeToTimeBlocks, SKILL_TRAIT_ICONS, SKILL_TRAIT_COLORS } from '../../lib/colorMaps';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ function formatKey(key: string): string {
 
 function reqLevel(value: number): { label: string; color: string; icon: string } {
   if (value <= 33) return { label: 'Low', color: '#4caf50', icon: '▼' };
-  if (value <= 66) return { label: 'Med', color: '#ff9800', icon: '—' };
+  if (value <= 66) return { label: 'Medium', color: '#ff9800', icon: '—' };
   return { label: 'High', color: '#f44336', icon: '▲' };
 }
 
@@ -344,38 +344,86 @@ export default function JobCard({ job, onApply, onQuit, applying, quitting, isBo
         {/* Requirements */}
         {hasReqs && (
           <Box sx={{ mb: 0.75 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontWeight: 600, mb: 0.25 }}>
+            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontWeight: 600, mb: 0.5 }}>
               Requirements
             </Typography>
-            <Stack direction="row" flexWrap="wrap" gap={0.4}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, auto)', justifyContent: 'start', gap: 1.5 }}>
               {Object.entries(reqSkills).map(([skill, val]) => {
                 const numVal = Array.isArray(val) ? (val[0] as number) : (val as number);
                 const level = reqLevel(numVal);
-                const icon = SKILL_TRAIT_ICONS[skill] ?? '';
+                const icon = SKILL_TRAIT_ICONS[skill] ?? '?';
+                const c = SKILL_TRAIT_COLORS[skill];
+                const tooltipText = `${formatKey(skill)} (${level.label})`;
+                const dotColor = level.label === 'Low' ? '#43a047' : level.label === 'Medium' ? '#f9a825' : '#e53935';
+                const dotCount = level.label === 'Low' ? 1 : level.label === 'Medium' ? 2 : 3;
                 return (
-                  <Chip
+                  <Tooltip
                     key={skill}
-                    label={
-                      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                        <Box component="span" sx={{ fontWeight: 700, fontSize: '0.7rem' }}>{level.icon}</Box>
-                        {icon && <Box component="span" sx={{ fontSize: '0.75rem', lineHeight: 1 }}>{icon}</Box>}
-                        {formatKey(skill)}
+                    title={<Typography sx={{ fontSize: '0.85rem' }}>{tooltipText}</Typography>}
+                    arrow
+                    placement="top"
+                    slotProps={{ popper: { modifiers: [{ name: 'offset', options: { offset: [0, -6] } }] } }}
+                  >
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 0.3,
+                        width: 44,
+                        height: 52,
+                        borderRadius: 1.5,
+                        border: c ? `2px solid ${c.border}` : '2px solid rgba(47,182,211,0.6)',
+                        color: c ? c.color : 'text.primary',
+                        bgcolor: 'transparent',
+                        cursor: 'default',
+                        userSelect: 'none',
+                        pt: 0.5,
+                        pb: 0.5,
+                      }}
+                    >
+                      <Box sx={{ fontSize: '1.35rem', lineHeight: 1 }}>{icon}</Box>
+                      <Box sx={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                        {Array.from({ length: dotCount }).map((_, i) => (
+                          <Box
+                            key={i}
+                            sx={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              bgcolor: dotColor,
+                              flexShrink: 0,
+                              mt: 1
+                            }}
+                          />
+                        ))}
                       </Box>
-                    }
-                    size="small"
-                    sx={skillTraitChipSx(skill)}
-                  />
+                    </Box>
+                  </Tooltip>
                 );
               })}
               {reqCerts.map((cert) => (
-                <Chip
-                  key={cert}
-                  label={cert === 'CPR' ? '📜 CPR Certification' : `📜 ${cert}`}
-                  size="small"
-                  sx={{ fontSize: '0.8rem', height: 24, bgcolor: 'rgba(47, 182, 211, 0.15)' }}
-                />
+                <Tooltip key={cert} title={cert === 'CPR' ? 'CPR Certification' : cert} arrow placement="top">
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 44,
+                      height: 44,
+                      borderRadius: 1.5,
+                      border: '2px solid rgba(47,182,211,0.6)',
+                      bgcolor: 'transparent',
+                      cursor: 'default',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <Box sx={{ fontSize: '1.35rem', lineHeight: 1 }}>📜</Box>
+                  </Box>
+                </Tooltip>
               ))}
-            </Stack>
+            </Box>
             {((skillGains.length > 0 || traitGains.length > 0) || benefits.length > 0) && <Divider sx={{ mt: 0.75 }} />}
           </Box>
         )}
@@ -383,33 +431,42 @@ export default function JobCard({ job, onApply, onQuit, applying, quitting, isBo
         {/* Annual Gains */}
         {(skillGains.length > 0 || traitGains.length > 0) && (
           <Box sx={{ mb: 0.75 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontWeight: 600, mb: 0.25 }}>
+            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontWeight: 600, mb: 0.5 }}>
               Annual Gains
             </Typography>
-            <Stack direction="row" flexWrap="wrap" gap={0.4}>
-              {skillGains.map(([key, val]) => {
-                const icon = SKILL_TRAIT_ICONS[key] ?? '';
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, auto)', justifyContent: 'start', gap: 1.5 }}>
+              {[...skillGains, ...traitGains].map(([key, val]) => {
+                const icon = SKILL_TRAIT_ICONS[key] ?? '?';
+                const c = SKILL_TRAIT_COLORS[key];
                 return (
-                  <Chip key={key} label={
-                    <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                      {icon && <Box component="span" sx={{ fontSize: '0.75rem', lineHeight: 1 }}>{icon}</Box>}
-                      {`${formatKey(key)} +${val}%`}
+                  <Tooltip
+                    key={key}
+                    title={<Typography sx={{ fontSize: '0.85rem' }}>{`${formatKey(key)} +${val}%`}</Typography>}
+                    arrow
+                    placement="top"
+                    slotProps={{ popper: { modifiers: [{ name: 'offset', options: { offset: [0, -6] } }] } }}
+                  >
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 44,
+                        height: 44,
+                        borderRadius: 1.5,
+                        border: c ? `2px solid ${c.border}` : '2px solid rgba(47,182,211,0.6)',
+                        color: c ? c.color : 'text.primary',
+                        bgcolor: 'transparent',
+                        cursor: 'default',
+                        userSelect: 'none',
+                      }}
+                    >
+                      <Box sx={{ fontSize: '1.35rem', lineHeight: 1 }}>{icon}</Box>
                     </Box>
-                  } size="small" sx={skillTraitChipSx(key)} />
+                  </Tooltip>
                 );
               })}
-              {traitGains.map(([key, val]) => {
-                const icon = SKILL_TRAIT_ICONS[key] ?? '';
-                return (
-                  <Chip key={key} label={
-                    <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                      {icon && <Box component="span" sx={{ fontSize: '0.75rem', lineHeight: 1 }}>{icon}</Box>}
-                      {`${formatKey(key)} +${val}%`}
-                    </Box>
-                  } size="small" sx={skillTraitChipSx(key)} />
-                );
-              })}
-            </Stack>
+            </Box>
             {benefits.length > 0 && <Divider sx={{ mt: 0.75 }} />}
           </Box>
         )}
