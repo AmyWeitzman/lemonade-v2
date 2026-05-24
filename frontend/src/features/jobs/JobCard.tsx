@@ -15,7 +15,11 @@ import WorkOffIcon from '@mui/icons-material/WorkOff';
 import type { JobItem } from './types';
 import { useSetupMode } from '../../contexts/SetupModeContext';
 import BookmarkToggle from '../../features/bookmarks/BookmarkToggle';
-import { stressColorJob, appTimeChipSx, easeToTimeBlocks, SKILL_TRAIT_ICONS, SKILL_TRAIT_COLORS } from '../../lib/colorMaps';
+import { stressColorJob, appTimeChipSx, easeToTimeBlocks } from '../../lib/colorMaps';
+import {
+  statChipSx, formatKey, StatRow, StatChip,
+  IconBadge, IconBadgeGrid, LevelDots,
+} from '../../components/cards/cardComponents';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,13 +43,6 @@ function locationLabel(loc: string): string {
   if (loc === 'city') return '🏙️ City';
   if (loc === 'suburb') return '🏡 Suburb';
   return '🌐 City/Suburb';
-}
-
-function formatKey(key: string): string {
-  return key
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, (s) => s.toUpperCase())
-    .trim();
 }
 
 function reqLevel(value: number): { label: string; color: string; icon: string } {
@@ -83,8 +80,6 @@ const TRAIT_KEYS = [
   'goodWithKids', 'physicalAbility', 'communication',
 ];
 
-const chipSx = { fontSize: '0.85rem', height: 26, bgcolor: 'rgba(47, 182, 211, 0.15)' } as const;
-
 // ─── Career Advancement Sub-component ─────────────────────────────────────────
 
 function CareerAdvancement({ salaryTiers, resolvedDegrees, hasDegreeRequirement }: {
@@ -95,64 +90,43 @@ function CareerAdvancement({ salaryTiers, resolvedDegrees, hasDegreeRequirement 
   const [open, setOpen] = useState(false);
 
   const typeLabel: Record<string, string> = {
-    none: 'No Degree',
-    cc: "Associate's",
-    associates: "Associate's",
-    bachelors: "Bachelor's",
-    masters: "Master's",
-    phd: 'Doctorate',
-    doctorate: 'Doctorate',
+    none: 'No Degree', cc: "Associate's", associates: "Associate's",
+    bachelors: "Bachelor's", masters: "Master's", phd: 'Doctorate', doctorate: 'Doctorate',
   };
-
   const typeOrder = ['none', 'cc', 'associates', 'bachelors', 'masters', 'phd', 'doctorate'];
 
-  // Find unique degree names grouped by type from resolved degrees
   const namesByType = new Map<string, string[]>();
   for (const d of resolvedDegrees) {
-    const normalizedType = d.type === 'associates' ? 'cc' : d.type;
-    if (!namesByType.has(normalizedType)) namesByType.set(normalizedType, []);
-    const list = namesByType.get(normalizedType)!;
+    const t = d.type === 'associates' ? 'cc' : d.type;
+    if (!namesByType.has(t)) namesByType.set(t, []);
+    const list = namesByType.get(t)!;
     if (!list.includes(d.name)) list.push(d.name);
   }
 
-  // Sort tiers by degree level
-  const sortedTiers = Object.entries(salaryTiers)
-    .sort(([a], [b]) => typeOrder.indexOf(a) - typeOrder.indexOf(b));
-
-  // If job requires a degree, skip the first tier (it's the base salary shown on the card)
-  // If no degree required, skip 'none' tier (it's the base salary) but show everything else
-  let advancedTiers: [string, number][];
-  if (hasDegreeRequirement) {
-    advancedTiers = sortedTiers.slice(1);
-  } else {
-    advancedTiers = sortedTiers.filter(([key]) => key !== 'none');
-  }
+  const sortedTiers = Object.entries(salaryTiers).sort(([a], [b]) => typeOrder.indexOf(a) - typeOrder.indexOf(b));
+  const advancedTiers: [string, number][] = hasDegreeRequirement
+    ? sortedTiers.slice(1)
+    : sortedTiers.filter(([key]) => key !== 'none');
 
   if (advancedTiers.length === 0) return null;
 
-  // Build display lines — list all qualifying majors at each tier
   const displayLines: { label: string; salary: number }[] = [];
   for (const [degree, salary] of advancedTiers) {
-    // Map salary tier keys to resolvedDegrees type keys
     const lookupKeys = [degree];
     if (degree === 'phd') lookupKeys.push('doctorate');
     if (degree === 'doctorate') lookupKeys.push('phd');
     if (degree === 'cc') lookupKeys.push('associates');
     if (degree === 'associates') lookupKeys.push('cc');
-
     let names: string[] = [];
     for (const key of lookupKeys) {
       const found = namesByType.get(key);
-      if (found && found.length > 0) { names = found; break; }
+      if (found?.length) { names = found; break; }
     }
-
     const degLabel = typeLabel[degree] ?? degree;
     if (names.length === 0) {
       displayLines.push({ label: degLabel, salary });
     } else {
-      for (const name of names) {
-        displayLines.push({ label: `${degLabel} in ${name}`, salary });
-      }
+      for (const name of names) displayLines.push({ label: `${degLabel} in ${name}`, salary });
     }
   }
 
@@ -160,13 +134,8 @@ function CareerAdvancement({ salaryTiers, resolvedDegrees, hasDegreeRequirement 
 
   return (
     <Box sx={{ mt: 0.5 }}>
-      <Box
-        sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <Typography sx={{ fontSize: '0.8rem', color: 'primary.main', fontWeight: 600 }}>
-          Career Advancement
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setOpen((v) => !v)}>
+        <Typography sx={{ fontSize: '0.8rem', color: 'primary.main', fontWeight: 600 }}>Career Advancement</Typography>
         <IconButton size="small" sx={{ p: 0, ml: 0.25 }}>
           {open ? <ExpandLessIcon sx={{ fontSize: 16 }} /> : <ExpandMoreIcon sx={{ fontSize: 16 }} />}
         </IconButton>
@@ -200,141 +169,71 @@ interface Props {
 export default function JobCard({ job, onApply, onQuit, applying, quitting, isBookmarked, onBookmarkToggle, bookmarkLoading }: Props) {
   const { isSetupMode } = useSetupMode();
 
-  const skillGains = Object.entries(job.annualGains)
-    .filter(([k]) => SKILL_KEYS.includes(k));
-  const traitGains = Object.entries(job.annualGains)
-    .filter(([k]) => TRAIT_KEYS.includes(k));
+  const skillGains = Object.entries(job.annualGains).filter(([k]) => SKILL_KEYS.includes(k));
+  const traitGains = Object.entries(job.annualGains).filter(([k]) => TRAIT_KEYS.includes(k));
   const benefits = benefitSummary(job.benefits as Record<string, unknown>);
-
   const reqSkills = (job.requirements.skills ?? {}) as Record<string, unknown>;
   const reqCerts = (job.requirements.certifications ?? []) as string[];
   const hasReqs = Object.keys(reqSkills).length > 0 || reqCerts.length > 0;
 
-  // In setup mode, treat all jobs as eligible for border color
   const effectiveEligible = isSetupMode ? true : job.eligible;
-
-  const borderColor = job.alreadyEmployed
-    ? 'info.main'
-    : effectiveEligible
-    ? 'success.main'
-    : 'error.main';
+  const borderColor = job.alreadyEmployed ? 'info.main' : effectiveEligible ? 'success.main' : 'error.main';
 
   return (
     <Card
       variant="outlined"
       sx={{
-        borderRadius: 2,
-        borderColor,
-        borderWidth: 2,
-        bgcolor: job.alreadyEmployed
-          ? 'success.50'
-          : effectiveEligible
-          ? 'background.paper'
-          : 'action.hover',
+        borderRadius: 2, borderColor, borderWidth: 2,
+        bgcolor: job.alreadyEmployed ? 'success.50' : effectiveEligible ? 'background.paper' : 'action.hover',
         opacity: effectiveEligible || job.alreadyEmployed ? 1 : 0.85,
         transition: 'border-color 0.2s, box-shadow 0.2s',
         '&:hover': { boxShadow: 2 },
-        position: 'relative',
-        fontSize: '0.9rem',
+        position: 'relative', fontSize: '0.9rem',
       }}
     >
-      {/* Bookmark badge */}
       {onBookmarkToggle && (
         <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}>
-          <BookmarkToggle
-            itemId={job.id}
-            itemName={job.title}
-            type="job"
-            isBookmarked={isBookmarked ?? false}
-            onToggle={(id) => onBookmarkToggle(id)}
-            loading={bookmarkLoading}
-          />
+          <BookmarkToggle itemId={job.id} itemName={job.title} type="job"
+            isBookmarked={isBookmarked ?? false} onToggle={(id) => onBookmarkToggle(id)} loading={bookmarkLoading} />
         </Box>
       )}
 
       <CardContent sx={{ pb: 0, pr: 10, pt: 1.5 }}>
-        {/* Title */}
         <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.3, fontSize: '1.1rem', mb: 0.75 }}>
           {job.title}
         </Typography>
 
         {/* 2-column stats grid */}
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5, mb: 0.75 }}>
-          {/* Row 1: Starting Salary | Raises */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
-              Starting Salary:
-            </Typography>
-            <Chip label={fmtSalary(job.baseSalary)} size="small" sx={chipSx} />
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
-              Raises:
-            </Typography>
-            <Chip label={formatRaise(job.raiseSchedule)} size="small" sx={chipSx} />
-          </Box>
-
-          {/* Row 2: Schedule | Stress */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
-              Schedule:
-            </Typography>
-            <Chip label={job.timeBlocks === 0 ? 'Variable' : `${job.timeBlocks} time blocks`} size="small" sx={chipSx} />
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
-              Stress:
-            </Typography>
+          <StatRow label="Starting Salary:"><StatChip label={fmtSalary(job.baseSalary)} /></StatRow>
+          <StatRow label="Raises:"><StatChip label={formatRaise(job.raiseSchedule)} /></StatRow>
+          <StatRow label="Schedule:">
+            <StatChip label={job.timeBlocks === 0 ? 'Variable' : `${job.timeBlocks} time blocks`} />
+          </StatRow>
+          <StatRow label="Stress:">
             {(() => { const sc = stressColorJob(job.stressLevel); return (
-              <Chip label={`${job.stressLevel}%`} size="small" sx={{ fontSize: '0.85rem', height: 26, bgcolor: sc.bg, color: sc.text, fontWeight: 600 }} />
+              <Chip label={`${job.stressLevel}%`} size="small" sx={{ ...statChipSx, bgcolor: sc.bg, color: sc.text, fontWeight: 600 }} />
             ); })()}
-          </Box>
-
-          {/* Row 3: Type | PTO */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
-              Type:
-            </Typography>
-            <Chip label={[job.fullTime && 'FT', job.partTime && 'PT', job.seasonal && 'Seasonal'].filter(Boolean).join(' / ')} size="small" sx={chipSx} />
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
-              PTO:
-            </Typography>
-            <Chip label={job.ptoTimeBlocks > 0 ? `${job.ptoTimeBlocks} time blocks` : 'None'} size="small" sx={chipSx} />
-          </Box>
-
-          {/* Row 4: Location | Pension */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
-              Location:
-            </Typography>
-            <Chip label={locationLabel(job.location)} size="small" sx={chipSx} />
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
-              Pension:
-            </Typography>
-            <Chip label={job.hasPension ? 'Yes' : 'No'} size="small" sx={chipSx} />
-          </Box>
+          </StatRow>
+          <StatRow label="Type:">
+            <StatChip label={[job.fullTime && 'FT', job.partTime && 'PT', job.seasonal && 'Seasonal'].filter(Boolean).join(' / ')} />
+          </StatRow>
+          <StatRow label="PTO:">
+            <StatChip label={job.ptoTimeBlocks > 0 ? `${job.ptoTimeBlocks} time blocks` : 'None'} />
+          </StatRow>
+          <StatRow label="Location:"><StatChip label={locationLabel(job.location)} /></StatRow>
+          <StatRow label="Pension:"><StatChip label={job.hasPension ? 'Yes' : 'No'} /></StatRow>
         </Box>
 
-        {/* Degree Required + Avg Application Time (full width rows) */}
+        {/* Degree + Avg Application Time */}
         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
-          <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap', mt: 0.25 }}>
-            Degree:
-          </Typography>
+          <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap', mt: 0.25 }}>Degree:</Typography>
           {(job.degreeDisplayList?.length ?? 0) > 0
-            ? job.degreeDisplayList.map((d, i) => (
-                <Chip key={i} label={d} size="small" sx={chipSx} />
-              ))
-            : <Chip label="None" size="small" sx={chipSx} />
-          }
+            ? job.degreeDisplayList.map((d, i) => <StatChip key={i} label={d} />)
+            : <StatChip label="None" />}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.75 }}>
-          <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
-            Avg Application Time:
-          </Typography>
+          <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>Avg Application Time:</Typography>
           {(() => {
             const tb = easeToTimeBlocks(job.easeOfGetting, job.title);
             return <Chip label={`${tb} time block${tb === 1 ? '' : 's'}`} size="small" sx={appTimeChipSx(job.easeOfGetting, job.title)} />;
@@ -344,86 +243,34 @@ export default function JobCard({ job, onApply, onQuit, applying, quitting, isBo
         {/* Requirements */}
         {hasReqs && (
           <Box sx={{ mb: 0.75 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontWeight: 600, mb: 0.5 }}>
-              Requirements
-            </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, auto)', justifyContent: 'start', gap: 1.5 }}>
+            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontWeight: 600, mb: 0.5 }}>Requirements</Typography>
+            <IconBadgeGrid>
               {Object.entries(reqSkills).map(([skill, val]) => {
                 const numVal = Array.isArray(val) ? (val[0] as number) : (val as number);
                 const level = reqLevel(numVal);
-                const icon = SKILL_TRAIT_ICONS[skill] ?? '?';
-                const c = SKILL_TRAIT_COLORS[skill];
-                const tooltipText = `${formatKey(skill)} (${level.label})`;
-                const dotColor = level.label === 'Low' ? '#43a047' : level.label === 'Medium' ? '#f9a825' : '#e53935';
-                const dotCount = level.label === 'Low' ? 1 : level.label === 'Medium' ? 2 : 3;
                 return (
-                  <Tooltip
+                  <IconBadge
                     key={skill}
-                    title={<Typography sx={{ fontSize: '0.85rem' }}>{tooltipText}</Typography>}
-                    arrow
-                    placement="top"
-                    slotProps={{ popper: { modifiers: [{ name: 'offset', options: { offset: [0, -6] } }] } }}
-                  >
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 0.3,
-                        width: 44,
-                        height: 52,
-                        borderRadius: 1.5,
-                        border: c ? `2px solid ${c.border}` : '2px solid rgba(47,182,211,0.6)',
-                        color: c ? c.color : 'text.primary',
-                        bgcolor: 'transparent',
-                        cursor: 'default',
-                        userSelect: 'none',
-                        pt: 0.5,
-                        pb: 0.5,
-                      }}
-                    >
-                      <Box sx={{ fontSize: '1.35rem', lineHeight: 1 }}>{icon}</Box>
-                      <Box sx={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
-                        {Array.from({ length: dotCount }).map((_, i) => (
-                          <Box
-                            key={i}
-                            sx={{
-                              width: 6,
-                              height: 6,
-                              borderRadius: '50%',
-                              bgcolor: dotColor,
-                              flexShrink: 0,
-                              mt: 1
-                            }}
-                          />
-                        ))}
-                      </Box>
-                    </Box>
-                  </Tooltip>
+                    skillKey={skill}
+                    tooltip={`${formatKey(skill)} (${level.label})`}
+                    height={52}
+                    below={<LevelDots level={level.label} />}
+                  />
                 );
               })}
               {reqCerts.map((cert) => (
-                <Tooltip key={cert} title={cert === 'CPR' ? 'CPR Certification' : cert} arrow placement="top">
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 44,
-                      height: 44,
-                      borderRadius: 1.5,
-                      border: '2px solid rgba(47,182,211,0.6)',
-                      bgcolor: 'transparent',
-                      cursor: 'default',
-                      userSelect: 'none',
-                    }}
-                  >
+                <Tooltip
+                  key={cert}
+                  title={<Typography sx={{ fontSize: '0.85rem' }}>{cert === 'CPR' ? 'CPR Certification' : cert}</Typography>}
+                  arrow placement="top"
+                  slotProps={{ popper: { modifiers: [{ name: 'offset', options: { offset: [0, -6] } }] } }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: 1.5, border: '2px solid rgba(47,182,211,0.6)', bgcolor: 'transparent', cursor: 'default', userSelect: 'none' }}>
                     <Box sx={{ fontSize: '1.35rem', lineHeight: 1 }}>📜</Box>
                   </Box>
                 </Tooltip>
               ))}
-            </Box>
+            </IconBadgeGrid>
             {((skillGains.length > 0 || traitGains.length > 0) || benefits.length > 0) && <Divider sx={{ mt: 0.75 }} />}
           </Box>
         )}
@@ -431,42 +278,12 @@ export default function JobCard({ job, onApply, onQuit, applying, quitting, isBo
         {/* Annual Gains */}
         {(skillGains.length > 0 || traitGains.length > 0) && (
           <Box sx={{ mb: 0.75 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontWeight: 600, mb: 0.5 }}>
-              Annual Gains
-            </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, auto)', justifyContent: 'start', gap: 1.5 }}>
-              {[...skillGains, ...traitGains].map(([key, val]) => {
-                const icon = SKILL_TRAIT_ICONS[key] ?? '?';
-                const c = SKILL_TRAIT_COLORS[key];
-                return (
-                  <Tooltip
-                    key={key}
-                    title={<Typography sx={{ fontSize: '0.85rem' }}>{`${formatKey(key)} +${val}%`}</Typography>}
-                    arrow
-                    placement="top"
-                    slotProps={{ popper: { modifiers: [{ name: 'offset', options: { offset: [0, -6] } }] } }}
-                  >
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 44,
-                        height: 44,
-                        borderRadius: 1.5,
-                        border: c ? `2px solid ${c.border}` : '2px solid rgba(47,182,211,0.6)',
-                        color: c ? c.color : 'text.primary',
-                        bgcolor: 'transparent',
-                        cursor: 'default',
-                        userSelect: 'none',
-                      }}
-                    >
-                      <Box sx={{ fontSize: '1.35rem', lineHeight: 1 }}>{icon}</Box>
-                    </Box>
-                  </Tooltip>
-                );
-              })}
-            </Box>
+            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontWeight: 600, mb: 0.5 }}>Annual Gains</Typography>
+            <IconBadgeGrid>
+              {[...skillGains, ...traitGains].map(([key, val]) => (
+                <IconBadge key={key} skillKey={key} tooltip={`${formatKey(key)} +${val}%`} />
+              ))}
+            </IconBadgeGrid>
             {benefits.length > 0 && <Divider sx={{ mt: 0.75 }} />}
           </Box>
         )}
@@ -474,20 +291,16 @@ export default function JobCard({ job, onApply, onQuit, applying, quitting, isBo
         {/* Perks */}
         {benefits.length > 0 && (
           <Box sx={{ mb: 1 }}>
-            <Typography sx={{ fontSize: '0.85rem', color: 'text.secondary', fontWeight: 600, mb: 0.5 }}>
-              Perks
-            </Typography>
+            <Typography sx={{ fontSize: '0.85rem', color: 'text.secondary', fontWeight: 600, mb: 0.5 }}>Perks</Typography>
             <Stack gap={0.25}>
               {benefits.map((b, i) => (
-                <Typography key={i} sx={{ fontSize: '0.9rem', color: 'text.secondary' }}>
-                  {b}
-                </Typography>
+                <Typography key={i} sx={{ fontSize: '0.9rem', color: 'text.secondary' }}>{b}</Typography>
               ))}
             </Stack>
           </Box>
         )}
 
-        {/* Career Advancement (collapsible — only shown if salary tiers exist) */}
+        {/* Career Advancement */}
         {job.salaryTiers && Object.keys(job.salaryTiers).length > 0 && (
           <CareerAdvancement
             salaryTiers={job.salaryTiers}
@@ -500,41 +313,26 @@ export default function JobCard({ job, onApply, onQuit, applying, quitting, isBo
       {!isSetupMode && (
         <CardActions sx={{ pt: 0.5, pb: 1, px: 2, justifyContent: 'flex-end', gap: 1 }}>
           {job.alreadyEmployed ? (
-            <Button
-              size="small"
-              variant="outlined"
-              color="error"
+            <Button size="small" variant="outlined" color="error"
               startIcon={quitting ? <CircularProgress size={12} /> : <WorkOffIcon sx={{ fontSize: '0.9rem !important' }} />}
-              disabled={quitting}
-              onClick={() => onQuit(job.id)}
-              sx={{ fontSize: '0.7rem' }}
-            >
+              disabled={quitting} onClick={() => onQuit(job.id)} sx={{ fontSize: '0.7rem' }}>
               Quit
             </Button>
           ) : (
             <>
               {job.partTime && job.fullTime && (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="primary"
+                <Button size="small" variant="outlined" color="primary"
                   disabled={!job.eligible || applying}
                   startIcon={applying ? <CircularProgress size={12} /> : undefined}
-                  onClick={() => onApply(job.id, true)}
-                  sx={{ fontSize: '0.7rem' }}
-                >
+                  onClick={() => onApply(job.id, true)} sx={{ fontSize: '0.7rem' }}>
                   Apply (PT)
                 </Button>
               )}
-              <Button
-                size="small"
-                variant={job.eligible ? 'contained' : 'outlined'}
+              <Button size="small" variant={job.eligible ? 'contained' : 'outlined'}
                 color={job.eligible ? 'primary' : 'inherit'}
                 disabled={!job.eligible || applying}
                 startIcon={applying ? <CircularProgress size={12} /> : <WorkIcon sx={{ fontSize: '0.9rem !important' }} />}
-                onClick={() => onApply(job.id, false)}
-                sx={{ fontSize: '0.7rem' }}
-              >
+                onClick={() => onApply(job.id, false)} sx={{ fontSize: '0.7rem' }}>
                 Apply
               </Button>
             </>
