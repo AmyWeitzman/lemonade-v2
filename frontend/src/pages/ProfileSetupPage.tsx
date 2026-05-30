@@ -57,6 +57,7 @@ export default function ProfileSetupPage() {
   const [traitDeltas, setTraitDeltas] = useState<Record<string, number>>({});
   const [skillDeltas, setSkillDeltas] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
+  const [sliderResetKey, setSliderResetKey] = useState(0);
 
   // ── Roll mutation (idempotent) ─────────────────────────────────────────────
   const rollMutation = useMutation({
@@ -104,6 +105,7 @@ export default function ProfileSetupPage() {
   const handleReset = () => {
     setTraitDeltas({});
     setSkillDeltas({});
+    setSliderResetKey((k) => k + 1);
   };
 
   const handleProceedToReview = () => {
@@ -188,11 +190,12 @@ export default function ProfileSetupPage() {
 
   // ─── Adjust state ──────────────────────────────────────────────────────────
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1400, mx: 'auto' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: (t) => t.palette.primary.light, p: { xs: 2, md: 3 } }}>
+    <Box sx={{ maxWidth: 1400, mx: 'auto' }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Box>
           <Typography variant="h5" fontWeight={700}>
-            🎯 Profile Setup
+            👤 Profile Setup
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Fine-tune your starting traits and skills
@@ -211,16 +214,18 @@ export default function ProfileSetupPage() {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       {/* How adjustments work */}
-      <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2 }}>
+      <Alert severity="info" sx={{ mb: 2, bgcolor: 'rgba(255,255,255,0.6)' }}>
         <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>
-          How adjustments work
+          Who are you?
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-          You start with <strong>50% to distribute across traits</strong> and{' '}
-          <strong>10% across skills</strong> (max ±10% per trait, ±2% per skill). Decreasing a
-          stat below its rolled value <em>adds</em> to your available budget.
+        <Typography variant="body2">
+          Life doesn't start at 18! What skills and traits have you developed throughout your life so far based on your interests?
+          <br /><br />
+          You start with a budget of 50% to distribute across traits (max ±10% per trait) and 10% to distribute across skills (max ±2% per skill).
+          <br /><br />
+          Decreasing a skill or trait below its rolled value <em>adds</em> to your available budget.
         </Typography>
-      </Paper>
+      </Alert>
 
       {/* Budget meters */}
       <Paper variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 2 }}>
@@ -278,6 +283,7 @@ export default function ProfileSetupPage() {
                 sliderMin={sliderMin}
                 sliderMax={sliderMax}
                 onChange={handleTraitChange}
+                resetKey={sliderResetKey}
               />
             );
           })}
@@ -311,6 +317,7 @@ export default function ProfileSetupPage() {
                 sliderMin={sliderMin}
                 sliderMax={sliderMax}
                 onChange={handleSkillChange}
+                resetKey={sliderResetKey}
               />
             );
           })}
@@ -342,6 +349,7 @@ export default function ProfileSetupPage() {
           Proceed to Review →
         </Button>
       </Stack>
+    </Box>
     </Box>
   );
 }

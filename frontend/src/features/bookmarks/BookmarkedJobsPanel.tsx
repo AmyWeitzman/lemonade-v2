@@ -1,52 +1,23 @@
 /**
  * BookmarkedJobsPanel
  *
- * Displays the list of jobs the player has bookmarked, with live eligibility
- * indicators computed from the player's current (base + delta) traits and skills.
- *
+ * Displays bookmarked jobs with live skill/trait requirement badges.
  * Requirements: 7.1, 7.3, 7.5
  */
 import { Box, Typography, Chip, Paper, Stack } from '@mui/material';
 import { Link } from 'react-router-dom';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
 import { useSelector } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
 import type { RootState } from '../../store';
 import type { JobItem } from '../jobs/types';
 import api from '../../lib/api';
+import { IconBadge, IconBadgeGrid } from '../../components/cards/cardComponents';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface BookmarkedJobsPanelProps {
-  currentTraits: Record<string, number>; // base + deltas
-  currentSkills: Record<string, number>; // base + deltas
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function fmtSalary(n: number): string {
-  return '$' + n.toLocaleString();
-}
-
-/**
- * Check whether the player meets all requirements for a job.
- * Requirements keys map to minimum values; we check both traits and skills.
- */
-function checkEligibility(
-  requirements: Record<string, unknown>,
-  currentTraits: Record<string, number>,
-  currentSkills: Record<string, number>,
-): boolean {
-  for (const [key, minValue] of Object.entries(requirements)) {
-    if (typeof minValue !== 'number') continue;
-    const traitVal = currentTraits[key] ?? 0;
-    const skillVal = currentSkills[key] ?? 0;
-    // A key can be satisfied by either the trait or the skill value
-    const playerVal = Math.max(traitVal, skillVal);
-    if (playerVal < minValue) return false;
-  }
-  return true;
+  currentTraits: Record<string, number>;
+  currentSkills: Record<string, number>;
 }
 
 // ─── Sub-component: single bookmarked job row ─────────────────────────────────
@@ -58,78 +29,26 @@ interface JobRowProps {
 }
 
 function BookmarkedJobRow({ job, currentTraits, currentSkills }: JobRowProps) {
-  const eligible = checkEligibility(
-    job.requirements as Record<string, unknown>,
-    currentTraits,
-    currentSkills,
-  );
-
-  const requirementEntries = Object.entries(job.requirements as Record<string, unknown>).filter(
-    ([, v]) => typeof v === 'number',
-  ) as [string, number][];
+  const reqSkills = (job.requirements?.skills ?? {}) as Record<string, unknown>;
+  const reqCerts = (job.requirements?.certifications ?? []) as string[];
+  const hasReqs = Object.keys(reqSkills).length > 0 || reqCerts.length > 0;
 
   return (
     <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
-        {/* Left: title + salary */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="body2" fontWeight={700} noWrap>
-            {job.title}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {fmtSalary(job.baseSalary)}/yr base
-          </Typography>
+      <Typography variant="body2" fontWeight={700} noWrap sx={{ mb: hasReqs ? 0.75 : 0 }}>
+        {job.title}
+      </Typography>
 
-          {/* Requirements list */}
-          {requirementEntries.length > 0 && (
-            <Box sx={{ mt: 0.75 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25 }}>
-                Requirements:
-              </Typography>
-              <Stack direction="row" flexWrap="wrap" gap={0.5}>
-                {requirementEntries.map(([key, minVal]) => {
-                  const playerVal = Math.max(
-                    currentTraits[key] ?? 0,
-                    currentSkills[key] ?? 0,
-                  );
-                  const met = playerVal >= minVal;
-                  return (
-                    <Chip
-                      key={key}
-                      label={`${key}: ${minVal}`}
-                      size="small"
-                      color={met ? 'success' : 'error'}
-                      variant="outlined"
-                      sx={{ fontSize: '0.65rem', height: 20 }}
-                    />
-                  );
-                })}
-              </Stack>
-            </Box>
-          )}
-        </Box>
-
-        {/* Right: eligibility indicator */}
-        <Box sx={{ flexShrink: 0, pt: 0.25 }}>
-          {eligible ? (
-            <Chip
-              icon={<CheckCircleIcon />}
-              label="Eligible"
-              color="success"
-              size="small"
-              sx={{ fontWeight: 600 }}
-            />
-          ) : (
-            <Chip
-              icon={<CancelIcon />}
-              label="Not eligible"
-              color="error"
-              size="small"
-              sx={{ fontWeight: 600 }}
-            />
-          )}
-        </Box>
-      </Stack>
+      {hasReqs && (
+        <IconBadgeGrid>
+          {Object.keys(reqSkills).map((skill) => (
+            <IconBadge key={skill} skillKey={skill} tooltip={skill.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim()} />
+          ))}
+          {reqCerts.map((cert) => (
+            <IconBadge key={cert} skillKey="__cert__" tooltip={cert === 'CPR' ? 'CPR Certification' : cert} />
+          ))}
+        </IconBadgeGrid>
+      )}
     </Paper>
   );
 }
@@ -137,13 +56,12 @@ function BookmarkedJobRow({ job, currentTraits, currentSkills }: JobRowProps) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function BookmarkedJobsPanel({
-  currentTraits,
-  currentSkills,
+  currentTraits: _currentTraits,
+  currentSkills: _currentSkills,
 }: BookmarkedJobsPanelProps) {
   const bookmarkedJobIds = useSelector((s: RootState) => s.bookmarks.jobIds);
   const { gameSessionId } = useSelector((s: RootState) => s.auth);
 
-  // Fetch all jobs for this session, then filter to bookmarked IDs client-side
   const { data, isLoading, isError } = useQuery({
     queryKey: ['jobs', { gameSessionId, forBookmarks: true }],
     queryFn: async () => {
@@ -157,83 +75,51 @@ export default function BookmarkedJobsPanel({
 
   const bookmarkedJobs = (data?.jobs ?? []).filter((j) => bookmarkedJobIds.includes(j.id));
 
-  // ── Empty state ────────────────────────────────────────────────────────────
   if (bookmarkedJobIds.length === 0) {
     return (
       <Box>
-        <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-          Bookmarked Jobs
-        </Typography>
-        <Paper
-          variant="outlined"
-          sx={{ p: 2, borderRadius: 2, textAlign: 'center', borderStyle: 'dashed' }}
-        >
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            No jobs bookmarked yet.
-          </Typography>
+        <Typography variant="subtitle2" fontWeight={700} gutterBottom>Bookmarked Jobs</Typography>
+        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, textAlign: 'center', borderStyle: 'dashed' }}>
+          <Typography variant="body2" color="text.secondary" gutterBottom>No jobs bookmarked yet.</Typography>
           <Typography variant="body2" color="text.secondary">
-            <Link to="/setup/jobs" style={{ color: 'inherit' }}>
-              Browse jobs
-            </Link>{' '}
-            to bookmark ones you're interested in.
+            <Link to="/setup/jobs" style={{ color: 'inherit' }}>Browse jobs</Link>{' '}to bookmark ones you're interested in.
           </Typography>
         </Paper>
       </Box>
     );
   }
 
-  // ── Loading state ──────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <Box>
-        <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-          Bookmarked Jobs
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Loading bookmarked jobs…
-        </Typography>
+        <Typography variant="subtitle2" fontWeight={700} gutterBottom>Bookmarked Jobs</Typography>
+        <Typography variant="body2" color="text.secondary">Loading bookmarked jobs…</Typography>
       </Box>
     );
   }
 
-  // ── Error state ────────────────────────────────────────────────────────────
   if (isError) {
     return (
       <Box>
-        <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-          Bookmarked Jobs
-        </Typography>
-        <Typography variant="body2" color="error">
-          Failed to load job details.
-        </Typography>
+        <Typography variant="subtitle2" fontWeight={700} gutterBottom>Bookmarked Jobs</Typography>
+        <Typography variant="body2" color="error">Failed to load job details.</Typography>
       </Box>
     );
   }
 
-  // ── Job list ───────────────────────────────────────────────────────────────
   return (
     <Box>
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-        <Typography variant="subtitle2" fontWeight={700}>
-          Bookmarked Jobs
-        </Typography>
+        <Typography variant="subtitle2" fontWeight={700}>Bookmarked Jobs</Typography>
         <Chip
           label={bookmarkedJobs.length}
           size="small"
-          color="primary"
-          variant="outlined"
-          sx={{ height: 20, fontSize: '0.7rem' }}
+          sx={{ height: 20, fontSize: '0.7rem', bgcolor: 'rgba(0,0,0,0.15)', color: 'text.primary', fontWeight: 700 }}
         />
       </Stack>
-
       <Stack spacing={1}>
         {bookmarkedJobs.map((job) => (
-          <BookmarkedJobRow
-            key={job.id}
-            job={job}
-            currentTraits={currentTraits}
-            currentSkills={currentSkills}
-          />
+          <BookmarkedJobRow key={job.id} job={job} currentTraits={_currentTraits} currentSkills={_currentSkills} />
         ))}
       </Stack>
     </Box>

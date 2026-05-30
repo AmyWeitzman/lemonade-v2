@@ -13,6 +13,8 @@ interface TraitSliderRowProps {
   sliderMin: number;
   sliderMax: number;
   onChange: (key: string, newDelta: number) => void;
+  /** Increment this to force the slider to remount and reset to base. */
+  resetKey?: number;
 }
 
 const TraitSliderRow = memo(function TraitSliderRow({
@@ -23,13 +25,14 @@ const TraitSliderRow = memo(function TraitSliderRow({
   sliderMin,
   sliderMax,
   onChange,
+  resetKey = 0,
 }: TraitSliderRowProps) {
   const [displayCurrent, setDisplayCurrent] = useState(
     Math.max(0, Math.min(100, base + delta)),
   );
 
   return (
-    <Box sx={{ mb: 2.5 }}>
+    <Box key={resetKey} sx={{ mb: 2.5 }}>
       <Typography variant="body2" fontWeight={600} sx={{ mb: 0.25 }}>
         {label}
       </Typography>
@@ -75,7 +78,7 @@ const TraitSliderRow = memo(function TraitSliderRow({
           ) : (
             <>
               {base}%{' '}
-              <span style={{ color: displayCurrent > base ? '#4caf50' : '#f44336' }}>
+              <span style={{ color: displayCurrent > base ? '#1b5e20' : '#b71c1c' }}>
                 {displayCurrent > base
                   ? `+ ${displayCurrent - base}%`
                   : `− ${base - displayCurrent}%`}
