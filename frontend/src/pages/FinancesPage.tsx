@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import {
   Box, Typography, Stack, Alert, Skeleton, Tabs, Tab, Chip,
-  Paper, Snackbar, Divider,
+  Paper, Snackbar,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useSelector } from 'react-redux';
@@ -61,7 +61,7 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 
 export default function FinancesPage() {
   const queryClient = useQueryClient();
-  const { playerId, gameSessionId, money, health, stress } = useSelector((s: RootState) => ({
+  const { playerId, gameSessionId } = useSelector((s: RootState) => ({
     playerId: s.auth.playerId,
     gameSessionId: s.auth.gameSessionId,
     money: s.auth.money,

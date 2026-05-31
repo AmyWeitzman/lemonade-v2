@@ -1,40 +1,24 @@
 /**
  * SetupShell — restricted layout wrapper rendered during the profile setup workflow.
- * No top navbar or bottom nav — just the SetupProgressStepper at the top with
- * back/forward buttons for sequential navigation.
- * On mount, fetches bookmarks from the API and hydrates the Redux bookmarks slice.
+ * No top navbar or bottom nav — just the SetupProgressStepper at the top.
  * Wraps children with SetupModeContext.Provider so all descendants know they are in setup mode.
  */
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
 import { Box } from '@mui/material';
 import SetupProgressStepper from './SetupProgressStepper';
 import { SetupModeContext } from '../../contexts/SetupModeContext';
-import { setBookmarks } from '../../features/bookmarks/bookmarksSlice';
-import type { RootState } from '../../store';
-import api from '../../lib/api';
 
 const STEPPER_HEIGHT = 56;
 
-/** Derive the active step index (0 | 1 | 2) from the current pathname. */
-function pathToStep(pathname: string): number {
-  if (pathname.startsWith('/setup/jobs')) return 0;
-  if (pathname.startsWith('/setup/education')) return 1;
-  // /setup/profile and /setup/review both map to step 2
-  return 2;
+/** All setup routes map to step 0 (Profile Setup). */
+function pathToStep(_pathname: string): number {
+  return 0;
 }
 
-/** Map a step index back to the canonical route path. */
-function stepToPath(step: number): string {
-  switch (step) {
-    case 0:
-      return '/setup/jobs';
-    case 1:
-      return '/setup/education';
-    default:
-      return '/setup/profile';
-  }
+/** Step 0 maps to the profile setup route. */
+function stepToPath(_step: number): string {
+  return '/setup/profile';
 }
 
 export interface SetupShellProps {
@@ -44,12 +28,8 @@ export interface SetupShellProps {
 export default function SetupShell({ children }: SetupShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const dispatch = useDispatch();
 
-  const playerId = useSelector((state: RootState) => state.auth.playerId);
-  const token = useSelector((state: RootState) => state.auth.token);
-
-  // Derive active step from current route
+  // Derive active step from current route (always 0)
   const activeStep = pathToStep(location.pathname);
 
   // Track which steps the player has visited so the stepper can show checkmarks
@@ -63,20 +43,6 @@ export default function SetupShell({ children }: SetupShellProps) {
       return next;
     });
   }, [location.pathname]);
-
-  // On mount, fetch bookmarks and hydrate the Redux slice
-  useEffect(() => {
-    if (!playerId || !token) return;
-
-    api
-      .get<{ jobIds: string[]; programIds: string[] }>(`/players/${playerId}/bookmarks`)
-      .then(({ data }) => {
-        dispatch(setBookmarks({ jobIds: data.jobIds, programIds: data.programIds }));
-      })
-      .catch(() => {
-        // Non-fatal: bookmarks will just be empty; user can still proceed
-      });
-  }, [playerId, token, dispatch]);
 
   const handleStepClick = (step: number) => {
     navigate(stepToPath(step));

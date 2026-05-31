@@ -31,7 +31,6 @@ import type { RootState } from '../store';
 import api from '../lib/api';
 import {
   setPitcherState,
-  updatePitcherState,
   type PlayerContribution,
 } from '../features/pitcher/pitcherSlice';
 import { setGameState } from '../features/game/gameSlice';

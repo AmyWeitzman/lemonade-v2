@@ -28,7 +28,7 @@ interface JobRowProps {
   currentSkills: Record<string, number>;
 }
 
-function BookmarkedJobRow({ job, currentTraits, currentSkills }: JobRowProps) {
+function BookmarkedJobRow({ job, currentTraits: _currentTraits, currentSkills: _currentSkills }: JobRowProps) {
   const reqSkills = (job.requirements?.skills ?? {}) as Record<string, unknown>;
   const reqCerts = (job.requirements?.certifications ?? []) as string[];
   const hasReqs = Object.keys(reqSkills).length > 0 || reqCerts.length > 0;

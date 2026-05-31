@@ -259,7 +259,7 @@ export default function HousingPage() {
     (o) => !o.endAge,
   ) ?? null;
 
-  const playerAge = playerData?.player?.age ?? 18;
+  // playerAge = playerData?.player?.age ?? 18 — reserved for future use
   const playerMoney = playerData?.player?.money ?? money;
 
   // Calculate current market value for owned homes

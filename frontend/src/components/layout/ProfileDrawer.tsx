@@ -322,9 +322,12 @@ function NotesSection({ playerId, currentAge }: { playerId: string; currentAge: 
   const [drawingDataUrl, setDrawingDataUrl] = useState<string | undefined>(undefined);
   const [isListening, setIsListening] = useState(false);
   const [speechSupported] = useState(
-    () => !!(window.SpeechRecognition || (window as unknown as Record<string, unknown>).webkitSpeechRecognition),
+    () => !!(
+      (window as unknown as Record<string, unknown>).SpeechRecognition ||
+      (window as unknown as Record<string, unknown>).webkitSpeechRecognition
+    ),
   );
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<unknown>(null);
 
   // Persist notes to localStorage whenever they change
   useEffect(() => {
@@ -358,21 +361,24 @@ function NotesSection({ playerId, currentAge }: { playerId: string; currentAge: 
     if (!speechSupported) return;
 
     const SpeechRecognitionClass =
-      window.SpeechRecognition ||
-      (window as unknown as Record<string, unknown>).webkitSpeechRecognition as typeof SpeechRecognition;
+      (window as unknown as Record<string, unknown>).SpeechRecognition ||
+      (window as unknown as Record<string, unknown>).webkitSpeechRecognition as unknown;
 
     if (isListening) {
-      recognitionRef.current?.stop();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (recognitionRef.current as any)?.stop();
       setIsListening(false);
       return;
     }
 
-    const recognition = new SpeechRecognitionClass();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recognition = new (SpeechRecognitionClass as any)();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
       let transcript = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         transcript += event.results[i][0].transcript;
@@ -545,7 +551,7 @@ export default function ProfileDrawer({ open, onClose }: ProfileDrawerProps) {
   const loans = profile?.loans ?? [];
   const employments = profile?.employments ?? [];
   const educations = profile?.educations ?? [];
-  const actionHistory = profile?.actionHistory ?? [];
+  // actionHistory: profile?.actionHistory — reserved for future timeline feature
   const currentAge = profile?.age ?? (18 + currentYear - 1);
 
   // Build timeline events from player state

@@ -71,9 +71,8 @@ export default function HousingCard({
 }: Props) {
   const [expanded, setExpanded] = useState(false);
 
-  const primaryCost = housing.isRental
-    ? housing.rentPerYear ?? 0
-    : housing.purchasePrice ?? 0;
+  // primaryCost = housing.isRental ? housing.rentPerYear ?? 0 : housing.purchasePrice ?? 0
+  // (reserved for future display use)
 
   const hasImprovements =
     housing.allowsRemodeling || housing.allowsPool || housing.allowsSolarPanels;

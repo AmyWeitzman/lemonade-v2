@@ -6,7 +6,7 @@
  *
  * Requirements: Req 8, Req 22
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   Box, Typography, TextField, InputAdornment, Grid, Stack,
   Fab, Badge, Alert, Skeleton, Chip, Tooltip,

@@ -50,16 +50,14 @@ export default function App() {
           element={
             <SetupShell>
               <Routes>
-                <Route path="jobs" element={<JobsPage />} />
-                <Route path="education" element={<EducationPage />} />
                 <Route path="profile" element={<ProfileSetupPage />} />
                 <Route path="review" element={<ProfileReviewPage />} />
-                <Route path="*" element={<Navigate to="/setup/jobs" replace />} />
+                <Route path="*" element={<Navigate to="/setup/profile" replace />} />
               </Routes>
             </SetupShell>
           }
         />
-        <Route path="*" element={<Navigate to="/setup/jobs" replace />} />
+        <Route path="*" element={<Navigate to="/setup/profile" replace />} />
       </Routes>
     );
   }

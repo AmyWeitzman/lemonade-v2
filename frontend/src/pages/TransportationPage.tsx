@@ -9,8 +9,7 @@
 import { useState } from 'react';
 import {
   Box, Typography, Grid, Stack, Alert, Skeleton, Chip, Divider,
-  Button, Dialog, DialogTitle, DialogContent, DialogContentText,
-  DialogActions, Snackbar, Badge, Paper,
+  Button, Snackbar, Badge, Paper,
 } from '@mui/material';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';

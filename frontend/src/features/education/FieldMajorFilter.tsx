@@ -7,8 +7,8 @@
  */
 import { useState } from 'react';
 import {
-  Box, Button, Checkbox, Chip, FormControlLabel, Menu, MenuItem,
-  Stack, Typography,
+  Box, Button, Checkbox, FormControlLabel, Menu, MenuItem,
+  Typography,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useQuery } from '@tanstack/react-query';

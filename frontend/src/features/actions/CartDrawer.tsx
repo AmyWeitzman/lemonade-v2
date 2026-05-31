@@ -2,7 +2,7 @@
  * CartDrawer — slide-in cart with real-time validation and checkout.
  */
 import {
-  Drawer, Box, Typography, Stack, IconButton, Button, Divider,
+  Drawer, Box, Typography, Stack, IconButton, Button,
   List, ListItem, ListItemText, ListItemSecondaryAction, Chip,
   Alert, CircularProgress, Tooltip,
 } from '@mui/material';

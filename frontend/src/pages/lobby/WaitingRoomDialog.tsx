@@ -49,7 +49,7 @@ export default function WaitingRoomDialog({ open, onClose, session: initialSessi
   const dispatch = useDispatch();
   const token = useSelector((state: RootState) => state.auth.token);
   const userId = useSelector((state: RootState) => state.auth.userId);
-  const playerName = useSelector((state: RootState) => state.auth.username);
+  // playerName = useSelector((state: RootState) => state.auth.username) — reserved for future display
 
   const [players, setPlayers] = useState<Player[]>(initialSession.players);
   const [copied, setCopied] = useState(false);
