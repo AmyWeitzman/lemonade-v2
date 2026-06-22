@@ -242,6 +242,7 @@ const executeActionsSchema = z.object({
       z.object({
         actionId: z.string().min(1),
         timeBlocks: z.number().int().min(0),
+        ptoBlocks: z.number().int().min(0).default(0),
       }),
     )
     .min(1),
@@ -306,7 +307,15 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     }
 
     if (ptoRequired === true) {
-      actions = actions.filter((a) => a.requiresPTO);
+      actions = actions.filter((a) => {
+        const reqs = (a.requirements ?? {}) as Record<string, unknown>;
+        return (
+          a.requiresPTO === true ||
+          reqs.hasPTOOrUnpaidTimeBlocks === true ||
+          reqs.hasPTODaysAvailable === true ||
+          (typeof reqs.ptoOrUnpaidTimeBlocks === 'number' && reqs.ptoOrUnpaidTimeBlocks > 0)
+        );
+      });
     }
 
     if (goodDeed === true) {
@@ -345,9 +354,10 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     if (stressImpact) {
       actions = actions.filter((a) => {
         const delta = calculateStressDelta(a, a.minTimeBlocks);
-        if (stressImpact === 'positive') return delta < 0;
+        if (stressImpact === 'positive') return delta < 0;          // decreases stress
+        if (stressImpact === 'neutral') return delta <= 0;          // does not increase stress
         if (stressImpact === 'negative') return delta > 0;
-        return delta === 0;
+        return true;
       });
     }
 
@@ -355,9 +365,10 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
       actions = actions.filter((a) => {
         const { temporary, permanent } = calculateHealthDelta(a, a.minTimeBlocks);
         const total = temporary + permanent;
-        if (healthImpact === 'positive') return total > 0;
+        if (healthImpact === 'positive') return total > 0;          // increases health
+        if (healthImpact === 'neutral') return total >= 0;          // does not decrease health
         if (healthImpact === 'negative') return total < 0;
-        return total === 0;
+        return true;
       });
     }
 
@@ -643,7 +654,13 @@ router.post(
 
       const validationErrors: string[] = [];
       let totalTimeBlocks = 0;
+      let totalPtoBlocks = 0;
       let totalCost = 0;
+
+      // Total PTO available across all active employments
+      const totalPtoAvailable = player.employments
+        .filter((e) => e.isActive)
+        .reduce((sum, e) => sum + e.ptoRemaining, 0);
 
       for (const item of cartItems) {
         const action = actionMap.get(item.actionId);
@@ -661,18 +678,33 @@ router.post(
         const freqError = checkFrequencyLimit(action, history);
         if (freqError) validationErrors.push(freqError);
 
-        const tb = item.timeBlocks > 0 ? item.timeBlocks : action.minTimeBlocks;
-        if (action.minTimeBlocks > 0 && tb < action.minTimeBlocks) {
+        const ptoBlocks = item.ptoBlocks ?? 0;
+        const tb = item.timeBlocks > 0 ? item.timeBlocks : (action.minTimeBlocks - ptoBlocks);
+        const totalItemBlocks = tb + ptoBlocks;
+
+        if (action.minTimeBlocks > 0 && totalItemBlocks < action.minTimeBlocks) {
           validationErrors.push(`${action.name}: minimum ${action.minTimeBlocks} time blocks required`);
         }
-        if (action.maxTimeBlocks !== null && tb > action.maxTimeBlocks) {
+        if (action.maxTimeBlocks !== null && totalItemBlocks > action.maxTimeBlocks) {
           validationErrors.push(`${action.name}: maximum ${action.maxTimeBlocks} time blocks allowed`);
         }
 
+        // Required-PTO actions must use PTO
+        const reqs = (action.requirements ?? {}) as Record<string, unknown>;
+        const requiresPTO =
+          action.requiresPTO ||
+          reqs.hasPTOOrUnpaidTimeBlocks === true ||
+          reqs.hasPTODaysAvailable === true ||
+          (typeof reqs.ptoOrUnpaidTimeBlocks === 'number' && reqs.ptoOrUnpaidTimeBlocks > 0);
+        if (requiresPTO && ptoBlocks < action.minTimeBlocks) {
+          validationErrors.push(`${action.name}: requires PTO blocks`);
+        }
+
         totalTimeBlocks += tb;
+        totalPtoBlocks += ptoBlocks;
         totalCost += calculateActionCost({
           action,
-          timeBlocks: tb,
+          timeBlocks: totalItemBlocks,
           familySize,
           playerAge: player.age,
           playerJobTitles: jobTitles,
@@ -684,6 +716,11 @@ router.post(
       if (totalTimeBlocks > availableTimeBlocks) {
         validationErrors.push(
           `Not enough time blocks: need ${totalTimeBlocks}, have ${availableTimeBlocks}`,
+        );
+      }
+      if (totalPtoBlocks > totalPtoAvailable) {
+        validationErrors.push(
+          `Not enough PTO: need ${totalPtoBlocks}, have ${totalPtoAvailable}`,
         );
       }
       if (totalCost > availableMoney) {
@@ -709,7 +746,8 @@ router.post(
       // Compute all deltas before the transaction
       for (const item of cartItems) {
         const action = actionMap.get(item.actionId)!;
-        const tb = item.timeBlocks > 0 ? item.timeBlocks : action.minTimeBlocks;
+        const ptoBlocks = item.ptoBlocks ?? 0;
+        const tb = (item.timeBlocks > 0 ? item.timeBlocks : action.minTimeBlocks - ptoBlocks) + ptoBlocks;
 
         totalLemonsEarned += calculateLemonsEarned(action, tb);
         const { temporary, permanent } = calculateHealthDelta(action, tb);
@@ -785,7 +823,9 @@ router.post(
         // Upsert action history for each cart item
         for (const item of cartItems) {
           const action = actionMap.get(item.actionId)!;
-          const tb = item.timeBlocks > 0 ? item.timeBlocks : action.minTimeBlocks;
+          const ptoBlocks = item.ptoBlocks ?? 0;
+          const activityBlocks = item.timeBlocks > 0 ? item.timeBlocks : Math.max(0, action.minTimeBlocks - ptoBlocks);
+          const tb = activityBlocks + ptoBlocks;
           const cost = calculateActionCost({
             action,
             timeBlocks: tb,
@@ -823,6 +863,24 @@ router.post(
           });
         }
 
+        // Deduct PTO from employments (distribute across active employments in order)
+        if (totalPtoBlocks > 0) {
+          let ptoToDeduct = totalPtoBlocks;
+          const activeEmployments = player.employments.filter((e) => e.isActive && e.ptoRemaining > 0);
+          for (const emp of activeEmployments) {
+            if (ptoToDeduct <= 0) break;
+            const deduct = Math.min(ptoToDeduct, emp.ptoRemaining);
+            await tx.employment.update({
+              where: { id: emp.id },
+              data: {
+                ptoRemaining: { decrement: deduct },
+                ptoUsed: { increment: deduct },
+              },
+            });
+            ptoToDeduct -= deduct;
+          }
+        }
+
         // Update player state
         await tx.player.update({
           where: { id: player.id },
@@ -830,7 +888,6 @@ router.post(
             money: { decrement: totalCost },
             health: newHealth,
             maxHealth: newMaxHealth,
-            // Cast needed: Prisma client not regenerated after schema added temporaryHealthDebt
             ...(({ temporaryHealthDebt: newTempDebt }) as Record<string, unknown>),
             stress: newStress,
             totalLemonsEarned: { increment: totalLemonsEarned },

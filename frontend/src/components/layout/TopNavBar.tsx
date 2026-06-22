@@ -15,6 +15,7 @@ import {
   IconButton,
   Badge,
   Chip,
+  Stack,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChatIcon from '@mui/icons-material/Chat';
@@ -26,13 +27,25 @@ interface Props {
   onMenuClick: () => void;
 }
 
+// ─── Number abbreviation ──────────────────────────────────────────────────────
+
+function abbrevNumber(n: number): string {
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) {
+    return `$${Math.floor(n / 100_000) / 10}M`;
+  }
+  if (abs >= 1_000) {
+    return `$${Math.floor(n / 100) / 10}K`;
+  }
+  return `$${n.toLocaleString()}`;
+}
+
 // ─── Mini Pitcher SVG ─────────────────────────────────────────────────────────
 
 function MiniPitcher({ fillPercent }: { fillPercent: number }) {
   const clampedFill = Math.min(Math.max(fillPercent, 0), 100);
   const isSuccess = clampedFill >= 100;
 
-  // Pitcher body: 24×32 viewBox
   const BODY_TOP = 4;
   const BODY_BOTTOM = 28;
   const BODY_HEIGHT = BODY_BOTTOM - BODY_TOP;
@@ -52,14 +65,12 @@ function MiniPitcher({ fillPercent }: { fillPercent: number }) {
           <path d={`M 4 ${BODY_TOP} L 20 ${BODY_TOP} L 22 ${BODY_BOTTOM} L 2 ${BODY_BOTTOM} Z`} />
         </clipPath>
       </defs>
-      {/* Body background */}
       <path
         d={`M 4 ${BODY_TOP} L 20 ${BODY_TOP} L 22 ${BODY_BOTTOM} L 2 ${BODY_BOTTOM} Z`}
         fill="rgba(255,255,255,0.25)"
         stroke="rgba(255,255,255,0.7)"
         strokeWidth="1.2"
       />
-      {/* Fill */}
       {clampedFill > 0 && (
         <rect
           x={2}
@@ -71,16 +82,13 @@ function MiniPitcher({ fillPercent }: { fillPercent: number }) {
           opacity={0.9}
         />
       )}
-      {/* Outline on top */}
       <path
         d={`M 4 ${BODY_TOP} L 20 ${BODY_TOP} L 22 ${BODY_BOTTOM} L 2 ${BODY_BOTTOM} Z`}
         fill="none"
         stroke="rgba(255,255,255,0.8)"
         strokeWidth="1.2"
       />
-      {/* Rim */}
       <rect x={3} y={BODY_TOP - 2} width={18} height={3} rx={1} fill="rgba(255,255,255,0.6)" />
-      {/* Handle */}
       <path
         d={`M 22 ${BODY_TOP + 5} Q 27 ${BODY_TOP + 10} 24 ${BODY_TOP + 18}`}
         fill="none"
@@ -88,7 +96,6 @@ function MiniPitcher({ fillPercent }: { fillPercent: number }) {
         strokeWidth="2"
         strokeLinecap="round"
       />
-      {/* Base */}
       <rect x={1} y={BODY_BOTTOM} width={22} height={3} rx={1} fill="rgba(255,255,255,0.5)" />
     </svg>
   );
@@ -104,18 +111,41 @@ export default function TopNavBar({ onMenuClick }: Props) {
     (state: RootState) => state.game,
   );
 
-  const healthColor =
-    health > 60 ? 'success' : health > 30 ? 'warning' : 'error';
-  const stressColor =
-    stress < 40 ? 'success' : stress < 70 ? 'warning' : 'error';
+  // Loans and retirement from finances slice if available
+  const loans = useSelector(
+    (state: RootState) =>
+      (state as unknown as { finances?: { totalLoanBalance?: number } }).finances
+        ?.totalLoanBalance ?? 0,
+  );
+  const retirement = useSelector(
+    (state: RootState) =>
+      (state as unknown as { finances?: { retirementSavings?: number } }).finances
+        ?.retirementSavings ?? 0,
+  );
+
+  const healthColor = health > 60 ? 'success' : health > 30 ? 'warning' : 'error';
+  const stressColor = stress < 40 ? 'success' : stress < 70 ? 'warning' : 'error';
 
   const pitcherPercent =
     pitcherGoal > 0 ? Math.min((pitcherLemons / pitcherGoal) * 100, 100) : 0;
 
+  // Tooltip: loans + retirement only, bigger text, abbreviated numbers
+  const moneyTooltip = (
+    <Stack spacing={0.75} sx={{ p: 0.5 }}>
+      <Typography variant="body2" fontWeight={700}>
+        💳 Loans: {abbrevNumber(loans)}
+      </Typography>
+      <Typography variant="body2" fontWeight={700}>
+        🌻 Retirement: {abbrevNumber(retirement)}
+      </Typography>
+    </Stack>
+  );
+
   return (
     <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-      <Toolbar sx={{ gap: 1.5, flexWrap: 'nowrap', minHeight: 56 }}>
-        {/* Hamburger — opens secondary drawer */}
+      <Toolbar sx={{ gap: 1, flexWrap: 'nowrap', minHeight: 56 }}>
+
+        {/* Hamburger */}
         <IconButton
           color="inherit"
           edge="start"
@@ -126,31 +156,39 @@ export default function TopNavBar({ onMenuClick }: Props) {
           <MenuIcon />
         </IconButton>
 
-        {/* App title / logo */}
-        <Typography
-          variant="h6"
-          component="div"
-          sx={{ fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', mr: 1 }}
+        {/* Logo */}
+        <Box
+          sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer', mr: 1, flexShrink: 0 }}
           onClick={() => navigate('/')}
+          role="button"
+          aria-label="Go to home"
         >
-          🍋
-        </Typography>
+          <Typography variant="h6" component="span" sx={{ lineHeight: 1 }}>
+            🍋
+          </Typography>
+          <Typography variant="h6" component="span" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
+            Lemonade
+          </Typography>
+        </Box>
+
+        {/* Push health/stress to right side */}
+        <Box sx={{ flex: 1 }} />
 
         {/* Health bar */}
         <Tooltip title={`Health: ${health}%`}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 80 }}>
-            <Typography variant="caption" sx={{ color: 'inherit', whiteSpace: 'nowrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, width: 260, mr: 2 }}>
+            <Typography sx={{ color: 'inherit', whiteSpace: 'nowrap', fontSize: '1.5rem', lineHeight: 1, flexShrink: 0 }}>
               ❤️
             </Typography>
-            <Box sx={{ flex: 1, minWidth: 60 }}>
+            <Box sx={{ flex: 1 }}>
               <LinearProgress
                 variant="determinate"
                 value={health}
                 color={healthColor}
-                sx={{ height: 8, borderRadius: 4, bgcolor: 'rgba(255,255,255,0.2)' }}
+                sx={{ height: 14, borderRadius: 7, bgcolor: 'rgba(255,255,255,0.2)' }}
               />
             </Box>
-            <Typography variant="caption" sx={{ color: 'inherit', minWidth: 28 }}>
+            <Typography variant="caption" sx={{ color: 'inherit', minWidth: 30, textAlign: 'right', flexShrink: 0 }}>
               {health}%
             </Typography>
           </Box>
@@ -158,37 +196,39 @@ export default function TopNavBar({ onMenuClick }: Props) {
 
         {/* Stress bar */}
         <Tooltip title={`Stress: ${stress}%`}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 80 }}>
-            <Typography variant="caption" sx={{ color: 'inherit', whiteSpace: 'nowrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, width: 260 }}>
+            <Typography sx={{ color: 'inherit', whiteSpace: 'nowrap', fontSize: '1.5rem', lineHeight: 1, flexShrink: 0 }}>
               😰
             </Typography>
-            <Box sx={{ flex: 1, minWidth: 60 }}>
+            <Box sx={{ flex: 1 }}>
               <LinearProgress
                 variant="determinate"
                 value={stress}
                 color={stressColor}
-                sx={{ height: 8, borderRadius: 4, bgcolor: 'rgba(255,255,255,0.2)' }}
+                sx={{ height: 14, borderRadius: 7, bgcolor: 'rgba(255,255,255,0.2)' }}
               />
             </Box>
-            <Typography variant="caption" sx={{ color: 'inherit', minWidth: 28 }}>
+            <Typography variant="caption" sx={{ color: 'inherit', minWidth: 30, textAlign: 'right', flexShrink: 0 }}>
               {stress}%
             </Typography>
           </Box>
         </Tooltip>
 
-        {/* Spacer */}
-        <Box sx={{ flex: 1 }} />
+        {/* Spacer between stress % and money chip */}
+        <Box sx={{ width: 12, flexShrink: 0 }} />
 
-        {/* Money display */}
-        <Tooltip title="Your money">
+        {/* Money chip — shows abbreviated amount, tooltip shows loans + retirement */}
+        <Tooltip title={moneyTooltip} arrow>
           <Chip
-            label={`$${money.toLocaleString()}`}
+            label={abbrevNumber(money)}
             size="small"
             sx={{
               bgcolor: 'rgba(255,255,255,0.15)',
               color: 'inherit',
               fontWeight: 600,
               fontSize: 12,
+              cursor: 'default',
+              flexShrink: 0,
             }}
           />
         </Tooltip>
@@ -206,11 +246,11 @@ export default function TopNavBar({ onMenuClick }: Props) {
           </IconButton>
         </Tooltip>
 
-        {/* Notification badge (existing component) */}
-        <NotificationBadge />
+        {/* Notifications — "Planting and Pruning" */}
+        <NotificationBadge tooltipTitle="Planting and Pruning" />
 
-        {/* Message badge */}
-        <Tooltip title="Chat">
+        {/* Chat — "Lemon Tea" */}
+        <Tooltip title="Lemon Tea">
           <IconButton
             color="inherit"
             size="small"
@@ -227,7 +267,7 @@ export default function TopNavBar({ onMenuClick }: Props) {
         {playerName && (
           <Typography
             variant="body2"
-            sx={{ fontWeight: 600, whiteSpace: 'nowrap', ml: 0.5 }}
+            sx={{ fontWeight: 600, whiteSpace: 'nowrap', ml: 0.5, flexShrink: 0 }}
           >
             {playerName}
           </Typography>

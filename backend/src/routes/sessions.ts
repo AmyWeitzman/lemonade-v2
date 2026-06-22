@@ -116,7 +116,7 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
         id: { notIn: hiddenIds.length ? hiddenIds : ['__none__'] },
       },
       include: {
-        players: { select: { id: true, name: true, userId: true }, where: { leftAt: null } },
+        players: { select: { id: true, name: true, userId: true, isInitialized: true }, where: { leftAt: null } },
       },
       orderBy: { createdAt: 'desc' },
     });

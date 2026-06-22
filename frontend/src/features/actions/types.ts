@@ -39,6 +39,11 @@ export interface TimeBlockBreakdown {
   activities: number;
 }
 
+export interface PTOInfo {
+  ptoRemaining: number;
+  ptoTotal: number;
+}
+
 export interface CheckoutResult {
   totalLemonsEarned: number;
   healthDelta: number;

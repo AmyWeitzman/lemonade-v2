@@ -9,11 +9,13 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 export interface CartItem {
   actionId: string;
   actionName: string;
-  timeBlocks: number;
+  timeBlocks: number;      // activity blocks used
+  ptoBlocks: number;       // PTO blocks used (0 if none)
   calculatedCost: number;
   calculatedLemons: number;
   executionType: string;
   category: string[];
+  requiresPTO: boolean;    // if true, must use PTO blocks
 }
 
 export interface ActionFilters {
@@ -80,6 +82,7 @@ const actionsSlice = createSlice({
       if (existing) {
         // For variable time-block actions, accumulate; for fixed, replace
         existing.timeBlocks += action.payload.timeBlocks;
+        existing.ptoBlocks += action.payload.ptoBlocks;
         existing.calculatedCost += action.payload.calculatedCost;
         existing.calculatedLemons += action.payload.calculatedLemons;
       } else {
@@ -91,11 +94,12 @@ const actionsSlice = createSlice({
     },
     updateCartItem(
       state,
-      action: PayloadAction<{ actionId: string; timeBlocks: number; calculatedCost: number; calculatedLemons: number }>,
+      action: PayloadAction<{ actionId: string; timeBlocks: number; ptoBlocks: number; calculatedCost: number; calculatedLemons: number }>,
     ) {
       const item = state.cart.find((i) => i.actionId === action.payload.actionId);
       if (item) {
         item.timeBlocks = action.payload.timeBlocks;
+        item.ptoBlocks = action.payload.ptoBlocks;
         item.calculatedCost = action.payload.calculatedCost;
         item.calculatedLemons = action.payload.calculatedLemons;
       }

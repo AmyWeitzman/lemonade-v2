@@ -458,7 +458,7 @@ export default function PitcherPage() {
   useEffect(() => {
     if (!token || !gameSessionId) return;
 
-    const socket = io('http://localhost:3001', { auth: { token } });
+    const socket = io(import.meta.env.VITE_API_URL ?? 'http://localhost:3001', { auth: { token } });
     socketRef.current = socket;
 
     socket.emit('joinGame', { gameSessionId });
@@ -497,7 +497,7 @@ export default function PitcherPage() {
         pb: 6,
         maxWidth: 900,
         mx: 'auto',
-        bgcolor: LEMON.bg,
+        bgcolor: (t) => t.palette.primary.light,
         minHeight: '100vh',
       }}
     >

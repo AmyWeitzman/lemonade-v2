@@ -1,10 +1,14 @@
 /**
  * ActionFilters — collapsible filter panel for the actions catalog.
+ * Styled to match the Jobs page filter/sort layout.
+ *
+ * Category values sent to the backend are kebab-case slugs matching the DB.
+ * Display labels are human-readable.
  */
 import {
   Box, Paper, Typography, Stack, FormControlLabel, Switch,
   Select, MenuItem, FormControl, InputLabel, TextField,
-  Button, Collapse, IconButton, Divider,
+  Collapse, IconButton, Divider,
 } from '@mui/material';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
@@ -13,18 +17,33 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { useState } from 'react';
 import type { ActionFilters as Filters } from '../actions/actionsSlice';
 
-const CATEGORIES = [
-  'fitness', 'social', 'education', 'creative', 'travel',
-  'family', 'volunteer', 'finance', 'wellness', 'career',
-];
+/**
+ * Maps display label → DB slug.
+ * Exported so ActionCard can reuse for human-readable chip labels.
+ */
+export const CATEGORY_LABEL_TO_SLUG: Record<string, string> = {
+  'Mental Health':           'mental-health',
+  'Physical Health':         'physical-health',
+  'Social Connections':      'social-connections',
+  'Family':                  'family',
+  'Entertainment':           'entertainment',
+  'Outdoors':                'outdoors',
+  'Animals':                 'animals',
+  'Education':               'education',
+  'Schoolwork':              'schoolwork',
+  'Career':                  'career',
+  'Luxury':                  'luxury',
+  'Home & Auto':             'home-auto',
+  'Community':               'community',
+  'Skill/Trait Development': 'skill-trait',
+  'Other':                   'other',
+};
 
-const SORT_OPTIONS = [
-  { value: '', label: 'Default' },
-  { value: 'lemons_per_tb', label: '🍋 Lemons / Time Block' },
-  { value: 'lemons_per_dollar', label: '🍋 Lemons / Dollar' },
-  { value: 'cost_per_tb', label: '💰 Cost / Time Block' },
-  { value: 'min_cost', label: '💰 Lowest Cost' },
-];
+export const CATEGORY_SLUG_TO_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(CATEGORY_LABEL_TO_SLUG).map(([label, slug]) => [slug, label]),
+);
+
+const CATEGORIES = Object.keys(CATEGORY_LABEL_TO_SLUG);
 
 interface Props {
   filters: Filters;
@@ -41,7 +60,7 @@ export default function ActionFilters({ filters, onChange, onReset }: Props) {
     filters.maxTimeBlocks !== null,
     filters.healthImpact,
     filters.stressImpact,
-    !filters.eligibleOnly, // non-default
+    !filters.eligibleOnly,
     filters.goodDeed,
     filters.seniorDiscount,
     filters.ptoRequired,
@@ -50,7 +69,7 @@ export default function ActionFilters({ filters, onChange, onReset }: Props) {
   ].filter(Boolean).length;
 
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 2, mb: 2 }}>
+    <Paper variant="outlined" sx={{ borderRadius: 2, mb: 2, bgcolor: 'rgba(255,255,255,0.6)' }}>
       {/* Header */}
       <Stack
         direction="row"
@@ -105,12 +124,12 @@ export default function ActionFilters({ filters, onChange, onReset }: Props) {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' },
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'minmax(160px, 200px) 1fr 1fr 1fr' },
               gap: 2,
               mb: 2,
             }}
           >
-            {/* Category */}
+            {/* Category — value is a slug matching the DB */}
             <FormControl size="small" fullWidth>
               <InputLabel>Category</InputLabel>
               <Select
@@ -119,23 +138,39 @@ export default function ActionFilters({ filters, onChange, onReset }: Props) {
                 onChange={(e) => onChange({ category: e.target.value })}
               >
                 <MenuItem value="">All</MenuItem>
-                {CATEGORIES.map((c) => (
-                  <MenuItem key={c} value={c} sx={{ textTransform: 'capitalize' }}>{c}</MenuItem>
+                {CATEGORIES.map((label) => (
+                  <MenuItem key={label} value={CATEGORY_LABEL_TO_SLUG[label]}>
+                    {label}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
 
-            {/* Sort */}
+            {/* Health impact */}
             <FormControl size="small" fullWidth>
-              <InputLabel>Sort by</InputLabel>
+              <InputLabel>Health Impact</InputLabel>
               <Select
-                value={filters.sort}
-                label="Sort by"
-                onChange={(e) => onChange({ sort: e.target.value as Filters['sort'] })}
+                value={filters.healthImpact}
+                label="Health Impact"
+                onChange={(e) => onChange({ healthImpact: e.target.value as Filters['healthImpact'] })}
               >
-                {SORT_OPTIONS.map((o) => (
-                  <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
-                ))}
+                <MenuItem value="">Any</MenuItem>
+                <MenuItem value="neutral">➖ Does not decrease health</MenuItem>
+                <MenuItem value="positive">❤️ Increases health</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* Stress impact */}
+            <FormControl size="small" fullWidth>
+              <InputLabel>Stress Impact</InputLabel>
+              <Select
+                value={filters.stressImpact}
+                label="Stress Impact"
+                onChange={(e) => onChange({ stressImpact: e.target.value as Filters['stressImpact'] })}
+              >
+                <MenuItem value="">Any</MenuItem>
+                <MenuItem value="neutral">➖ Does not increase stress</MenuItem>
+                <MenuItem value="positive">😌 Decreases stress</MenuItem>
               </Select>
             </FormControl>
 
@@ -158,36 +193,6 @@ export default function ActionFilters({ filters, onChange, onReset }: Props) {
               onChange={(e) => onChange({ maxTimeBlocks: e.target.value ? Number(e.target.value) : null })}
               inputProps={{ min: 1, max: 40 }}
             />
-
-            {/* Health impact */}
-            <FormControl size="small" fullWidth>
-              <InputLabel>Health Impact</InputLabel>
-              <Select
-                value={filters.healthImpact}
-                label="Health Impact"
-                onChange={(e) => onChange({ healthImpact: e.target.value as Filters['healthImpact'] })}
-              >
-                <MenuItem value="">Any</MenuItem>
-                <MenuItem value="positive">❤️ Positive</MenuItem>
-                <MenuItem value="negative">💔 Negative</MenuItem>
-                <MenuItem value="neutral">➖ Neutral</MenuItem>
-              </Select>
-            </FormControl>
-
-            {/* Stress impact */}
-            <FormControl size="small" fullWidth>
-              <InputLabel>Stress Impact</InputLabel>
-              <Select
-                value={filters.stressImpact}
-                label="Stress Impact"
-                onChange={(e) => onChange({ stressImpact: e.target.value as Filters['stressImpact'] })}
-              >
-                <MenuItem value="">Any</MenuItem>
-                <MenuItem value="positive">😌 Reduces Stress</MenuItem>
-                <MenuItem value="negative">😰 Increases Stress</MenuItem>
-                <MenuItem value="neutral">➖ Neutral</MenuItem>
-              </Select>
-            </FormControl>
           </Box>
 
           {/* Toggle switches */}
@@ -242,12 +247,6 @@ export default function ActionFilters({ filters, onChange, onReset }: Props) {
               }
               label={<Typography variant="body2">🏖️ PTO Required</Typography>}
             />
-          </Stack>
-
-          <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1.5 }}>
-            <Button size="small" startIcon={<RestartAltIcon />} onClick={onReset}>
-              Reset all
-            </Button>
           </Stack>
         </Box>
       </Collapse>

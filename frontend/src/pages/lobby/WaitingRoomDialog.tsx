@@ -61,7 +61,7 @@ export default function WaitingRoomDialog({ open, onClose, session: initialSessi
   useEffect(() => {
     if (!open || !token) return;
 
-    const socket = io('http://localhost:3001', { auth: { token } });
+    const socket = io(import.meta.env.VITE_API_URL ?? 'http://localhost:3001', { auth: { token } });
     socketRef.current = socket;
     socket.emit('joinGame', { gameSessionId: initialSession.id });
 

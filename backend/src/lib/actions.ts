@@ -265,13 +265,18 @@ export function checkActionEligibility(
   }
 
   // PTO / unpaid time blocks available
+  // If the player has no job at all, they have free time and can always take a mental health day
   if (reqs.hasPTOOrUnpaidTimeBlocks === true && !player.isRetired) {
-    const hasPTO = player.employments.some(
-      (e) => e.isActive && (e.ptoRemaining > 0 || e.unpaidTimeOffRemaining > 0),
-    );
-    if (!hasPTO) {
-      reasons.push('Requires available PTO or unpaid time off');
+    const hasActiveEmployment = player.employments.some((e) => e.isActive);
+    if (hasActiveEmployment) {
+      const hasPTO = player.employments.some(
+        (e) => e.isActive && (e.ptoRemaining > 0 || e.unpaidTimeOffRemaining > 0),
+      );
+      if (!hasPTO) {
+        reasons.push('Requires available PTO or unpaid time off');
+      }
     }
+    // No job = no PTO requirement; player has free time blocks available
   }
 
   if (reqs.hasPTODaysAvailable === true) {

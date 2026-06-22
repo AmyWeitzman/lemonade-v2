@@ -412,7 +412,7 @@ export default function TransportationPage() {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1400, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1400, mx: 'auto', minHeight: '100vh', bgcolor: (t) => t.palette.primary.light }}>
       {/* Header */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Box>

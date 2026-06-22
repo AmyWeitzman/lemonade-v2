@@ -11,13 +11,11 @@ import HouseIcon from '@mui/icons-material/House';
 import LocalDrinkIcon from '@mui/icons-material/LocalDrink';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import PersonIcon from '@mui/icons-material/Person';
-import ChatIcon from '@mui/icons-material/Chat';
-import NotificationsIcon from '@mui/icons-material/Notifications';
-import SettingsIcon from '@mui/icons-material/Settings';
 import type { SvgIconComponent } from '@mui/icons-material';
 
 export interface NavItem {
   label: string;
+  subtext: string;
   path: string;
   Icon: SvgIconComponent;
 }
@@ -30,28 +28,20 @@ export interface SecondaryNavItem {
 
 /** Primary page routes shown in main navigation */
 export const PRIMARY_NAV_ITEMS: NavItem[] = [
-  { label: 'Lemonade', path: '/', Icon: HomeIcon },
-  { label: 'Squeeze the Day', path: '/actions', Icon: BoltIcon },
-  { label: 'Harvest', path: '/finances', Icon: AccountBalanceIcon },
-  { label: 'Seeds to Trees', path: '/jobs', Icon: WorkIcon },
-  { label: 'Zest for Learning', path: '/education', Icon: SchoolIcon },
-  { label: "You Won't Get A 🍋", path: '/transportation', Icon: DirectionsCarIcon },
-  { label: 'Home Sour Home', path: '/housing', Icon: HouseIcon },
-  { label: 'Lemonade Stand', path: '/pitcher', Icon: LocalDrinkIcon },
-  { label: "Life's Lemons", path: '/scrapbook', Icon: MenuBookIcon },
+  { label: 'Tending the Garden', subtext: 'Profile', path: '/', Icon: HomeIcon },
+  { label: 'Squeeze the Day', subtext: 'Actions', path: '/actions', Icon: BoltIcon },
+  { label: 'Harvest', subtext: 'Finances', path: '/finances', Icon: AccountBalanceIcon },
+  { label: 'Seeds to Trees', subtext: 'Jobs', path: '/jobs', Icon: WorkIcon },
+  { label: 'Zest for Learning', subtext: 'Education', path: '/education', Icon: SchoolIcon },
+  { label: "You Won't Get A 🍋", subtext: 'Transportation', path: '/transportation', Icon: DirectionsCarIcon },
+  { label: 'Home Sour Home', subtext: 'Housing', path: '/housing', Icon: HouseIcon },
+  { label: 'Lemonade Stand', subtext: 'Community Pitcher', path: '/pitcher', Icon: LocalDrinkIcon },
+  { label: "Life's Lemons", subtext: 'Scrapbook', path: '/scrapbook', Icon: MenuBookIcon },
 ];
 
 /** Nav items for the profile setup workflow */
 export const SETUP_NAV_ITEMS: NavItem[] = [
-  { label: 'Seeds to Trees', path: '/setup/jobs', Icon: WorkIcon },
-  { label: 'Zest for Learning', path: '/setup/education', Icon: SchoolIcon },
-  { label: 'Profile Setup', path: '/setup/profile', Icon: PersonIcon },
-];
-
-/** Secondary drawer items (profile, chat, notifications, settings) */
-export const SECONDARY_NAV_ITEMS: SecondaryNavItem[] = [
-  { label: 'Tending the Garden', key: 'profile', Icon: PersonIcon },
-  { label: 'Lemon Tea', key: 'chat', Icon: ChatIcon },
-  { label: 'Planting & Pruning', key: 'notifications', Icon: NotificationsIcon },
-  { label: 'Nutrients', key: 'settings', Icon: SettingsIcon },
+  { label: 'Seeds to Trees', subtext: 'Jobs', path: '/setup/jobs', Icon: WorkIcon },
+  { label: 'Zest for Learning', subtext: 'Education', path: '/setup/education', Icon: SchoolIcon },
+  { label: 'Profile Setup', subtext: 'Profile', path: '/setup/profile', Icon: PersonIcon },
 ];

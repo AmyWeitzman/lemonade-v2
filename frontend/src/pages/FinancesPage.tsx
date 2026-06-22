@@ -158,7 +158,7 @@ export default function FinancesPage() {
         pb: 6,
         maxWidth: 1200,
         mx: 'auto',
-        bgcolor: HARVEST.bg,
+        bgcolor: (t) => t.palette.primary.light,
         minHeight: '100vh',
       }}
     >

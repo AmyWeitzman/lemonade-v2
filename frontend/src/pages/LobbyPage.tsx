@@ -55,6 +55,7 @@ interface Player {
   id: string;
   name: string;
   userId: string;
+  isInitialized?: boolean;
   leftAt?: string | null;
 }
 
@@ -131,7 +132,13 @@ export default function LobbyPage() {
   function handleEnterGame(session: Session) {
     const myPlayer = session.players.find((p) => p.userId === userId);
     if (!myPlayer || !token) return;
-    dispatch(setAuth({ playerId: myPlayer.id, gameSessionId: session.id, playerName: myPlayer.name, token }));
+    dispatch(setAuth({
+      playerId: myPlayer.id,
+      gameSessionId: session.id,
+      playerName: myPlayer.name,
+      token,
+      isInitialized: myPlayer.isInitialized ?? false,
+    }));
     dispatch(setGameState({ sessionStatus: 'active' }));
   }
 

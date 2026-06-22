@@ -6,12 +6,14 @@
  *
  * Requirements: Req 8, Req 22
  */
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, memo } from 'react';
 import {
   Box, Typography, TextField, InputAdornment, Grid, Stack,
-  Fab, Badge, Alert, Skeleton, Chip, Tooltip,
+  Fab, Badge, Alert, Skeleton, Chip, Tooltip, FormControl,
+  InputLabel, Select, MenuItem, Divider, CircularProgress, IconButton,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { useDispatch, useSelector } from 'react-redux';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -19,6 +21,7 @@ import type { RootState } from '../store';
 import {
   addToCart, removeFromCart, clearCart, toggleFavorite,
   setFilters, resetFilters, setCartDrawerOpen,
+  updateCartItem,
   type CartItem,
 } from '../features/actions/actionsSlice';
 import { setPlayerStats } from '../features/auth/authSlice';
@@ -28,7 +31,7 @@ import ActionFilters from '../features/actions/ActionFilters';
 import TimeBlockVisualizer from '../features/actions/TimeBlockVisualizer';
 import CartDrawer from '../features/actions/CartDrawer';
 import CheckoutResultModal from '../features/actions/CheckoutResultModal';
-import type { ActionItem, TimeBlockBreakdown, CheckoutResult } from '../features/actions/types';
+import type { ActionItem, TimeBlockBreakdown, CheckoutResult, PTOInfo } from '../features/actions/types';
 import api from '../lib/api';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -51,6 +54,77 @@ function buildQueryParams(
   return params;
 }
 
+const SORT_OPTIONS = [
+  { value: '', label: 'Default' },
+  { value: 'lemons_per_tb', label: '🍋 Lemons / Time Block' },
+  { value: 'lemons_per_dollar', label: '🍋 Lemons / Dollar' },
+  { value: 'cost_per_tb', label: '💰 Cost / Time Block' },
+  { value: 'min_cost', label: '💰 Lowest Cost' },
+];
+
+// ─── Debounced Search Input (isolated to prevent parent re-renders) ───────────
+
+const DebouncedSearchInput = memo(function DebouncedSearchInput({
+  initialValue,
+  onSearch,
+}: {
+  initialValue: string;
+  onSearch: (value: string) => void;
+}) {
+  const [value, setValue] = useState(initialValue);
+  const [searching, setSearching] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    setValue(v);
+    setSearching(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      onSearch(v);
+      setSearching(false);
+    }, 400);
+  };
+
+  const handleClear = () => {
+    setValue('');
+    setSearching(false);
+    if (timer.current) clearTimeout(timer.current);
+    onSearch('');
+  };
+
+  return (
+    <TextField
+      fullWidth
+      size="small"
+      placeholder="Search actions…"
+      value={value}
+      onChange={handleChange}
+      InputProps={{
+        startAdornment: (
+          <InputAdornment position="start">
+            <SearchIcon fontSize="small" />
+          </InputAdornment>
+        ),
+        endAdornment: (
+          <InputAdornment position="end">
+            {searching && <CircularProgress size={16} sx={{ mr: 0.5 }} />}
+            {value && (
+              <Tooltip title="Clear search">
+                <IconButton size="small" onClick={handleClear} aria-label="Clear search" edge="end">
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </InputAdornment>
+        ),
+      }}
+      sx={{ mb: 2, bgcolor: 'rgba(255,255,255,0.6)', borderRadius: 1, '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+      aria-label="Search actions"
+    />
+  );
+});
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ActionsPage() {
@@ -60,26 +134,20 @@ export default function ActionsPage() {
   const { playerId, gameSessionId, money, health, stress } = useSelector((s: RootState) => s.auth);
   const { cart, favorites, filters, cartDrawerOpen } = useSelector((s: RootState) => s.actions);
 
-  const [searchInput, setSearchInput] = useState(filters.search);
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null);
   const [resultModalOpen, setResultModalOpen] = useState(false);
 
-  // Debounce search
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleSearchChange = (value: string) => {
-    setSearchInput(value);
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => {
-      dispatch(setFilters({ search: value }));
-    }, 350);
-  };
+  // Search callback — only triggers API refetch, doesn't cause parent re-render
+  const handleSearch = useCallback((value: string) => {
+    dispatch(setFilters({ search: value }));
+  }, [dispatch]);
 
   // ── Time blocks ────────────────────────────────────────────────────────────
   const { data: tbData, isLoading: tbLoading } = useQuery({
     queryKey: ['timeBlocks', playerId],
     queryFn: async () => {
       const { data } = await api.get(`/players/${playerId}/time-blocks`);
-      return data as { breakdown: TimeBlockBreakdown; availableActivityBlocks: number };
+      return data as { breakdown: TimeBlockBreakdown; availableActivityBlocks: number } & PTOInfo;
     },
     enabled: !!playerId,
     staleTime: 30_000,
@@ -88,15 +156,9 @@ export default function ActionsPage() {
   // ── Actions catalog ────────────────────────────────────────────────────────
   const queryParams = gameSessionId ? buildQueryParams(filters, gameSessionId) : null;
 
-  const { data: actionsData, isLoading: actionsLoading, isError } = useQuery({
+  const { data: actionsData, isLoading: actionsLoading, isFetching: actionsFetching, isError } = useQuery({
     queryKey: ['actions', queryParams],
     queryFn: async () => {
-      if (filters.search.trim()) {
-        const { data } = await api.get('/actions/search', {
-          params: { q: filters.search.trim(), gameSessionId },
-        });
-        return data as { actions: ActionItem[] };
-      }
       const { data } = await api.get('/actions', { params: queryParams });
       return data as { actions: ActionItem[] };
     },
@@ -104,8 +166,13 @@ export default function ActionsPage() {
     staleTime: 15_000,
   });
 
-  // Apply client-side favorites filter (not sent to backend)
-  const displayedActions = (actionsData?.actions ?? []).filter((a) => {
+  // Apply client-side search + favorites filter
+  const searchTerm = filters.search.trim().toLowerCase();
+  const allActions = actionsData?.actions ?? [];
+  const searchedActions = searchTerm
+    ? allActions.filter((a) => a.name.toLowerCase().includes(searchTerm))
+    : allActions;
+  const displayedActions = searchedActions.filter((a) => {
     if (filters.favoritesOnly && !favorites.includes(a.id)) return false;
     return true;
   });
@@ -160,11 +227,9 @@ export default function ActionsPage() {
     onSuccess: (data) => {
       const healthDelta = (data.healthChange.temporary ?? 0) + (data.healthChange.permanent ?? 0);
 
-      // Update Redux state — re-fetch player stats for accurate values
       queryClient.invalidateQueries({ queryKey: ['actions'] });
       queryClient.invalidateQueries({ queryKey: ['timeBlocks'] });
 
-      // Optimistically update money and lemons
       dispatch(setPlayerStats({ money: money - data.totalCost }));
       for (let i = 0; i < data.lemonsEarned; i++) {
         dispatch(addLemon());
@@ -172,7 +237,6 @@ export default function ActionsPage() {
       dispatch(clearCart());
       dispatch(setCartDrawerOpen(false));
 
-      // Show results
       setCheckoutResult({
         totalLemonsEarned: data.lemonsEarned,
         healthDelta,
@@ -188,18 +252,35 @@ export default function ActionsPage() {
   });
 
   // ── Cart handlers ──────────────────────────────────────────────────────────
-  const handleAddToCart = useCallback((action: ActionItem, timeBlocks: number) => {
+  const handleAddToCart = useCallback((action: ActionItem, timeBlocks: number, ptoBlocks: number) => {
     const item: CartItem = {
       actionId: action.id,
       actionName: action.name,
       timeBlocks,
+      ptoBlocks,
       calculatedCost: action.calculatedCost,
       calculatedLemons: action.calculatedLemons,
       executionType: action.executionType,
       category: action.category,
+      requiresPTO: !!(action.requirements as Record<string, unknown>).hasPTOOrUnpaidTimeBlocks ||
+        !!(action.requirements as Record<string, unknown>).hasPTODaysAvailable ||
+        (typeof (action.requirements as Record<string, unknown>).ptoOrUnpaidTimeBlocks === 'number') ||
+        action.requiresPTO,
     };
     dispatch(addToCart(item));
   }, [dispatch]);
+
+  const handleUpdateCartPto = useCallback((actionId: string, timeBlocks: number, ptoBlocks: number) => {
+    const item = cart.find((i) => i.actionId === actionId);
+    if (!item) return;
+    dispatch(updateCartItem({
+      actionId,
+      timeBlocks,
+      ptoBlocks,
+      calculatedCost: item.calculatedCost,
+      calculatedLemons: item.calculatedLemons,
+    }));
+  }, [cart, dispatch]);
 
   const handleRemoveFromCart = useCallback((actionId: string) => {
     dispatch(removeFromCart(actionId));
@@ -210,8 +291,10 @@ export default function ActionsPage() {
   }, [dispatch]);
 
   const cartCount = cart.length;
-  const availableBlocks = tbData?.breakdown.activities ?? 0;
+  const totalBlocks = tbData?.breakdown.total ?? 60;
   const cartUsedBlocks = cart.reduce((s, i) => s + i.timeBlocks, 0);
+  const cartPtoUsed = cart.reduce((s, i) => s + i.ptoBlocks, 0);
+  const ptoRemaining = tbData?.ptoRemaining ?? 0;
 
   if (!gameSessionId) {
     return (
@@ -222,47 +305,43 @@ export default function ActionsPage() {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, pb: 10 }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: (t) => t.palette.primary.light, p: { xs: 2, md: 3 }, pb: 10 }}>
+    <Box sx={{ maxWidth: 1400, mx: 'auto' }}>
       {/* Page header */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Box>
-          <Typography variant="h5" fontWeight={700}>🍋 Squeeze the Day</Typography>
+          <Typography variant="h5" fontWeight={700}>⚡ Squeeze the Day</Typography>
           <Typography variant="body2" color="text.secondary">
             Choose your actions for this year
           </Typography>
         </Box>
         {/* Activity blocks summary */}
-        <Tooltip title="Activity time blocks available this year">
+        <Stack direction="row" spacing={1} alignItems="center">
           <Chip
-            label={`⏱ ${cartUsedBlocks} / ${availableBlocks} TB used`}
-            color={cartUsedBlocks > availableBlocks ? 'error' : cartUsedBlocks > availableBlocks * 0.8 ? 'warning' : 'default'}
+            label={`⏱ ${cartUsedBlocks} / ${totalBlocks} TB used`}
+            color={cartUsedBlocks > totalBlocks ? 'error' : cartUsedBlocks > totalBlocks * 0.8 ? 'warning' : 'default'}
             variant="outlined"
             sx={{ fontWeight: 600 }}
           />
-        </Tooltip>
+          <Chip
+            label={`🏖️ ${cartPtoUsed} / ${ptoRemaining} PTO used`}
+            color={cartPtoUsed > ptoRemaining ? 'error' : ptoRemaining === 0 ? 'default' : 'default'}
+            variant="outlined"
+            sx={{ fontWeight: 600, opacity: ptoRemaining === 0 ? 0.5 : 1 }}
+          />
+        </Stack>
       </Stack>
 
       {/* Time block visualizer */}
       <Box sx={{ mb: 2 }}>
-        <TimeBlockVisualizer breakdown={tbData?.breakdown ?? null} loading={tbLoading} />
+        <TimeBlockVisualizer
+          breakdown={tbData?.breakdown ?? null}
+          loading={tbLoading}
+          usedActivityBlocks={cartUsedBlocks}
+        />
       </Box>
-
       {/* Search bar */}
-      <TextField
-        fullWidth
-        size="small"
-        placeholder="Search actions…"
-        value={searchInput}
-        onChange={(e) => handleSearchChange(e.target.value)}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon fontSize="small" color="action" />
-            </InputAdornment>
-          ),
-        }}
-        sx={{ mb: 2 }}
-      />
+      <DebouncedSearchInput initialValue={filters.search} onSearch={handleSearch} />
 
       {/* Filters */}
       <ActionFilters
@@ -271,12 +350,35 @@ export default function ActionsPage() {
         onReset={() => dispatch(resetFilters())}
       />
 
-      {/* Results count */}
+      {/* Results count + Sort — matching jobs page layout */}
       {!actionsLoading && (
-        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-          {displayedActions.length} action{displayedActions.length !== 1 ? 's' : ''}
-          {filters.eligibleOnly ? ' (eligible only)' : ''}
-        </Typography>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Typography variant="body2" color="text.secondary">
+              {displayedActions.length} action{displayedActions.length !== 1 ? 's' : ''} found
+            </Typography>
+            {actionsFetching && !actionsLoading && (
+              <>
+                <Divider orientation="vertical" flexItem />
+                <CircularProgress size={14} />
+                <Typography variant="body2" color="text.secondary">Searching…</Typography>
+              </>
+            )}
+          </Stack>
+          <FormControl size="small" sx={{ width: 220 }}>
+            <InputLabel>Sort by</InputLabel>
+            <Select
+              value={filters.sort}
+              label="Sort by"
+              onChange={(e) => dispatch(setFilters({ sort: e.target.value as typeof filters.sort }))}
+              sx={{ bgcolor: 'rgba(255,255,255,0.6)' }}
+            >
+              {SORT_OPTIONS.map((o) => (
+                <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Stack>
       )}
 
       {/* Error state */}
@@ -313,9 +415,15 @@ export default function ActionsPage() {
                   isFavorite={favorites.includes(action.id)}
                   inCart={!!cartItem}
                   cartTimeBlocks={cartItem?.timeBlocks}
+                  cartPtoBlocks={cartItem?.ptoBlocks}
+                  ptoRemaining={ptoRemaining}
+                  ptoCommitted={cart
+                    .filter((i) => i.actionId !== action.id)
+                    .reduce((s, i) => s + i.ptoBlocks, 0)}
                   onToggleFavorite={handleToggleFavorite}
                   onAddToCart={handleAddToCart}
                   onRemoveFromCart={handleRemoveFromCart}
+                  onUpdateCartPto={handleUpdateCartPto}
                 />
               </Grid>
             );
@@ -348,6 +456,8 @@ export default function ActionsPage() {
         onRemove={handleRemoveFromCart}
         onClear={() => dispatch(clearCart())}
         onCheckout={() => checkoutMutation.mutate()}
+        onUpdatePto={handleUpdateCartPto}
+        ptoRemaining={ptoRemaining}
         validation={validationData ?? null}
         validating={validating}
         checkingOut={checkoutMutation.isPending}
@@ -362,6 +472,7 @@ export default function ActionsPage() {
           setCheckoutResult(null);
         }}
       />
+    </Box>
     </Box>
   );
 }

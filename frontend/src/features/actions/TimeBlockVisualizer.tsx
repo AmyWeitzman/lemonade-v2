@@ -1,42 +1,74 @@
 /**
  * TimeBlockVisualizer — 60-block scale showing how time is allocated.
- * Segments: sleep / work / childcare / commute / pets / activities
+ *
+ * The backend returns `activities` = all blocks not consumed by sleep/work/
+ * childcare/commute/pets.  That is the player's *available* budget — it is NOT
+ * time already spent on activities.
+ *
+ * To show what's really happening we split the activities bucket:
+ *   - usedActivityBlocks  → blocks the player has added to their cart / spent
+ *   - unused              → activities − usedActivityBlocks
+ *
+ * Props:
+ *   breakdown         — TimeBlockBreakdown from the API
+ *   usedActivityBlocks — blocks already committed via cart (defaults to 0)
+ *   loading           — show skeleton while fetching
  */
-import { Box, Tooltip, Typography, Stack, Skeleton } from '@mui/material';
+import { Box, Typography, Stack, Skeleton, Chip } from '@mui/material';
 import type { TimeBlockBreakdown } from './types';
 
 interface Segment {
-  key: keyof TimeBlockBreakdown;
+  key: string;
   label: string;
   emoji: string;
   color: string;
+  textColor: string;
 }
 
 const SEGMENTS: Segment[] = [
-  { key: 'sleep',     label: 'Sleep',     emoji: '😴', color: '#5c6bc0' },
-  { key: 'work',      label: 'Work',      emoji: '💼', color: '#ef5350' },
-  { key: 'childcare', label: 'Childcare', emoji: '👶', color: '#ec407a' },
-  { key: 'commute',   label: 'Commute',   emoji: '🚗', color: '#ff7043' },
-  { key: 'pets',      label: 'Pets',      emoji: '🐾', color: '#ab47bc' },
-  { key: 'activities',label: 'Activities',emoji: '🍋', color: '#66bb6a' },
+  { key: 'sleep',      label: 'Sleep',      emoji: '😴', color: '#5c6bc0', textColor: '#fff' },
+  { key: 'work',       label: 'Work',       emoji: '💼', color: '#ef5350', textColor: '#fff' },
+  { key: 'childcare',  label: 'Childcare',  emoji: '👶', color: '#ec407a', textColor: '#fff' },
+  { key: 'commute',    label: 'Commute',    emoji: '🚗', color: '#ff7043', textColor: '#fff' },
+  { key: 'pets',       label: 'Pets',       emoji: '🐾', color: '#ab47bc', textColor: '#fff' },
+  { key: 'activities', label: 'Activities', emoji: '🍋', color: '#66bb6a', textColor: '#fff' },
+  { key: 'unused',     label: 'Unused',     emoji: '⬜', color: '#d6d6d6ff', textColor: '#333' },
 ];
 
 interface Props {
   breakdown: TimeBlockBreakdown | null;
+  /** Blocks already committed to actions (from cart). Default 0. */
+  usedActivityBlocks?: number;
   loading?: boolean;
 }
 
-export default function TimeBlockVisualizer({ breakdown, loading }: Props) {
+export default function TimeBlockVisualizer({
+  breakdown,
+  usedActivityBlocks = 0,
+  loading,
+}: Props) {
   if (loading || !breakdown) {
     return (
       <Box sx={{ mb: 2 }}>
-        <Skeleton variant="rounded" height={40} />
-        <Skeleton variant="text" width={200} sx={{ mt: 0.5 }} />
+        <Skeleton variant="rounded" height={44} />
+        <Skeleton variant="text" width={300} sx={{ mt: 1 }} />
       </Box>
     );
   }
 
   const total = breakdown.total || 60;
+
+  // `activities` from the API = available activity budget (not yet spent)
+  // Split it into used (cart) and unused
+  const activityBudget = breakdown.activities;
+  const usedBlocks = Math.min(usedActivityBlocks, activityBudget);
+  const unusedBlocks = Math.max(0, activityBudget - usedBlocks);
+
+  const getBlocks = (key: string): number => {
+    if (key === 'activities') return usedBlocks;
+    if (key === 'unused') return unusedBlocks;
+    return (breakdown[key as keyof TimeBlockBreakdown] as number) ?? 0;
+  };
 
   return (
     <Box>
@@ -44,7 +76,7 @@ export default function TimeBlockVisualizer({ breakdown, loading }: Props) {
       <Box
         sx={{
           display: 'flex',
-          height: 32,
+          height: 36,
           borderRadius: 2,
           overflow: 'hidden',
           border: '1px solid',
@@ -52,59 +84,80 @@ export default function TimeBlockVisualizer({ breakdown, loading }: Props) {
         }}
       >
         {SEGMENTS.map((seg) => {
-          const blocks = breakdown[seg.key] as number;
+          const blocks = getBlocks(seg.key);
           if (blocks <= 0) return null;
           const pct = (blocks / total) * 100;
           return (
-            <Tooltip
+            <Box
               key={seg.key}
-              title={`${seg.emoji} ${seg.label}: ${blocks} block${blocks !== 1 ? 's' : ''}`}
-              arrow
+              sx={{
+                width: `${pct}%`,
+                bgcolor: seg.color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'default',
+                transition: 'width 0.3s ease',
+                minWidth: 4,
+              }}
             >
-              <Box
-                sx={{
-                  width: `${pct}%`,
-                  bgcolor: seg.color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'default',
-                  transition: 'width 0.3s ease',
-                  minWidth: blocks > 0 ? 4 : 0,
-                  '&:hover': { filter: 'brightness(1.15)' },
-                }}
-              >
-                {pct >= 8 && (
-                  <Typography variant="caption" sx={{ color: '#fff', fontWeight: 700, fontSize: '0.65rem', userSelect: 'none' }}>
-                    {blocks}
-                  </Typography>
-                )}
-              </Box>
-            </Tooltip>
+              {pct >= 7 && (
+                <Typography
+                  sx={{
+                    color: seg.textColor,
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    userSelect: 'none',
+                    lineHeight: 1,
+                  }}
+                >
+                  {blocks}
+                </Typography>
+              )}
+            </Box>
           );
         })}
       </Box>
 
-      {/* Legend */}
-      <Stack direction="row" flexWrap="wrap" gap={1.5} sx={{ mt: 1 }}>
+      {/* Legend — colored badge chips */}
+      <Stack
+        direction="row"
+        flexWrap="wrap"
+        gap={1.25}
+        sx={{ mt: 1.5, justifyContent: 'center' }}
+      >
         {SEGMENTS.map((seg) => {
-          const blocks = breakdown[seg.key] as number;
+          const blocks = getBlocks(seg.key);
           return (
-            <Stack key={seg.key} direction="row" alignItems="center" spacing={0.5}>
-              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: seg.color, flexShrink: 0 }} />
-              <Typography variant="caption" color="text.secondary">
-                {seg.emoji} {seg.label}: <strong>{blocks}</strong>
-              </Typography>
-            </Stack>
+            <Chip
+              key={seg.key}
+              label={`${seg.emoji} ${seg.label}`}
+              size="small"
+              sx={{
+                bgcolor: seg.color,
+                color: seg.textColor,
+                fontWeight: 600,
+                fontSize: '0.78rem',
+                height: 26,
+                opacity: blocks === 0 ? 0.35 : 1,
+                '& .MuiChip-label': { px: 1.25 },
+              }}
+            />
           );
         })}
         {breakdown.ptoUsed > 0 && (
-          <Stack direction="row" alignItems="center" spacing={0.5}>
-            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#ffa726', flexShrink: 0 }} />
-            <Typography variant="caption" color="text.secondary">
-              🏖️ PTO used: <strong>{breakdown.ptoUsed}</strong>
-            </Typography>
-          </Stack>
+          <Chip
+            label="🏖️ PTO used"
+            size="small"
+            sx={{
+              bgcolor: '#ffa726',
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: '0.78rem',
+              height: 26,
+              '& .MuiChip-label': { px: 1.25 },
+            }}
+          />
         )}
       </Stack>
     </Box>

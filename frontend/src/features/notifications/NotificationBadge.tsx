@@ -32,7 +32,11 @@ const typeColors: Record<string, 'default' | 'primary' | 'secondary' | 'error' |
   error: 'error',
 };
 
-export default function NotificationBadge() {
+interface NotificationBadgeProps {
+  tooltipTitle?: string;
+}
+
+export default function NotificationBadge({ tooltipTitle = 'Notifications' }: NotificationBadgeProps) {
   const dispatch = useDispatch<AppDispatch>();
   const notifications = useSelector((state: RootState) => state.notifications.items);
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
@@ -55,7 +59,7 @@ export default function NotificationBadge() {
 
   return (
     <>
-      <Tooltip title="Notifications">
+      <Tooltip title={tooltipTitle}>
         <IconButton
           color="inherit"
           onClick={(e) => setAnchor(e.currentTarget)}

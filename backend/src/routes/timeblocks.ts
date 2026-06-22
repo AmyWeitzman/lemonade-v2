@@ -100,7 +100,20 @@ router.get('/:id/time-blocks', authorize, async (req: Request, res: Response): P
     const breakdown = calculateTimeBlocks(playerData);
     const availableActivityBlocks = getAvailableActivityBlocks(breakdown);
 
-    res.json({ breakdown, availableActivityBlocks });
+    // Sum PTO remaining across all active employments
+    const ptoRemaining = player.employments.reduce(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (sum: number, e: any) => sum + ((e.ptoRemaining as number) ?? 0),
+      0,
+    );
+    // Total PTO accrued this year (base from job ptoTimeBlocks)
+    const ptoTotal = player.employments.reduce(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (sum: number, e: any) => sum + ((e.job.ptoTimeBlocks as number) ?? 0),
+      0,
+    );
+
+    res.json({ breakdown, availableActivityBlocks, ptoRemaining, ptoTotal });
   } catch (err) {
     console.error('[timeblocks/get]', err);
     res.status(500).json({ error: 'Internal server error' });
