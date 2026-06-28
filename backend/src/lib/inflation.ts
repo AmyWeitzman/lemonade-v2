@@ -12,11 +12,15 @@ import { prisma } from './prisma';
 
 export interface InflationRates {
   year: number;
-  housing: number;       // 4–7%
-  salary: number;        // 2–5%
-  autoInsurance: number; // 2–5%
-  homeInsurance: number; // 7–9%
-  other: number;         // 0.1–0.3%
+  housing: number;       // 4–7%  — rent, purchase price
+  salary: number;        // 3–5%  — job salaries (matches general so employed players keep pace)
+  autoInsurance: number; // 2–5%  — vehicle insurance
+  homeInsurance: number; // 7–9%  — home insurance
+  healthcare: number;    // 4–7%  — health insurance, chronic conditions
+  groceries: number;     // 3–5%  — food
+  general: number;       // 2–4%  — everything else (vehicles, actions, tuition, misc, pets, child/tax/CPR)
+  /** @deprecated retained for backward compatibility with old sessions; treated as `general` */
+  other?: number;
 }
 
 // ─── generateInflationRates ───────────────────────────────────────────────────
@@ -33,11 +37,51 @@ export function generateInflationRates(year: number): InflationRates {
   return {
     year,
     housing: randomInRange(0.04, 0.07),
-    salary: randomInRange(0.02, 0.05),
+    salary: randomInRange(0.03, 0.05),
     autoInsurance: randomInRange(0.02, 0.05),
     homeInsurance: randomInRange(0.07, 0.09),
-    other: randomInRange(0.001, 0.003),
+    healthcare: randomInRange(0.04, 0.07),
+    groceries: randomInRange(0.03, 0.05),
+    general: randomInRange(0.02, 0.04),
   };
+}
+
+// ─── getAccumulatedMultiplier ─────────────────────────────────────────────────
+
+export type InflationCategory =
+  | 'housing'
+  | 'salary'
+  | 'autoInsurance'
+  | 'homeInsurance'
+  | 'healthcare'
+  | 'groceries'
+  | 'general';
+
+/**
+ * Compound all past inflation rates for a category into a single multiplier.
+ *
+ * Used to inflate costs that are hardcoded at their year-0 value (groceries,
+ * health insurance, child expenses, etc.) so they reflect cumulative inflation
+ * by the current year.
+ *
+ * Backward compatibility: older sessions only stored an `other` rate. If a
+ * requested category is missing on a historical rate entry, we fall back to
+ * `general`, then `other`, then 0.
+ */
+export function getAccumulatedMultiplier(
+  inflationRates: InflationRates[],
+  category: InflationCategory,
+): number {
+  let multiplier = 1;
+  for (const rates of inflationRates ?? []) {
+    const rate =
+      (rates[category] as number | undefined) ??
+      (rates.general as number | undefined) ??
+      (rates.other as number | undefined) ??
+      0;
+    multiplier *= 1 + rate;
+  }
+  return multiplier;
 }
 
 // ─── applyInflation ───────────────────────────────────────────────────────────
@@ -73,6 +117,10 @@ export function generateInflationRates(year: number): InflationRates {
  *                    EducationProgram tuition, Card effect costs
  */
 export async function applyGlobalCatalogInflation(rates: InflationRates): Promise<void> {
+  // Backward-compat: derive a "general" rate from old `other` field if needed
+  const general = rates.general ?? rates.other ?? 0;
+  const groceriesRate = rates.groceries ?? general;
+
   // ── Housing ──────────────────────────────────────────────────────────────
   const allHousing = await prisma.housing.findMany();
   for (const housing of allHousing) {
@@ -85,8 +133,8 @@ export async function applyGlobalCatalogInflation(rates: InflationRates): Promis
         purchasePrice: housing.purchasePrice !== null
           ? housing.purchasePrice * (1 + rates.housing)
           : undefined,
-        utilitiesBase: housing.utilitiesBase * (1 + rates.other),
-        utilitiesPerPerson: housing.utilitiesPerPerson * (1 + rates.other),
+        utilitiesBase: housing.utilitiesBase * (1 + general),
+        utilitiesPerPerson: housing.utilitiesPerPerson * (1 + general),
         insurancePerYear: housing.insurancePerYear !== null
           ? housing.insurancePerYear * (1 + rates.homeInsurance)
           : undefined,
@@ -110,14 +158,14 @@ export async function applyGlobalCatalogInflation(rates: InflationRates): Promis
       where: { id: vehicle.id },
       data: {
         purchasePrice: vehicle.purchasePrice !== null
-          ? vehicle.purchasePrice * (1 + rates.other)
+          ? vehicle.purchasePrice * (1 + general)
           : undefined,
         annualCost: vehicle.annualCost !== null
-          ? vehicle.annualCost * (1 + rates.other)
+          ? vehicle.annualCost * (1 + general)
           : undefined,
         insuranceBase: vehicle.insuranceBase * (1 + rates.autoInsurance),
-        gasPerYear: vehicle.gasPerYear * (1 + rates.other),
-        maintenanceBase: vehicle.maintenanceBase * (1 + rates.other),
+        gasPerYear: vehicle.gasPerYear * (1 + general),
+        maintenanceBase: vehicle.maintenanceBase * (1 + general),
       },
     });
   }
@@ -131,9 +179,9 @@ export async function applyGlobalCatalogInflation(rates: InflationRates): Promis
     await prisma.action.update({
       where: { id: action.id },
       data: {
-        cost: action.cost * (1 + rates.other),
+        cost: action.cost * (1 + general),
         baseCost: action.baseCost !== null
-          ? action.baseCost * (1 + rates.other)
+          ? action.baseCost * (1 + general)
           : undefined,
       },
     });
@@ -147,9 +195,9 @@ export async function applyGlobalCatalogInflation(rates: InflationRates): Promis
     await prisma.educationProgram.update({
       where: { id: program.id },
       data: {
-        tuitionFullTime: program.tuitionFullTime * (1 + rates.other),
+        tuitionFullTime: program.tuitionFullTime * (1 + general),
         tuitionPartTime: program.tuitionPartTime !== null
-          ? program.tuitionPartTime * (1 + rates.other)
+          ? program.tuitionPartTime * (1 + general)
           : undefined,
       },
     });
@@ -163,11 +211,15 @@ export async function applyGlobalCatalogInflation(rates: InflationRates): Promis
       await prisma.card.update({
         where: { id: card.id },
         data: {
-          effects: { ...effects, cost: effects.cost * (1 + rates.other) } as any,
+          effects: { ...effects, cost: effects.cost * (1 + general) } as any,
         },
       });
     }
   }
+
+  // groceriesRate is applied to player grocery costs in finances.ts via the
+  // accumulated multiplier (groceries are not a catalog entity).
+  void groceriesRate;
 }
 
 /**

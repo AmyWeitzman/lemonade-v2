@@ -88,6 +88,7 @@ export default function JobFilters({ filters, onChange, onReset, showBookmarkedO
     filters.hasDiscounts,
     !isSetupMode && !filters.eligibleOnly,
     filters.skillTraitFilters.length > 0,
+    filters.noDegreeRequired,
   ].filter(Boolean).length;
 
   // ── Skill/trait filter handlers ──────────────────────────────────────────────
@@ -454,6 +455,16 @@ export default function JobFilters({ filters, onChange, onReset, showBookmarkedO
                 }
               />
             )}
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={filters.noDegreeRequired}
+                  onChange={(e) => onChange({ noDegreeRequired: e.target.checked, requiredMajor: e.target.checked ? '' : filters.requiredMajor })}
+                />
+              }
+              label={<Typography variant="body2">🎓 No Degree Required</Typography>}
+            />
           </Stack>
 
           <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1.5 }}>

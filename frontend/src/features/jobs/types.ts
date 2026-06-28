@@ -90,4 +90,5 @@ export interface JobFilters {
   eligibleOnly: boolean;
   skillTraitFilters: SkillTraitFilter[];
   sort: 'salary_desc' | 'stress_asc' | 'time_blocks_asc' | 'pto_desc' | '';
+  noDegreeRequired: boolean;
 }

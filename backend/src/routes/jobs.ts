@@ -90,6 +90,7 @@ const listJobsSchema = z.object({
   hasTips: z.coerce.boolean().optional(),
   hasDiscounts: z.coerce.boolean().optional(),
   eligibleOnly: z.coerce.boolean().optional(),
+  noDegreeRequired: z.coerce.boolean().optional(),
   sort: z.enum(['salary_desc', 'stress_asc', 'time_blocks_asc', 'pto_desc']).optional(),
 });
 
@@ -126,6 +127,7 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     hasTips,
     hasDiscounts,
     eligibleOnly,
+    noDegreeRequired,
     sort,
   } = result.data;
 
@@ -238,6 +240,16 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
           if (key === 'travelTickets' && val) return true;
           return false;
         });
+      });
+    }
+
+    // No degree required filter: jobs whose requirements don't specify education or educationIds
+    if (noDegreeRequired) {
+      jobs = jobs.filter((j) => {
+        const reqs = j.requirements as Record<string, unknown>;
+        const eduIds = (reqs.educationIds ?? []) as string[];
+        const edu = reqs.education as string | undefined;
+        return eduIds.length === 0 && (!edu || edu === 'none');
       });
     }
 

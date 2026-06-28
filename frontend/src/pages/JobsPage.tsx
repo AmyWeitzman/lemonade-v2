@@ -53,6 +53,7 @@ function buildQueryParams(
   if (filters.hasPension) params.hasPension = 'true';
   if (filters.hasTips) params.hasTips = 'true';
   if (filters.hasDiscounts) params.hasDiscounts = 'true';
+  if (filters.noDegreeRequired) params.noDegreeRequired = 'true';
   // In setup mode we force eligibleOnly=false so all jobs are visible for planning
   const effectiveEligibleOnly = overrideEligibleOnly !== undefined ? overrideEligibleOnly : filters.eligibleOnly;
   if (effectiveEligibleOnly) params.eligibleOnly = 'true';

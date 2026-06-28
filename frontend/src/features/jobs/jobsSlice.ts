@@ -28,6 +28,7 @@ const defaultFilters: JobFilters = {
   eligibleOnly: true,
   skillTraitFilters: [],
   sort: '',
+  noDegreeRequired: false,
 };
 
 function loadFilters(): JobFilters {

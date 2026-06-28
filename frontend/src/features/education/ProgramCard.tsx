@@ -182,7 +182,7 @@ export default function ProgramCard({
             </Typography>
             <IconBadgeGrid>
               {allGains.map((g) => (
-                <IconBadge key={g} skillKey={gainStringToCamelKey(g)} tooltip={g} />
+                <IconBadge key={g} skillKey={gainStringToCamelKey(g)} tooltip={gainStringToCamelKey(g).replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())} />
               ))}
             </IconBadgeGrid>
           </Box>

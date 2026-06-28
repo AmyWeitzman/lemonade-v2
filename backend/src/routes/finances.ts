@@ -33,6 +33,7 @@ import { calculateAnnualVehicleCosts, type VehicleRow } from '../lib/vehicles';
 import { calculateAnnualHousingCosts, type HousingRow, type HomeImprovement } from '../lib/housing';
 import { CHILDCARE_COSTS } from '../lib/timeBlocks';
 import { getJobBenefits } from '../lib/jobs';
+import { getAccumulatedMultiplier, type InflationRates } from '../lib/inflation';
 
 const CPR_RENEWAL_COST = 75;
 const CPR_RENEWAL_INTERVAL_YEARS = 2;
@@ -107,8 +108,8 @@ function getTaxableIncome(player: FullPlayer): number {
   return playerSalary + spouseSalary;
 }
 
-/** Calculate health insurance cost */
-function calculateHealthInsuranceCost(player: FullPlayer): number {
+/** Calculate health insurance cost (inflated by accumulated healthcare multiplier) */
+function calculateHealthInsuranceCost(player: FullPlayer, healthcareMult = 1): number {
   if (!player.hasHealthInsurance) return 0;
   // Free on parents' insurance until age 26
   if (player.age < 26) return 0;
@@ -117,14 +118,14 @@ function calculateHealthInsuranceCost(player: FullPlayer): number {
 
   if (player.healthInsuranceType === 'family') {
     // $12k/yr + $1k/child + $450/yr age increase
-    return 12000 + kidsUnder18 * 1000 + player.age * 450;
+    return (12000 + kidsUnder18 * 1000 + player.age * 450) * healthcareMult;
   }
   // Single: $6k/yr + $300/yr age increase
-  return 6000 + player.age * 300;
+  return (6000 + player.age * 300) * healthcareMult;
 }
 
-/** Calculate annual pet expenses */
-function calculatePetExpenses(player: FullPlayer): number {
+/** Calculate annual pet expenses (inflated by accumulated general multiplier) */
+function calculatePetExpenses(player: FullPlayer, generalMult = 1): number {
   // Check if player has vet fee waiver (veterinarian job benefit)
   const hasVetWaiver = player.employments.some((e) => {
     const benefits = getJobBenefits(e.job.benefits, e.job);
@@ -141,26 +142,26 @@ function calculatePetExpenses(player: FullPlayer): number {
       if (!hasVetWaiver) total += 1000; // vet
     }
   }
-  return total;
+  return total * generalMult;
 }
 
-/** Calculate grocery cost */
-function calculateGroceries(player: FullPlayer): number {
+/** Calculate grocery cost (inflated by accumulated groceries multiplier) */
+function calculateGroceries(player: FullPlayer, groceriesMult = 1): number {
   const kidsUnder18 = player.children.filter((c) => c.age < 18).length;
   const spouseCount = player.maritalStatus === 'married' ? 1 : 0;
   const householdSize = 1 + spouseCount + kidsUnder18;
 
   // Bulk discount at 3+ people: $2400/person vs $3000/person
   const ratePerPerson = householdSize >= 3 ? 2400 : 3000;
-  return ratePerPerson * householdSize;
+  return ratePerPerson * householdSize * groceriesMult;
 }
 
-/** Calculate chronic condition costs */
-function calculateChronicConditionCosts(player: FullPlayer): number {
+/** Calculate chronic condition costs (inflated by accumulated healthcare multiplier) */
+function calculateChronicConditionCosts(player: FullPlayer, healthcareMult = 1): number {
   const conditions = (player.chronicConditions as string[]) ?? [];
   if (conditions.length === 0) return 0;
   const costPerCondition = player.hasHealthInsurance ? 3000 : 5000;
-  return conditions.length * costPerCondition;
+  return conditions.length * costPerCondition * healthcareMult;
 }
 
 /** Calculate annual tuition (player only) */
@@ -199,7 +200,7 @@ function calculateChildcareCosts(player: FullPlayer): number {
 /** Calculate all mandatory expenses for a player */
 async function calculateMandatoryExpenses(
   player: FullPlayer,
-  session: { taxBrackets: unknown; currentYear: number },
+  session: { taxBrackets: unknown; currentYear: number; inflationRates?: unknown },
 ): Promise<{
   housing: number;
   transportation: number;
@@ -220,6 +221,16 @@ async function calculateMandatoryExpenses(
   total: number;
   breakdown: Record<string, number>;
 }> {
+  // ── Accumulated inflation multipliers ──────────────────────────────────────
+  // Hardcoded costs (groceries, health insurance, child/pet/misc expenses, etc.)
+  // are defined at their year-0 value, so we compound past inflation rates to
+  // bring them up to the current year. Catalog costs (housing, vehicles, tuition)
+  // are already inflated in place via applyGlobalCatalogInflation.
+  const inflationRates = (session.inflationRates as InflationRates[] | undefined) ?? [];
+  const generalMult = getAccumulatedMultiplier(inflationRates, 'general');
+  const healthcareMult = getAccumulatedMultiplier(inflationRates, 'healthcare');
+  const groceriesMult = getAccumulatedMultiplier(inflationRates, 'groceries');
+
   // Housing
   let housingCost = 0;
   const currentOwnership = player.housingOwnerships[0];
@@ -262,27 +273,27 @@ async function calculateMandatoryExpenses(
   }
 
   // Health insurance
-  const healthInsurance = calculateHealthInsuranceCost(player);
+  const healthInsurance = calculateHealthInsuranceCost(player, healthcareMult);
 
   // Childcare
   const childcare = calculateChildcareCosts(player);
 
   // Child expenses ($11k/child under 18)
   const kidsUnder18 = player.children.filter((c) => c.age < 18).length;
-  const childExpenses = kidsUnder18 * 11000;
+  const childExpenses = kidsUnder18 * 11000 * generalMult;
 
   // Pet expenses
-  const petExpenses = calculatePetExpenses(player);
+  const petExpenses = calculatePetExpenses(player, generalMult);
 
   // Groceries
-  const groceries = calculateGroceries(player);
+  const groceries = calculateGroceries(player, groceriesMult);
 
   // Miscellaneous ($1200/person: player + spouse)
   const spouseCount = player.maritalStatus === 'married' ? 1 : 0;
-  const miscellaneous = (1 + spouseCount) * 1200;
+  const miscellaneous = (1 + spouseCount) * 1200 * generalMult;
 
   // Chronic conditions
-  const chronicConditions = calculateChronicConditionCosts(player);
+  const chronicConditions = calculateChronicConditionCosts(player, healthcareMult);
 
   // Player tuition
   const tuition = calculateTuition(player);
@@ -303,7 +314,7 @@ async function calculateMandatoryExpenses(
     if (spouse?.certifications?.includes('CPR')) {
       const spouseCprYear = (spouse as unknown as Record<string, unknown>).spouseCprYear as number | undefined;
       if (spouseCprYear !== undefined && (session.currentYear - spouseCprYear) >= CPR_RENEWAL_INTERVAL_YEARS) {
-        spouseCprRenewal = CPR_RENEWAL_COST;
+        spouseCprRenewal = CPR_RENEWAL_COST * generalMult;
       }
     }
   }
@@ -325,7 +336,7 @@ async function calculateMandatoryExpenses(
     hasLoans,
     jobCount,
     hasAccountingExperience: hasAccountingExperience(player),
-  });
+  }) * generalMult;
 
   // Loan minimum payments (5% of balance after 8% interest)
   const loanResults = applyLoanInterest(
@@ -478,7 +489,7 @@ router.get('/:playerId', authorize, async (req: Request, res: Response): Promise
 
     const session = await prisma.gameSession.findUnique({
       where: { id: gameSessionId },
-      select: { taxBrackets: true, currentYear: true },
+      select: { taxBrackets: true, currentYear: true, inflationRates: true },
     });
     if (!session) {
       res.status(404).json({ error: 'Session not found' });
@@ -882,7 +893,7 @@ router.get('/expenses', authorize, async (req: Request, res: Response): Promise<
 
     const session = await prisma.gameSession.findUnique({
       where: { id: gameSessionId },
-      select: { taxBrackets: true, currentYear: true },
+      select: { taxBrackets: true, currentYear: true, inflationRates: true },
     });
     if (!session) {
       res.status(404).json({ error: 'Session not found' });
@@ -950,7 +961,7 @@ router.post(
 
       const session = await prisma.gameSession.findUnique({
         where: { id: gameSessionId },
-        select: { taxBrackets: true, currentYear: true },
+        select: { taxBrackets: true, currentYear: true, inflationRates: true },
       });
       if (!session) {
         res.status(404).json({ error: 'Session not found' });
@@ -1326,3 +1337,4 @@ router.post(
 );
 
 export default router;
+
