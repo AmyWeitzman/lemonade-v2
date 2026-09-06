@@ -46,6 +46,22 @@ export interface PlayerForHousingEligibility {
   children: Array<{ age: number }>;
   pets: Array<{ type: string; isAlive: boolean }>;
   educations: Array<{ isActive: boolean; programType?: string }>;
+  /**
+   * Age past which the player's parents will no longer house them, from the
+   * parent-contribution roll: `null` = parents can never house them,
+   * `-1` = no age limit, positive `N` = allowed only while age <= N.
+   * Undefined is treated as "no restriction" (legacy players).
+   */
+  parentMaxAge?: number | null;
+  // ── Couch-surfing eligibility inputs (only used for housing.type === 'couch') ──
+  /** Lifetime years already spent on a friend's couch (cap is 2). */
+  couchSurfYearsUsed?: number;
+  /** Current cash on hand. */
+  money?: number;
+  /** Projected income for the coming year. */
+  projectedIncome?: number;
+  /** Annual cost of the cheapest rental in the catalog. */
+  cheapestRentAnnual?: number;
 }
 
 export interface HousingEligibilityResult {
@@ -111,11 +127,48 @@ export function checkHousingEligibility(
     );
   }
 
-  // Age restriction (parent housing)
+  // Age restriction (parent housing) — catalog-level limit, if any
   if (housing.ageLimit !== null && player.age > housing.ageLimit) {
     reasons.push(
       `You have reached the maximum age your parents will let you live with them. You need to move out.`,
     );
+  }
+
+  // Per-player parent-contribution limit on Parents' Place (Req: parent roll)
+  if (housing.type === 'parent' && player.parentMaxAge !== undefined) {
+    if (player.parentMaxAge === null) {
+      reasons.push(`Your parents aren't able to house you — you'll need to find your own place.`);
+    } else if (player.parentMaxAge >= 0 && player.age > player.parentMaxAge) {
+      reasons.push(
+        `Your parents expected you out by age ${player.parentMaxAge}. You need to move out.`,
+      );
+    }
+  }
+
+  // Friend's couch — a last-resort $0 option for a broke player with nowhere else
+  // to go. Capped at 2 lifetime years. (Family/pet limits handled by the generic
+  // occupancy checks above.)
+  if (housing.type === 'couch') {
+    if ((player.couchSurfYearsUsed ?? 0) >= 2) {
+      reasons.push(
+        `You've already spent 2 years on a friend's couch — you need your own place now.`,
+      );
+    }
+    const hasParentOption =
+      player.parentMaxAge === undefined ||
+      player.parentMaxAge === -1 ||
+      (typeof player.parentMaxAge === 'number' &&
+        player.parentMaxAge >= 0 &&
+        player.age <= player.parentMaxAge);
+    if (hasParentOption) {
+      reasons.push(`A friend's couch is a last resort — you can still live with your parents.`);
+    }
+    const funds = (player.money ?? 0) + (player.projectedIncome ?? 0);
+    if (player.cheapestRentAnnual !== undefined && funds >= player.cheapestRentAnnual) {
+      reasons.push(
+        `A friend's couch is only for when you can't afford a rental of your own.`,
+      );
+    }
   }
 
   // Enrollment requirement (dorm) — PhD students are NOT eligible for dorm housing

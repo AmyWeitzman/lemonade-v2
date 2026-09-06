@@ -32,6 +32,8 @@ import {
   revokeCertification,
   type CertificationEntry,
 } from './certifications';
+import type { ParentContributions } from './playerInit';
+import { getMandatoryExpensesTotal } from './expenses';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -280,6 +282,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       children: true,
       pets: true,
       adoptionApplications: { where: { status: 'pending' } },
+      housingOwnerships: { where: { endAge: null }, include: { housing: true } },
     },
   });
 
@@ -405,6 +408,75 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
           },
           io,
         );
+      }
+    }
+
+    // e4. Parents' move-out deadline reminder (parent-contribution roll).
+    // parentMaxAge: null = parents can never house you, -1 = no limit, N = out by N.
+    const parentMaxAge = (player.parentContributions as ParentContributions | null)?.maxParentAge;
+    if (typeof parentMaxAge === 'number' && parentMaxAge > 0) {
+      if (newAge === parentMaxAge - 2 || newAge === parentMaxAge) {
+        await sendNotification(
+          player.id,
+          {
+            type: newAge === parentMaxAge ? 'warning' : 'info',
+            category: 'housing',
+            title: 'Time to Think About Moving Out',
+            message:
+              newAge === parentMaxAge
+                ? `Your parents expect you out of the house this year (age ${parentMaxAge}). Secure your own housing before the year ends.`
+                : `Your parents expect you to move out by age ${parentMaxAge}. Start planning your own housing.`,
+            persistent: true,
+            actionRequired: newAge === parentMaxAge,
+          },
+          io,
+        );
+      }
+    }
+
+    // e5. Couch-surfing: increment the lifetime counter and warn on the last year.
+    const activeHousingRecord = player.housingOwnerships.find((h) => h.endAge === null);
+    const onCouch = activeHousingRecord?.housing?.type === 'couch';
+    const prevCouchYears =
+      (player as unknown as { couchSurfYearsUsed?: number }).couchSurfYearsUsed ?? 0;
+    const newCouchSurfYearsUsed = onCouch ? prevCouchYears + 1 : prevCouchYears;
+    if (onCouch && newCouchSurfYearsUsed >= 2) {
+      await sendNotification(
+        player.id,
+        {
+          type: 'warning',
+          category: 'housing',
+          title: "Last Year on a Friend's Couch",
+          message:
+            "You've been couch-surfing for 2 years — you must move into your own housing before this year ends.",
+          persistent: true,
+          actionRequired: true,
+        },
+        io,
+      );
+    }
+
+    // e6. No job + projected to end the year short → nudge them to find work.
+    {
+      const hasJob = player.employments.some((e) => e.isActive);
+      const sp = player.spouse as { salary?: number } | null;
+      const spouseIncome = player.maritalStatus === 'married' ? (sp?.salary ?? 0) : 0;
+      if (!isNowRetired && !hasJob && spouseIncome === 0) {
+        const mandatoryExpenses = await getMandatoryExpensesTotal(player.id);
+        if (player.money + player.projectedIncome - mandatoryExpenses < 1000) {
+          await sendNotification(
+            player.id,
+            {
+              type: 'warning',
+              category: 'finances',
+              title: 'Money Is Running Short',
+              message:
+                "You have no job and your funds are projected to run low after this year's expenses. Consider doing 'Find a Job' before the year ends.",
+              persistent: true,
+            },
+            io,
+          );
+        }
       }
     }
 
@@ -878,6 +950,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
           cardsReceivedThisYear: 0,
           // Reset internship flag for the new year
           ...({ didInternshipThisYear: false } as Record<string, unknown>),
+          ...({ couchSurfYearsUsed: newCouchSurfYearsUsed } as Record<string, unknown>),
         } as Parameters<typeof tx.player.update>[0]['data'],
       });
 

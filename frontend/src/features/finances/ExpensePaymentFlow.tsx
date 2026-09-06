@@ -55,6 +55,7 @@ export default function ExpensePaymentFlow({
   const [fromMoney, setFromMoney] = useState(defaultFromMoney);
   const [fromRetirement, setFromRetirement] = useState(defaultFromRetirement);
   const [error, setError] = useState('');
+  const [waitingForOthers, setWaitingForOthers] = useState(false);
 
   // Recalculate when props change
   useEffect(() => {
@@ -90,11 +91,18 @@ export default function ExpensePaymentFlow({
         newRetirementSavings: number;
       };
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       dispatch(setPlayerStats({ money: data.newMoney }));
       queryClient.invalidateQueries({ queryKey: ['finances', playerId] });
       queryClient.invalidateQueries({ queryKey: ['financesExpenses'] });
       onYearComplete();
+      // Signal the shared year clock — advances everyone once all players are done.
+      try {
+        const { data: yc } = await api.post('/year/complete', { gameSessionId });
+        if (!yc.allPlayersComplete) setWaitingForOthers(true);
+      } catch {
+        /* year advance is also retried on next load; non-fatal here */
+      }
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
@@ -115,6 +123,14 @@ export default function ExpensePaymentFlow({
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           All expenses have been paid for this year.
         </Typography>
+        {waitingForOthers && (
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ mt: 1.5 }}>
+            <CircularProgress size={14} />
+            <Typography variant="caption" color="text.secondary">
+              Waiting for the other players to finish their year…
+            </Typography>
+          </Stack>
+        )}
       </Paper>
     );
   }

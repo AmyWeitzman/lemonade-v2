@@ -289,6 +289,9 @@ export default function FinancesPage() {
                 <LoanManagement
                   loans={summaryData.loans}
                   playerMoney={summaryData.money}
+                  creditLimit={summaryData.creditLimit}
+                  currentDebt={summaryData.currentDebt}
+                  borrowingAvailable={summaryData.borrowingAvailable}
                 />
               </TabPanel>
 

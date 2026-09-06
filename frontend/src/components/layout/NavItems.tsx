@@ -2,7 +2,7 @@
  * NavItems — shared route and navigation item definitions.
  */
 import HomeIcon from '@mui/icons-material/Home';
-import BoltIcon from '@mui/icons-material/Bolt';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import WorkIcon from '@mui/icons-material/Work';
 import SchoolIcon from '@mui/icons-material/School';
@@ -29,7 +29,7 @@ export interface SecondaryNavItem {
 /** Primary page routes shown in main navigation */
 export const PRIMARY_NAV_ITEMS: NavItem[] = [
   { label: 'Tending the Garden', subtext: 'Profile', path: '/', Icon: HomeIcon },
-  { label: 'Squeeze the Day', subtext: 'Actions', path: '/actions', Icon: BoltIcon },
+  { label: 'Squeeze the Day', subtext: 'Actions', path: '/actions', Icon: CalendarMonthIcon },
   { label: 'Harvest', subtext: 'Finances', path: '/finances', Icon: AccountBalanceIcon },
   { label: 'Seeds to Trees', subtext: 'Jobs', path: '/jobs', Icon: WorkIcon },
   { label: 'Zest for Learning', subtext: 'Education', path: '/education', Icon: SchoolIcon },

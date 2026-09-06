@@ -59,6 +59,12 @@ export interface FinancialSummaryData {
   };
   availableFunds: number;
   yearComplete: boolean;
+  /** Maximum total debt allowed via manual loans (4× household income, min $15k). */
+  creditLimit: number;
+  /** Current total outstanding debt (player + spouse/joint loans). */
+  currentDebt: number;
+  /** Remaining borrowing headroom (creditLimit − currentDebt, floored at 0). */
+  borrowingAvailable: number;
 }
 
 export interface ExpensesData {

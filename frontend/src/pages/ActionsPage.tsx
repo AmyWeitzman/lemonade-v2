@@ -6,22 +6,26 @@
  *
  * Requirements: Req 8, Req 22
  */
-import { useState, useCallback, useRef, memo } from 'react';
+import { useState, useCallback, useRef, useEffect, memo } from 'react';
 import {
   Box, Typography, TextField, InputAdornment, Grid, Stack,
   Fab, Badge, Alert, Skeleton, Chip, Tooltip, FormControl,
   InputLabel, Select, MenuItem, Divider, CircularProgress, IconButton,
+  Collapse, Paper,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { useDispatch, useSelector } from 'react-redux';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { RootState } from '../store';
 import {
   addToCart, removeFromCart, clearCart, toggleFavorite,
   setFilters, resetFilters, setCartDrawerOpen,
-  updateCartItem,
+  updateCartItem, setCartItemQuantity,
+  addRequiredCartItem, removeRequiredCartItem,
   type CartItem,
 } from '../features/actions/actionsSlice';
 import { setPlayerStats } from '../features/auth/authSlice';
@@ -29,6 +33,7 @@ import { addLemon } from '../features/game/gameSlice';
 import ActionCard from '../features/actions/ActionCard';
 import ActionFilters from '../features/actions/ActionFilters';
 import TimeBlockVisualizer from '../features/actions/TimeBlockVisualizer';
+import RecommendedActions from '../features/actions/RecommendedActions';
 import CartDrawer from '../features/actions/CartDrawer';
 import CheckoutResultModal from '../features/actions/CheckoutResultModal';
 import type { ActionItem, TimeBlockBreakdown, CheckoutResult, PTOInfo } from '../features/actions/types';
@@ -136,6 +141,7 @@ export default function ActionsPage() {
 
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null);
   const [resultModalOpen, setResultModalOpen] = useState(false);
+  const [tipsOpen, setTipsOpen] = useState(false);
 
   // Search callback — only triggers API refetch, doesn't cause parent re-render
   const handleSearch = useCallback((value: string) => {
@@ -147,7 +153,12 @@ export default function ActionsPage() {
     queryKey: ['timeBlocks', playerId],
     queryFn: async () => {
       const { data } = await api.get(`/players/${playerId}/time-blocks`);
-      return data as { breakdown: TimeBlockBreakdown; availableActivityBlocks: number } & PTOInfo;
+      return data as {
+        breakdown: TimeBlockBreakdown;
+        availableActivityBlocks: number;
+        requiredActions?: Array<{ actionName: string; blocks: number; reason: string }>;
+        reservedBlocks?: number;
+      } & PTOInfo;
     },
     enabled: !!playerId,
     staleTime: 30_000,
@@ -177,20 +188,73 @@ export default function ActionsPage() {
     return true;
   });
 
+  // ── Keep required actions (get housing / transportation) locked into the cart ─
+  const requiredActions = tbData?.requiredActions ?? [];
+  const requiredSignature = requiredActions.map((r) => r.actionName).sort().join(',');
+  useEffect(() => {
+    if (allActions.length === 0) return;
+    const requiredNames = new Set(requiredActions.map((r) => r.actionName));
+    for (const r of requiredActions) {
+      if (cart.some((i) => i.actionName === r.actionName)) continue;
+      const act = allActions.find((a) => a.name === r.actionName);
+      if (!act) continue;
+      dispatch(addRequiredCartItem({
+        actionId: act.id,
+        actionName: act.name,
+        timeBlocks: r.blocks,
+        ptoBlocks: 0,
+        calculatedCost: 0,
+        calculatedLemons: 0,
+        quantity: 1,
+        executionType: act.executionType,
+        category: act.category,
+        requiresPTO: false,
+        allowsPTO: false,
+      }));
+    }
+    // Drop locked lines whose requirement no longer applies
+    for (const i of cart) {
+      if (i.locked && !requiredNames.has(i.actionName)) {
+        dispatch(removeRequiredCartItem(i.actionId));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requiredSignature, allActions.length]);
+
   // ── Cart validation ────────────────────────────────────────────────────────
   const cartActionIds = cart.map((i) => i.actionId);
+  // Signature of every field that affects validation, so the query refetches
+  // immediately whenever the user adjusts quantity, PTO split, or plan option.
+  const cartSignature = cart.map(
+    (i) =>
+      `${i.actionId}:${i.quantity}:${i.timeBlocks}:${i.ptoBlocks}:${i.selectedOption ?? ''}:${i.selectedHousingId ?? ''}:${i.housingLocation ?? ''}:${i.selectedVehicleId ?? ''}`,
+  );
 
   const { data: validationData, isFetching: validating } = useQuery({
-    queryKey: ['cartValidation', cartActionIds, gameSessionId],
+    queryKey: ['cartValidation', cartSignature, gameSessionId],
     queryFn: async () => {
       if (cart.length === 0) return null;
       const quantities: Record<string, number> = {};
-      cart.forEach((i) => { quantities[i.actionId] = 1; });
+      const selectedOptions: Record<string, string> = {};
+      const selectedHousingIds: Record<string, string> = {};
+      const housingLocations: Record<string, string> = {};
+      const selectedVehicleIds: Record<string, string> = {};
+      cart.forEach((i) => {
+        quantities[i.actionId] = i.quantity;
+        if (i.selectedOption) selectedOptions[i.actionId] = i.selectedOption;
+        if (i.selectedHousingId) selectedHousingIds[i.actionId] = i.selectedHousingId;
+        if (i.housingLocation) housingLocations[i.actionId] = i.housingLocation;
+        if (i.selectedVehicleId) selectedVehicleIds[i.actionId] = i.selectedVehicleId;
+      });
       const { data } = await api.get('/actions/cart/validate', {
         params: {
           gameSessionId,
           actionIds: cartActionIds,
           quantities: JSON.stringify(quantities),
+          selectedOptions: JSON.stringify(selectedOptions),
+          selectedHousingIds: JSON.stringify(selectedHousingIds),
+          housingLocations: JSON.stringify(housingLocations),
+          selectedVehicleIds: JSON.stringify(selectedVehicleIds),
         },
       });
       return data as {
@@ -207,67 +271,134 @@ export default function ActionsPage() {
   });
 
   // ── Checkout ───────────────────────────────────────────────────────────────
+  interface ExecuteResponse {
+    success: boolean;
+    lemonsEarned: number;
+    healthChange: { temporary: number; permanent: number };
+    stressChange: number;
+    skillGains: Record<string, number>;
+    traitGains: Record<string, number>;
+    totalCost: number;
+    totalTimeBlocks: number;
+  }
+
+  const applyCheckoutResult = (data: ExecuteResponse) => {
+    const healthDelta = (data.healthChange.temporary ?? 0) + (data.healthChange.permanent ?? 0);
+
+    queryClient.invalidateQueries({ queryKey: ['actions'] });
+    queryClient.invalidateQueries({ queryKey: ['timeBlocks'] });
+
+    dispatch(setPlayerStats({ money: money - data.totalCost }));
+    for (let i = 0; i < data.lemonsEarned; i++) {
+      dispatch(addLemon());
+    }
+
+    setCheckoutResult({
+      totalLemonsEarned: data.lemonsEarned,
+      healthDelta,
+      stressDelta: data.stressChange,
+      skillGains: data.skillGains,
+      traitGains: data.traitGains,
+      newHealth: Math.min(100, Math.max(0, health + healthDelta)),
+      newStress: Math.min(100, Math.max(0, stress + data.stressChange)),
+      newMoney: money - data.totalCost,
+    });
+    setResultModalOpen(true);
+  };
+
   const checkoutMutation = useMutation({
     mutationFn: async () => {
       const { data } = await api.post('/actions/execute', {
         gameSessionId,
-        actions: cart.map((i) => ({ actionId: i.actionId, timeBlocks: i.timeBlocks })),
+        // Expand each cart line into one entry per instance (quantity), so cost/effects
+        // are computed correctly per-execution rather than as one combined block.
+        actions: cart.flatMap((i) =>
+          Array.from({ length: i.quantity }, () => ({
+            actionId: i.actionId,
+            timeBlocks: i.timeBlocks,
+            ptoBlocks: i.ptoBlocks,
+            selectedOption: i.selectedOption,
+            selectedHousingId: i.selectedHousingId,
+            housingLocation: i.housingLocation,
+            selectedVehicleId: i.selectedVehicleId,
+          })),
+        ),
       });
-      return data as {
-        success: boolean;
-        lemonsEarned: number;
-        healthChange: { temporary: number; permanent: number };
-        stressChange: number;
-        skillGains: Record<string, number>;
-        traitGains: Record<string, number>;
-        totalCost: number;
-        totalTimeBlocks: number;
-      };
+      return data as ExecuteResponse;
     },
     onSuccess: (data) => {
-      const healthDelta = (data.healthChange.temporary ?? 0) + (data.healthChange.permanent ?? 0);
-
-      queryClient.invalidateQueries({ queryKey: ['actions'] });
-      queryClient.invalidateQueries({ queryKey: ['timeBlocks'] });
-
-      dispatch(setPlayerStats({ money: money - data.totalCost }));
-      for (let i = 0; i < data.lemonsEarned; i++) {
-        dispatch(addLemon());
-      }
+      applyCheckoutResult(data);
       dispatch(clearCart());
       dispatch(setCartDrawerOpen(false));
+    },
+  });
 
-      setCheckoutResult({
-        totalLemonsEarned: data.lemonsEarned,
-        healthDelta,
-        stressDelta: data.stressChange,
-        skillGains: data.skillGains,
-        traitGains: data.traitGains,
-        newHealth: Math.min(100, Math.max(0, health + healthDelta)),
-        newStress: Math.min(100, Math.max(0, stress + data.stressChange)),
-        newMoney: money - data.totalCost,
+  // Express checkout executes a single action immediately, bypassing the cart entirely.
+  const expressMutation = useMutation({
+    mutationFn: async (item: {
+      actionId: string;
+      timeBlocks: number;
+      ptoBlocks: number;
+      selectedOption?: string;
+      quantity: number;
+    }) => {
+      const { data } = await api.post('/actions/execute', {
+        gameSessionId,
+        actions: Array.from({ length: item.quantity }, () => ({
+          actionId: item.actionId,
+          timeBlocks: item.timeBlocks,
+          ptoBlocks: item.ptoBlocks,
+          selectedOption: item.selectedOption,
+        })),
       });
-      setResultModalOpen(true);
+      return data as ExecuteResponse;
+    },
+    onSuccess: (data) => {
+      applyCheckoutResult(data);
     },
   });
 
   // ── Cart handlers ──────────────────────────────────────────────────────────
-  const handleAddToCart = useCallback((action: ActionItem, timeBlocks: number, ptoBlocks: number) => {
+  const handleExpressCheckout = useCallback((
+    action: ActionItem,
+    timeBlocks: number,
+    ptoBlocks: number,
+    selectedOption?: string,
+    _selectedOptionLabel?: string,
+    quantity = 1,
+  ) => {
+    expressMutation.mutate({ actionId: action.id, timeBlocks, ptoBlocks, selectedOption, quantity });
+  }, [expressMutation]);
+
+  const handleAddToCart = useCallback((
+    action: ActionItem,
+    timeBlocks: number,
+    ptoBlocks: number,
+    selectedOption?: string,
+    selectedOptionLabel?: string,
+    quantity = 1,
+  ) => {
+    const selectedOptionData = (action.userInput?.options ?? []).find((o) => o.value === selectedOption);
     const item: CartItem = {
       actionId: action.id,
       actionName: action.name,
       timeBlocks,
       ptoBlocks,
-      calculatedCost: action.calculatedCost,
+      calculatedCost: selectedOptionData?.cost ?? action.calculatedCost,
       calculatedLemons: action.calculatedLemons,
+      quantity,
       executionType: action.executionType,
       category: action.category,
-      requiresPTO: !!(action.requirements as Record<string, unknown>).hasPTOOrUnpaidTimeBlocks ||
-        !!(action.requirements as Record<string, unknown>).hasPTODaysAvailable ||
-        (typeof (action.requirements as Record<string, unknown>).ptoOrUnpaidTimeBlocks === 'number') ||
-        action.requiresPTO,
+      requiresPTO: action.requiresPTO,
+      allowsPTO: action.allowsPTO,
+      selectedOption,
+      selectedOptionLabel,
     };
     dispatch(addToCart(item));
+    // "Get Housing" / "Get Transportation" need a home/vehicle picked in the cart.
+    if (action.name === 'Get Housing' || action.name === 'Get Transportation') {
+      dispatch(setCartDrawerOpen(true));
+    }
   }, [dispatch]);
 
   const handleUpdateCartPto = useCallback((actionId: string, timeBlocks: number, ptoBlocks: number) => {
@@ -286,14 +417,18 @@ export default function ActionsPage() {
     dispatch(removeFromCart(actionId));
   }, [dispatch]);
 
+  const handleUpdateCartQuantity = useCallback((actionId: string, quantity: number) => {
+    dispatch(setCartItemQuantity({ actionId, quantity }));
+  }, [dispatch]);
+
   const handleToggleFavorite = useCallback((actionId: string) => {
     dispatch(toggleFavorite(actionId));
   }, [dispatch]);
 
   const cartCount = cart.length;
   const totalBlocks = tbData?.breakdown.total ?? 60;
-  const cartUsedBlocks = cart.reduce((s, i) => s + i.timeBlocks, 0);
-  const cartPtoUsed = cart.reduce((s, i) => s + i.ptoBlocks, 0);
+  const cartUsedBlocks = cart.reduce((s, i) => s + i.timeBlocks * i.quantity, 0);
+  const cartPtoUsed = cart.reduce((s, i) => s + i.ptoBlocks * i.quantity, 0);
   const ptoRemaining = tbData?.ptoRemaining ?? 0;
 
   if (!gameSessionId) {
@@ -310,7 +445,7 @@ export default function ActionsPage() {
       {/* Page header */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Box>
-          <Typography variant="h5" fontWeight={700}>⚡ Squeeze the Day</Typography>
+          <Typography variant="h5" fontWeight={700}>📅 Squeeze the Day</Typography>
           <Typography variant="body2" color="text.secondary">
             Choose your actions for this year
           </Typography>
@@ -338,8 +473,74 @@ export default function ActionsPage() {
           breakdown={tbData?.breakdown ?? null}
           loading={tbLoading}
           usedActivityBlocks={cartUsedBlocks}
+          reservedBlocks={requiredActions
+            .filter((r) => !cart.some((i) => i.actionName === r.actionName))
+            .reduce((s, r) => s + r.blocks, 0)}
         />
       </Box>
+
+      {/* Recommended actions */}
+      <RecommendedActions />
+      {/* Tips & Guidance (collapsible) */}
+      <Paper variant="outlined" sx={{ mb: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.7)' }}>
+        <Box
+          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, cursor: 'pointer', userSelect: 'none' }}
+          onClick={() => setTipsOpen((v) => !v)}
+          role="button"
+          aria-expanded={tipsOpen}
+        >
+          <Typography variant="body2" fontWeight={700}>💡 Tips & Guidance</Typography>
+          <IconButton size="small" sx={{ p: 0 }}>
+            {tipsOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+          </IconButton>
+        </Box>
+        <Collapse in={tipsOpen}>
+          <Divider />
+          <Box sx={{ px: 2, py: 1.5 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" fontWeight={700} color="primary.main" display="block" sx={{ mb: 0.5 }}>⚡ Express Checkout vs Add to Cart</Typography>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  <b>Add to Cart</b> queues the action for the year — you can review and adjust your plan before committing. Great when you want to budget time blocks carefully.
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                  <b>Express Checkout</b> is for actions that execute immediately and don't require scheduling. Use it to get in and out quickly.
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" fontWeight={700} color="success.main" display="block" sx={{ mb: 0.5 }}>🤝 Good Deed Actions</Typography>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  Actions marked <b>Good Deed</b> build goodwill in the community and may unlock bonus lemon rewards or future opportunities. Worth doing when you have spare time blocks.
+                </Typography>
+                <Typography variant="caption" fontWeight={700} color="info.main" display="block" sx={{ mb: 0.5, mt: 1 }}>👴 Senior Discount (Age 65+)</Typography>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  Players aged 65 and older automatically receive a discounted price on actions marked <b>Senior Discount</b>. The reduced cost is shown on the card.
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" fontWeight={700} color="secondary.dark" display="block" sx={{ mb: 0.5 }}>🏖️ Paid Time Off (PTO)</Typography>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  To use PTO on an action, you must have a job that provides PTO benefits — not all jobs offer it. Check the Jobs page to see if your current role earns PTO. Actions that require PTO will only be available if you have PTO days remaining.
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" fontWeight={700} color="warning.dark" display="block" sx={{ mb: 0.5 }}>📋 Action Restrictions to Keep in Mind</Typography>
+                <Stack direction="column" gap={0.5}>
+                  {[
+                    'Some actions require you to be enrolled in school - make sure to take advantage of them if you want while in school.',
+                    'Childcare-related actions become available once you have children.',
+                    'You will no longer be eligible for actions with a max age limit (e.g., Age ≤ 55) once you age out.',
+                    'Retirement unlocks new leisure actions and removes work-time constraints.',
+                  ].map((tip, i) => (
+                    <Typography key={i} variant="caption" color="text.secondary" display="block">• {tip}</Typography>
+                  ))}
+                </Stack>
+              </Grid>
+            </Grid>
+          </Box>
+        </Collapse>
+      </Paper>
+
       {/* Search bar */}
       <DebouncedSearchInput initialValue={filters.search} onSearch={handleSearch} />
 
@@ -416,12 +617,16 @@ export default function ActionsPage() {
                   inCart={!!cartItem}
                   cartTimeBlocks={cartItem?.timeBlocks}
                   cartPtoBlocks={cartItem?.ptoBlocks}
+                  cartQuantity={cartItem?.quantity}
+                  cartSelectedOptionLabel={cartItem?.selectedOptionLabel}
                   ptoRemaining={ptoRemaining}
                   ptoCommitted={cart
                     .filter((i) => i.actionId !== action.id)
-                    .reduce((s, i) => s + i.ptoBlocks, 0)}
+                    .reduce((s, i) => s + i.ptoBlocks * i.quantity, 0)}
                   onToggleFavorite={handleToggleFavorite}
                   onAddToCart={handleAddToCart}
+                  onExpressCheckout={handleExpressCheckout}
+                  expressCheckingOut={expressMutation.isPending}
                   onRemoveFromCart={handleRemoveFromCart}
                   onUpdateCartPto={handleUpdateCartPto}
                 />
@@ -457,6 +662,7 @@ export default function ActionsPage() {
         onClear={() => dispatch(clearCart())}
         onCheckout={() => checkoutMutation.mutate()}
         onUpdatePto={handleUpdateCartPto}
+        onUpdateQuantity={handleUpdateCartQuantity}
         ptoRemaining={ptoRemaining}
         validation={validationData ?? null}
         validating={validating}

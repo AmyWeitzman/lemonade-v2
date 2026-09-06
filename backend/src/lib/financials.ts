@@ -233,6 +233,39 @@ export function applyLoanInterest(loans: LoanInput[]): LoanResult[] {
   });
 }
 
+// ─── Credit Limit ─────────────────────────────────────────────────────────────
+
+/**
+ * A player's total outstanding debt may not exceed this via manual loans.
+ * Formula: 4× household annual income, floored at $15,000 so an unemployed
+ * player can still borrow a modest amount to get on their feet. Auto-loans that
+ * cover an unpayable minimum payment bypass this but are flagged to the player.
+ */
+export const MIN_CREDIT_LIMIT = 15000;
+export const CREDIT_LIMIT_INCOME_MULTIPLE = 4;
+
+export interface CreditLimitInput {
+  /** Player's own annual income (active salary, or projected income if higher). */
+  annualIncome: number;
+  /** Spouse's annual salary if married, else 0. */
+  spouseIncome: number;
+}
+
+export function calculateCreditLimit(input: CreditLimitInput): number {
+  const household = Math.max(0, input.annualIncome) + Math.max(0, input.spouseIncome);
+  return Math.max(MIN_CREDIT_LIMIT, CREDIT_LIMIT_INCOME_MULTIPLE * household);
+}
+
+/** Total outstanding debt across the player's own loans plus any spouse/joint loans. */
+export function sumLoanBalances(
+  playerLoans: Array<{ currentBalance: number }>,
+  spouseLoans: Array<{ currentBalance: number }> = [],
+): number {
+  const sum = (loans: Array<{ currentBalance: number }>) =>
+    loans.reduce((s, l) => s + l.currentBalance, 0);
+  return sum(playerLoans) + sum(spouseLoans);
+}
+
 // ─── Retirement Interest ──────────────────────────────────────────────────────
 
 /**

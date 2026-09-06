@@ -2,6 +2,24 @@
  * Shared types for the Actions feature.
  */
 
+export interface ActionUserInputOption {
+  value: string;
+  label: string;
+  /** Overrides the action's flat cost when this option is selected. */
+  cost?: number;
+  /** Overrides the activity time blocks consumed when this option is selected. */
+  timeBlocks?: number;
+  /** Merged on top of the action's base effects when this option is selected. */
+  effects?: Record<string, unknown>;
+}
+
+export interface ActionUserInput {
+  /** 'duration_sightseeing' renders two toggles that combine into an option value; 'dropdown' renders a single select. */
+  type: 'duration_sightseeing' | 'dropdown' | string;
+  label?: string;
+  options: ActionUserInputOption[];
+}
+
 export interface ActionItem {
   id: string;
   name: string;
@@ -16,7 +34,8 @@ export interface ActionItem {
   maxTimeBlocks: number | null;
   timeBlockIncrement: number | null;
   requiresPTO: boolean;
-  userInput: unknown;
+  allowsPTO: boolean;
+  userInput: ActionUserInput | null;
   effects: Record<string, unknown>;
   executionType: string;
   frequency: string;
@@ -36,6 +55,7 @@ export interface TimeBlockBreakdown {
   childcare: number;
   commute: number;
   pets: number;
+  chores: number;
   activities: number;
 }
 

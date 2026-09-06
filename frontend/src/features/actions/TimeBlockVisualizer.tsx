@@ -31,7 +31,9 @@ const SEGMENTS: Segment[] = [
   { key: 'childcare',  label: 'Childcare',  emoji: '👶', color: '#ec407a', textColor: '#fff' },
   { key: 'commute',    label: 'Commute',    emoji: '🚗', color: '#ff7043', textColor: '#fff' },
   { key: 'pets',       label: 'Pets',       emoji: '🐾', color: '#ab47bc', textColor: '#fff' },
+  { key: 'chores',     label: 'Chores',     emoji: '🧹', color: '#8d6e63', textColor: '#fff' },
   { key: 'activities', label: 'Activities', emoji: '🍋', color: '#66bb6a', textColor: '#fff' },
+  { key: 'reserved',   label: 'Required',   emoji: '🔒', color: '#ffb300', textColor: '#333' },
   { key: 'unused',     label: 'Unused',     emoji: '⬜', color: '#d6d6d6ff', textColor: '#333' },
 ];
 
@@ -39,12 +41,15 @@ interface Props {
   breakdown: TimeBlockBreakdown | null;
   /** Blocks already committed to actions (from cart). Default 0. */
   usedActivityBlocks?: number;
+  /** Blocks reserved for a required action not yet in the cart. Default 0. */
+  reservedBlocks?: number;
   loading?: boolean;
 }
 
 export default function TimeBlockVisualizer({
   breakdown,
   usedActivityBlocks = 0,
+  reservedBlocks = 0,
   loading,
 }: Props) {
   if (loading || !breakdown) {
@@ -62,10 +67,12 @@ export default function TimeBlockVisualizer({
   // Split it into used (cart) and unused
   const activityBudget = breakdown.activities;
   const usedBlocks = Math.min(usedActivityBlocks, activityBudget);
-  const unusedBlocks = Math.max(0, activityBudget - usedBlocks);
+  const reserved = Math.max(0, Math.min(reservedBlocks, activityBudget - usedBlocks));
+  const unusedBlocks = Math.max(0, activityBudget - usedBlocks - reserved);
 
   const getBlocks = (key: string): number => {
     if (key === 'activities') return usedBlocks;
+    if (key === 'reserved') return reserved;
     if (key === 'unused') return unusedBlocks;
     return (breakdown[key as keyof TimeBlockBreakdown] as number) ?? 0;
   };

@@ -23,9 +23,8 @@ import {
   checkVehicleCapacity,
   hasMechanicBenefit,
   isBikeValidForTravel,
-  VEHICLE_CHANGE_STRESS,
-  getVehicleAgeYears,
 } from '../lib/vehicles';
+import { acquireVehicle } from '../lib/vehicleActions';
 
 const router = Router();
 
@@ -280,48 +279,19 @@ router.post(
         ? getCurrentSpouseOwnership(player)
         : getCurrentPlayerOwnership(player);
 
-      const hadPreviousVehicle = currentOwnership !== null;
+      // Persist in transaction (shared with the "Get Transportation" cart action)
+      const newOwnership = await prisma.$transaction((tx) =>
+        acquireVehicle(tx, {
+          player,
+          vehicleId,
+          vehicleType: vehicle.type,
+          purchasePrice,
+          forSpouse,
+          currentOwnershipId: currentOwnership?.id ?? null,
+        }),
+      );
 
-      // Persist in transaction
-      const newOwnership = await prisma.$transaction(async (tx) => {
-        // Close out old ownership
-        if (currentOwnership) {
-          await tx.vehicleOwnership.update({
-            where: { id: currentOwnership.id },
-            data: { endAge: player.age },
-          });
-        }
-
-        // Create new ownership record
-        const created = await tx.vehicleOwnership.create({
-          data: {
-            playerId: player.id,
-            vehicleId,
-            startAge: player.age,
-            purchasePrice,
-            wasParentGift: false,
-            isSpouseVehicle: forSpouse,
-            totalMaintenancePaid: 0,
-            totalInsurancePaid: 0,
-            yearsOwned: 0,
-          },
-        });
-
-        // Deduct purchase price and apply stress (no stress when switching to public transit)
-        const stressIncrease =
-          hadPreviousVehicle && vehicle.type !== 'public_transit' ? VEHICLE_CHANGE_STRESS : 0;
-        await tx.player.update({
-          where: { id: player.id },
-          data: {
-            money: { decrement: purchasePrice },
-            stress: { increment: stressIncrease },
-          },
-        });
-
-        return { created, stressIncrease };
-      });
-
-      const stressAdded = newOwnership.stressIncrease;
+      const stressAdded = newOwnership.stressAdded;
 
       await sendNotification(
         player.id,
@@ -356,7 +326,7 @@ router.post(
       });
 
       res.status(201).json({
-        ownership: newOwnership.created,
+        ownership: newOwnership.ownership,
         purchasePrice,
         stressAdded,
         forSpouse,

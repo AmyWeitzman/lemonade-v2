@@ -8,6 +8,8 @@ import {
   type ChildcarePlan,
   type PlayerTimeBlockInput,
 } from '../lib/timeBlocks';
+import { getRequiredActions } from '../lib/actionRequirements';
+import type { ParentContributions } from '../lib/playerInit';
 
 const router = Router();
 
@@ -28,15 +30,18 @@ const childcarePlanSchema = z.object({
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Get the player's current housing location from their active HousingOwnership record. */
-async function getPlayerHousingLocation(playerId: string): Promise<string> {
+/** Get the player's current housing location + type from their active HousingOwnership record. */
+async function getPlayerHousing(playerId: string): Promise<{ location: string; type?: string }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const active = await (prisma.housingOwnership as any).findFirst({
     where: { playerId, endAge: null },
-    select: { chosenLocation: true },
+    select: { chosenLocation: true, housing: { select: { type: true } } },
     orderBy: { startAge: 'desc' },
   });
-  return (active?.chosenLocation as string | undefined) ?? 'city';
+  return {
+    location: (active?.chosenLocation as string | undefined) ?? 'city',
+    type: active?.housing?.type as string | undefined,
+  };
 }
 
 // ─── GET /api/players/:id/time-blocks ─────────────────────────────────────────
@@ -53,6 +58,8 @@ router.get('/:id/time-blocks', authorize, async (req: Request, res: Response): P
         educations: true,
         children: true,
         pets: true,
+        housingOwnerships: { where: { endAge: null }, include: { housing: true } },
+        vehicleOwnerships: { where: { endAge: null } },
       },
     });
 
@@ -66,7 +73,7 @@ router.get('/:id/time-blocks', authorize, async (req: Request, res: Response): P
       return;
     }
 
-    const playerHousingLocation = await getPlayerHousingLocation(id);
+    const playerHousing = await getPlayerHousing(id);
 
     const spouse = player.spouse as {
       jobId?: string | null;
@@ -91,7 +98,8 @@ router.get('/:id/time-blocks', authorize, async (req: Request, res: Response): P
       })),
       children: player.children.map((c: { age: number }) => ({ age: c.age })),
       pets: player.pets.map((p: { isAlive: boolean }) => ({ isAlive: p.isAlive })),
-      playerHousingLocation,
+      playerHousingLocation: playerHousing.location,
+      playerHousingType: playerHousing.type,
       spouse: spouse ?? null,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       childcarePlan: ((player as any).childcarePlan as ChildcarePlan) ?? 'none',
@@ -113,7 +121,35 @@ router.get('/:id/time-blocks', authorize, async (req: Request, res: Response): P
       0,
     );
 
-    res.json({ breakdown, availableActivityBlocks, ptoRemaining, ptoTotal });
+    // Required actions this year (get housing / transportation) and the blocks
+    // reserved for them on the Actions page.
+    const session = await prisma.gameSession.findUnique({
+      where: { id: player.gameSessionId },
+      select: { currentYear: true },
+    });
+    const pc = (player as unknown as { parentContributions?: ParentContributions | null }).parentContributions ?? null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const activeHousing = (player as any).housingOwnerships?.[0];
+    const requiredActions = getRequiredActions({
+      currentYear: session?.currentYear ?? 0,
+      activeHousingType: activeHousing?.housing?.type ?? null,
+      parentMaxAge: pc ? pc.maxParentAge : undefined,
+      age: player.age,
+      couchSurfYearsUsed:
+        (player as unknown as { couchSurfYearsUsed?: number }).couchSurfYearsUsed ?? 0,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      hasVehicle: ((player as any).vehicleOwnerships ?? []).some((o: any) => !o.isSpouseVehicle),
+    });
+    const reservedBlocks = requiredActions.reduce((s, r) => s + r.blocks, 0);
+
+    res.json({
+      breakdown,
+      availableActivityBlocks,
+      ptoRemaining,
+      ptoTotal,
+      requiredActions,
+      reservedBlocks,
+    });
   } catch (err) {
     console.error('[timeblocks/get]', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -161,7 +197,7 @@ router.patch(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await prisma.player.update({ where: { id }, data: { childcarePlan: plan } as any });
 
-      const playerHousingLocation = await getPlayerHousingLocation(id);
+      const playerHousing = await getPlayerHousing(id);
 
       const spouse = player.spouse as {
         jobId?: string | null;
@@ -186,7 +222,8 @@ router.patch(
         })),
         children: player.children.map((c: { age: number }) => ({ age: c.age })),
         pets: player.pets.map((p: { isAlive: boolean }) => ({ isAlive: p.isAlive })),
-        playerHousingLocation,
+        playerHousingLocation: playerHousing.location,
+        playerHousingType: playerHousing.type,
         spouse: spouse ?? null,
         childcarePlan: plan,
       };

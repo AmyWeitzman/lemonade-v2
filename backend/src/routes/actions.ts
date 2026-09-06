@@ -21,11 +21,30 @@ import {
   checkActionEligibility,
   calculateActionCost,
   checkFrequencyLimit,
+  getSelectedOption,
+  resolveActionEffects,
+  actionRequiresPTO,
   ActionRow,
   PlayerForEligibility,
   ActionHistoryRecord,
 } from '../lib/actions';
-import { grantCertification } from '../lib/certifications';
+import { grantCertification, checkCertificationExpiry } from '../lib/certifications';
+import { acquireHousing } from '../lib/housingActions';
+import { acquireVehicle } from '../lib/vehicleActions';
+import {
+  GET_HOUSING_ACTION,
+  GET_TRANSPORT_ACTION,
+  resolveGetHousing,
+  resolveGetTransportation,
+  type ResolveHousingResult,
+  type ResolveVehicleResult,
+} from '../lib/acquisitionActions';
+import type { HousingRow } from '../lib/housing';
+import type { VehicleRow } from '../lib/vehicles';
+import type { InflationRates } from '../lib/inflation';
+import type { ParentContributions } from '../lib/playerInit';
+import { getRequiredActions, type RequiredAction } from '../lib/actionRequirements';
+import { getMandatoryExpensesTotal } from '../lib/expenses';
 import { Prisma } from '@prisma/client';
 
 const router = Router();
@@ -47,7 +66,7 @@ async function fetchFullPlayer(userId: string, gameSessionId: string) {
   return prisma.player.findUnique({
     where: { userId_gameSessionId: { userId, gameSessionId } },
     include: {
-      educations: true,
+      educations: { include: { program: true } },
       housingOwnerships: { include: { housing: true } },
       employments: { include: { job: true } },
       children: true,
@@ -63,6 +82,21 @@ function asExtended(player: FullPlayer): ExtendedPlayer {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Format a dollar amount for player-facing messages: thousands separators, and
+ * cents only when the amount isn't a whole number (e.g. "$1,300" or "$1,172.50").
+ */
+function formatMoney(amount: number): string {
+  const rounded = Math.round(amount * 100) / 100;
+  return (
+    '$' +
+    rounded.toLocaleString('en-US', {
+      minimumFractionDigits: Number.isInteger(rounded) ? 0 : 2,
+      maximumFractionDigits: 2,
+    })
+  );
+}
+
 function buildEligibilityPlayer(player: FullPlayer, currentYear?: number): PlayerForEligibility {
   const p = asExtended(player);
   return {
@@ -77,9 +111,11 @@ function buildEligibilityPlayer(player: FullPlayer, currentYear?: number): Playe
     educations: p.educations.map((e) => ({
       isActive: e.isActive,
       graduated: e.graduated,
+      programType: e.program.type,
     })),
     housingOwnerships: p.housingOwnerships.map((h) => ({
       endAge: h.endAge,
+      housingName: h.housing.name,
       improvements: h.improvements,
     })),
     employments: p.employments.map((e) => ({
@@ -110,9 +146,45 @@ function getActiveJobTitles(player: FullPlayer): string[] {
   return player.employments.filter((e) => e.isActive).map((e) => e.job.title);
 }
 
+/** Purchase price / years owned of the player's current active home, for percent-of-home-value costs. */
+function getHomeValueContext(player: FullPlayer): { originalHomeValue: number; yearsOwned: number } {
+  const activeHome = player.housingOwnerships.find((h) => h.endAge === null);
+  return {
+    originalHomeValue: activeHome?.purchasePrice ?? 0,
+    yearsOwned: activeHome?.yearsLived ?? 0,
+  };
+}
+
 function playerHasBike(player: FullPlayer): boolean {
   return player.vehicleOwnerships.some(
     (v) => v.endAge === null && v.vehicle.type === 'bike',
+  );
+}
+
+/** Actions the player MUST do this year (get housing / transportation). */
+function computeRequiredActions(player: FullPlayer, currentYear: number): RequiredAction[] {
+  const activeHousing = player.housingOwnerships.find((h) => h.endAge === null);
+  const pc = player.parentContributions as ParentContributions | null;
+  return getRequiredActions({
+    currentYear,
+    activeHousingType: activeHousing?.housing?.type ?? null,
+    parentMaxAge: pc ? pc.maxParentAge : undefined,
+    age: player.age,
+    couchSurfYearsUsed:
+      (player as unknown as { couchSurfYearsUsed?: number }).couchSurfYearsUsed ?? 0,
+    hasVehicle: player.vehicleOwnerships.some((o) => o.endAge === null && !o.isSpouseVehicle),
+  });
+}
+
+/** Annual rent of the cheapest rental in the catalog (for couch-surf eligibility). */
+async function getCheapestRentAnnual(): Promise<number> {
+  const rentals = await prisma.housing.findMany({
+    where: { isRental: true, rentPerYear: { gt: 0 } },
+    select: { rentPerYear: true },
+  });
+  return rentals.reduce(
+    (m, r) => Math.min(m, r.rentPerYear ?? Number.POSITIVE_INFINITY),
+    Number.POSITIVE_INFINITY,
   );
 }
 
@@ -141,6 +213,7 @@ function getAvailableTimeBlocks(player: FullPlayer): number {
     children: p.children.map((c) => ({ age: c.age })),
     pets: p.pets.map((pt) => ({ isAlive: pt.isAlive })),
     playerHousingLocation: p.location,
+    playerHousingType: p.housingOwnerships.find((h) => h.endAge === null)?.housing?.type,
     spouse: spouse
       ? {
           jobId: spouse.jobId ?? null,
@@ -155,8 +228,12 @@ function getAvailableTimeBlocks(player: FullPlayer): number {
   return breakdown.activities;
 }
 
-function calculateLemonsEarned(action: ActionRow, timeBlocks: number): number {
-  const effects = (action.effects ?? {}) as Record<string, unknown>;
+function calculateLemonsEarned(
+  action: ActionRow,
+  timeBlocks: number,
+  effectsOverride?: Record<string, unknown>,
+): number {
+  const effects = effectsOverride ?? ((action.effects ?? {}) as Record<string, unknown>);
   let lemons = 0;
   if (typeof effects.lemons === 'number') lemons += effects.lemons;
   if (typeof effects.lemonsPerBlock === 'number') lemons += effects.lemonsPerBlock * timeBlocks;
@@ -167,8 +244,9 @@ function calculateLemonsEarned(action: ActionRow, timeBlocks: number): number {
 function calculateHealthDelta(
   action: ActionRow,
   timeBlocks: number,
+  effectsOverride?: Record<string, unknown>,
 ): { temporary: number; permanent: number } {
-  const effects = (action.effects ?? {}) as Record<string, unknown>;
+  const effects = effectsOverride ?? ((action.effects ?? {}) as Record<string, unknown>);
   let temporary = 0;
   let permanent = 0;
   if (typeof effects.health === 'number') permanent += effects.health;
@@ -176,8 +254,12 @@ function calculateHealthDelta(
   return { temporary, permanent };
 }
 
-function calculateStressDelta(action: ActionRow, timeBlocks: number): number {
-  const effects = (action.effects ?? {}) as Record<string, unknown>;
+function calculateStressDelta(
+  action: ActionRow,
+  timeBlocks: number,
+  effectsOverride?: Record<string, unknown>,
+): number {
+  const effects = effectsOverride ?? ((action.effects ?? {}) as Record<string, unknown>);
   let stress = 0;
   if (typeof effects.stress === 'number') stress += effects.stress;
   if (typeof effects.stressPerBlock === 'number') stress += effects.stressPerBlock * timeBlocks;
@@ -187,8 +269,9 @@ function calculateStressDelta(action: ActionRow, timeBlocks: number): number {
 function calculateAttributeGains(
   action: ActionRow,
   timeBlocks: number,
+  effectsOverride?: Record<string, unknown>,
 ): { skills: Record<string, number>; traits: Record<string, number> } {
-  const effects = (action.effects ?? {}) as Record<string, unknown>;
+  const effects = effectsOverride ?? ((action.effects ?? {}) as Record<string, unknown>);
   const skills: Record<string, number> = {};
   const traits: Record<string, number> = {};
 
@@ -217,6 +300,40 @@ function calculateAttributeGains(
   return { skills, traits };
 }
 
+/**
+ * Resolve the authoritative activity/PTO blocks for a cart item. When the
+ * selected option defines its own timeBlocks (e.g. Study Abroad's sightseeing
+ * variants), that value wins over whatever the client submitted so cost/time
+ * can't be desynced from the chosen variant.
+ */
+function resolveCartItemBlocks(
+  action: ActionRow,
+  item: { timeBlocks: number; ptoBlocks?: number; selectedOption?: string },
+): { activityBlocks: number; ptoBlocks: number } {
+  const opt = getSelectedOption(action, item.selectedOption);
+  // Actions that don't allow PTO (e.g. school/gig actions) can't have any of
+  // their blocks marked as PTO, regardless of what the client submits.
+  const ptoBlocks = action.allowsPTO === false ? 0 : (item.ptoBlocks ?? 0);
+  const activityBlocks =
+    opt?.timeBlocks !== undefined
+      ? opt.timeBlocks
+      : item.timeBlocks > 0
+        ? item.timeBlocks
+        : Math.max(0, action.minTimeBlocks - ptoBlocks);
+  return { activityBlocks, ptoBlocks };
+}
+
+/** Resolve the authoritative cost for a cart item, honoring a selected option's fixed cost override. */
+function resolveCartItemCost(
+  action: ActionRow,
+  item: { selectedOption?: string },
+  costInput: Omit<Parameters<typeof calculateActionCost>[0], 'action'>,
+): number {
+  const opt = getSelectedOption(action, item.selectedOption);
+  if (opt?.cost !== undefined) return opt.cost;
+  return calculateActionCost({ action, ...costInput });
+}
+
 // ─── Validation Schemas ───────────────────────────────────────────────────────
 
 const listActionsSchema = z.object({
@@ -243,15 +360,39 @@ const executeActionsSchema = z.object({
         actionId: z.string().min(1),
         timeBlocks: z.number().int().min(0),
         ptoBlocks: z.number().int().min(0).default(0),
+        selectedOption: z.string().optional(),
+        // "Get Housing" / "Get Transportation" carry the chosen home / vehicle.
+        selectedHousingId: z.string().optional(),
+        housingLocation: z.enum(['city', 'suburb']).optional(),
+        selectedVehicleId: z.string().optional(),
       }),
     )
     .min(1),
 });
 
+// Query-string transport: these arrive as JSON-encoded strings over GET, but may
+// also be passed as real objects (e.g. from a JSON body), so accept either.
+const jsonQueryRecord = <V extends z.ZodTypeAny>(valueSchema: V) =>
+  z.preprocess((val) => {
+    if (typeof val === 'string') {
+      try {
+        return JSON.parse(val);
+      } catch {
+        return val;
+      }
+    }
+    return val;
+  }, z.record(z.string(), valueSchema)).optional();
+
 const validateCartSchema = z.object({
   gameSessionId: z.string().min(1),
   actionIds: z.array(z.string().min(1)).min(1),
-  quantities: z.record(z.string(), z.number().int().min(1)).optional(),
+  quantities: jsonQueryRecord(z.number().int().min(1)),
+  selectedOptions: jsonQueryRecord(z.string()),
+  // actionId -> chosen housing / vehicle id for "Get Housing" / "Get Transportation"
+  selectedHousingIds: jsonQueryRecord(z.string()),
+  housingLocations: jsonQueryRecord(z.string()),
+  selectedVehicleIds: jsonQueryRecord(z.string()),
 });
 
 // ─── GET /api/actions ─────────────────────────────────────────────────────────
@@ -295,6 +436,7 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     const familySize = getFamilySize(player);
     const jobTitles = getActiveJobTitles(player);
     const hasBike = playerHasBike(player);
+    const homeValueContext = getHomeValueContext(player);
 
     let actions = allActions;
 
@@ -342,6 +484,7 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
           playerJobTitles: jobTitles,
           hasInsurance: player.hasHealthInsurance,
           hasBike,
+          ...homeValueContext,
         });
         return cost <= maxCost;
       });
@@ -382,10 +525,12 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
         playerJobTitles: jobTitles,
         hasInsurance: player.hasHealthInsurance,
         hasBike,
+        ...homeValueContext,
       });
       const lemons = calculateLemonsEarned(a, a.minTimeBlocks);
       return {
         ...a,
+        requiresPTO: actionRequiresPTO(a, eligPlayer),
         eligible: eligResult.eligible,
         eligibilityReasons: eligResult.reasons,
         calculatedCost: cost,
@@ -457,6 +602,7 @@ router.get('/search', authorize, async (req: Request, res: Response): Promise<vo
         const familySize = getFamilySize(player);
         const jobTitles = getActiveJobTitles(player);
         const hasBike = playerHasBike(player);
+        const homeValueContext = getHomeValueContext(player);
 
         const annotated = actions.map((a) => {
           const eligResult = checkActionEligibility(a, eligPlayer);
@@ -468,9 +614,11 @@ router.get('/search', authorize, async (req: Request, res: Response): Promise<vo
             playerJobTitles: jobTitles,
             hasInsurance: player.hasHealthInsurance,
             hasBike,
+            ...homeValueContext,
           });
           return {
             ...a,
+            requiresPTO: actionRequiresPTO(a, eligPlayer),
             eligible: eligResult.eligible,
             eligibilityReasons: eligResult.reasons,
             calculatedCost: cost,
@@ -501,7 +649,15 @@ router.get(
       return;
     }
 
-    const { gameSessionId, actionIds, quantities } = result.data;
+    const {
+      gameSessionId,
+      actionIds,
+      quantities,
+      selectedOptions,
+      selectedHousingIds,
+      housingLocations,
+      selectedVehicleIds,
+    } = result.data;
 
     try {
       const player = await fetchFullPlayer(req.user!.userId, gameSessionId);
@@ -515,18 +671,26 @@ router.get(
 
       const session = await prisma.gameSession.findUnique({
         where: { id: gameSessionId },
-        select: { currentYear: true },
+        select: { currentYear: true, inflationRates: true },
       });
       const currentYear = session?.currentYear ?? 0;
+      const cheapestRentAnnual = await getCheapestRentAnnual();
+      const couchYears = (player as unknown as { couchSurfYearsUsed?: number }).couchSurfYearsUsed ?? 0;
 
       const eligPlayer = buildEligibilityPlayer(player, currentYear);
       const familySize = getFamilySize(player);
       const jobTitles = getActiveJobTitles(player);
       const hasBike = playerHasBike(player);
+      const homeValueContext = getHomeValueContext(player);
       const availableTimeBlocks = getAvailableTimeBlocks(player);
-      const availableMoney = player.money + player.projectedIncome;
+      // Affordability is based on actual cash on hand, not projected future income —
+      // otherwise checkout could succeed and drive the player's real balance negative.
+      const availableMoney = player.money;
       let totalTimeBlocks = 0;
       let totalCost = 0;
+      const errors: string[] = [];
+      const resolvedHousing: Array<Extract<ResolveHousingResult, { housing: HousingRow }>> = [];
+      const resolvedVehicles: Array<Extract<ResolveVehicleResult, { vehicle: VehicleRow }>> = [];
 
       for (const actionId of actionIds) {
         const action = actions.find((a) => a.id === actionId);
@@ -536,11 +700,57 @@ router.get(
         }
 
         const qty = quantities?.[actionId] ?? 1;
-        const tb = action.minTimeBlocks;
+        const selectedOption = selectedOptions?.[actionId];
+        const { activityBlocks: tb } = resolveCartItemBlocks(action, { timeBlocks: 0, selectedOption });
 
         const eligResult = checkActionEligibility(action, eligPlayer);
         if (!eligResult.eligible) {
           errors.push(`${action.name}: ${eligResult.reasons[0]}`);
+        }
+
+        // "Get Housing" / "Get Transportation" — validate the chosen home / vehicle
+        if (action.name === GET_HOUSING_ACTION) {
+          const housing = selectedHousingIds?.[actionId]
+            ? ((await prisma.housing.findUnique({ where: { id: selectedHousingIds[actionId] } })) as unknown as HousingRow | null)
+            : null;
+          const r = resolveGetHousing({
+            housing,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            player: { ...(player as any), couchSurfYearsUsed: couchYears },
+            cheapestRentAnnual,
+            projectedIncome: player.projectedIncome,
+            requestedLocation: housingLocations?.[actionId],
+            inflationRates: (session?.inflationRates as unknown as InflationRates[]) ?? [],
+            currentYear,
+          });
+          if ('error' in r) errors.push(r.error);
+          else resolvedHousing.push(r);
+        } else if (action.name === GET_TRANSPORT_ACTION) {
+          const vehicle = selectedVehicleIds?.[actionId]
+            ? ((await prisma.vehicle.findUnique({ where: { id: selectedVehicleIds[actionId] } })) as unknown as VehicleRow | null)
+            : null;
+          const r = resolveGetTransportation({
+            vehicle,
+            player: {
+              age: player.age,
+              location: player.location,
+              maritalStatus: player.maritalStatus,
+              children: player.children.map((c) => ({ age: c.age })),
+              spouse: player.spouse,
+              employments: player.employments.map((e) => ({
+                isActive: e.isActive,
+                job: { title: e.job.title, benefits: e.job.benefits },
+              })),
+              money: player.money,
+              vehicleOwnerships: player.vehicleOwnerships.map((o) => ({
+                id: o.id,
+                endAge: o.endAge,
+                isSpouseVehicle: o.isSpouseVehicle,
+              })),
+            },
+          });
+          if ('error' in r) errors.push(r.error);
+          else resolvedVehicles.push(r);
         }
 
         const history = await prisma.actionHistory.findUnique({
@@ -549,26 +759,67 @@ router.get(
         const freqError = checkFrequencyLimit(action, history as ActionHistoryRecord | null);
         if (freqError) errors.push(freqError);
 
-        const cost = calculateActionCost({
-          action,
+        const cost = resolveCartItemCost(action, { selectedOption }, {
           timeBlocks: tb,
           familySize,
           playerAge: player.age,
           playerJobTitles: jobTitles,
           hasInsurance: player.hasHealthInsurance,
           hasBike,
+          ...homeValueContext,
         });
 
         totalTimeBlocks += tb * qty;
         totalCost += cost * qty;
       }
 
-      if (totalTimeBlocks > availableTimeBlocks) {
-        errors.push(`Not enough time blocks: need ${totalTimeBlocks}, have ${availableTimeBlocks}`);
+      // Reserve time blocks for required actions not yet in the cart.
+      const requiredActions = computeRequiredActions(player, currentYear);
+      const cartActionNames = new Set(
+        actionIds.map((id) => actions.find((a) => a.id === id)?.name).filter(Boolean) as string[],
+      );
+      const unmetRequired = requiredActions.filter((r) => !cartActionNames.has(r.actionName));
+      const reservedBlocks = unmetRequired.reduce((s, r) => s + r.blocks, 0);
+
+      if (totalTimeBlocks + reservedBlocks > availableTimeBlocks) {
+        if (reservedBlocks > 0) {
+          errors.push(
+            `${reservedBlocks} time block${reservedBlocks === 1 ? ' is' : 's are'} set aside for a required action (${unmetRequired
+              .map((r) => r.actionName)
+              .join(', ')}). Remove something from your plan or add that action.`,
+          );
+        } else {
+          errors.push(
+            `This cart uses ${totalTimeBlocks} time blocks, but you only have ${availableTimeBlocks} available. Reduce or remove an item to continue.`,
+          );
+        }
       }
-      if (totalCost > availableMoney) {
+      // "Get Housing"/"Get Transportation" can't be done more than once a year.
+      for (const actionId of actionIds) {
+        const action = actions.find((a) => a.id === actionId);
+        if (
+          action &&
+          (action.name === GET_HOUSING_ACTION || action.name === GET_TRANSPORT_ACTION) &&
+          (quantities?.[actionId] ?? 1) > 1
+        ) {
+          errors.push(`${action.name} can only be done once per year.`);
+        }
+      }
+
+      // Combined up-front cost: action costs + home purchase + vehicle purchase,
+      // minus proceeds from selling the player's current owned home.
+      const housingUpFront = resolvedHousing.reduce((s, r) => s + r.purchasePrice - r.saleProceeds, 0);
+      const vehiclePurchase = resolvedVehicles.reduce((s, r) => s + r.purchasePrice, 0);
+      const upFront = totalCost + Math.max(0, housingUpFront) + vehiclePurchase;
+      if (Math.max(0, housingUpFront) + vehiclePurchase > 0) {
+        if (upFront > availableMoney) {
+          errors.push(
+            `Your plan needs ${formatMoney(upFront)} up front (including the home / vehicle purchase). You have ${formatMoney(availableMoney)} — take a loan on the Finances page to cover the rest.`,
+          );
+        }
+      } else if (totalCost > availableMoney) {
         errors.push(
-          `Not enough money: need $${totalCost.toFixed(2)}, have $${availableMoney.toFixed(2)}`,
+          `This cart costs ${formatMoney(totalCost)}, but you only have ${formatMoney(availableMoney)}. Reduce or remove an item to continue.`,
         );
       }
 
@@ -579,6 +830,8 @@ router.get(
         totalCost,
         availableMoney,
         errors,
+        requiredActions,
+        reservedBlocks,
       });
     } catch (err) {
       console.error('[actions/cart/validate]', err);
@@ -586,6 +839,82 @@ router.get(
     }
   },
 );
+
+// ─── GET /api/actions/recommended ────────────────────────────────────────────
+// Lightweight "you should probably do this" list for the Actions page.
+
+router.get('/recommended', authorize, async (req: Request, res: Response): Promise<void> => {
+  const gameSessionId = req.query.gameSessionId as string | undefined;
+  if (!gameSessionId) {
+    res.status(400).json({ error: 'gameSessionId is required' });
+    return;
+  }
+  try {
+    const player = await fetchFullPlayer(req.user!.userId, gameSessionId);
+    if (!player) {
+      res.status(404).json({ error: 'Player not found in this session' });
+      return;
+    }
+    const session = await prisma.gameSession.findUnique({
+      where: { id: gameSessionId },
+      select: { currentYear: true },
+    });
+    const currentYear = session?.currentYear ?? 0;
+
+    const recs: Array<{ actionName: string; reason: string; severity: 'info' | 'warning'; link: string }> = [];
+
+    // Required this year → strongly recommend.
+    for (const r of computeRequiredActions(player, currentYear)) {
+      recs.push({ actionName: r.actionName, reason: r.reason, severity: 'warning', link: '/actions' });
+    }
+
+    // No job + projected to end the year in the red → find a job.
+    const hasJob = player.employments.some((e) => e.isActive);
+    const spouse = player.spouse as { salary?: number } | null;
+    const spouseIncome = player.maritalStatus === 'married' ? (spouse?.salary ?? 0) : 0;
+    if (!hasJob && spouseIncome === 0) {
+      const mandatoryExpenses = await getMandatoryExpensesTotal(player.id);
+      const projectedEndOfYear = player.money + player.projectedIncome - mandatoryExpenses;
+      if (projectedEndOfYear < 1000) {
+        recs.push({
+          actionName: 'Find a Job',
+          reason:
+            projectedEndOfYear < 0
+              ? `After this year's expenses you're projected to be ${formatMoney(-projectedEndOfYear)} in the hole — you need income.`
+              : "Money will be tight after this year's expenses — a job would give you breathing room.",
+          severity: 'warning',
+          link: '/jobs',
+        });
+      }
+    }
+
+    // Expired CPR → renew it (needed for some jobs and actions).
+    if (checkCertificationExpiry(player, currentYear).some((c) => c.type === 'cpr')) {
+      recs.push({
+        actionName: 'Get CPR Certification',
+        reason: 'Your CPR certification has expired — renew it to stay eligible for the jobs and actions that require it.',
+        severity: 'info',
+        link: '/actions',
+      });
+    }
+
+    // Idle activity blocks → relax (avoids wasting the year).
+    const availableBlocks = getAvailableTimeBlocks(player);
+    if (availableBlocks >= 4) {
+      recs.push({
+        actionName: 'Relax',
+        reason: `You have ${availableBlocks} unused time blocks — spend them on something before the year ends.`,
+        severity: 'info',
+        link: '/actions',
+      });
+    }
+
+    res.json({ recommendations: recs });
+  } catch (err) {
+    console.error('[actions/recommended]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // ─── POST /api/actions/execute ────────────────────────────────────────────────
 
@@ -619,6 +948,7 @@ router.post(
         where: { id: gameSessionId },
         select: {
           currentYear: true,
+          inflationRates: true,
           pitcherCurrentLemons: true,
           pitcherContributionsByPlayer: true,
           pitcherYearlyGoal: true,
@@ -634,8 +964,11 @@ router.post(
       const familySize = getFamilySize(player);
       const jobTitles = getActiveJobTitles(player);
       const hasBike = playerHasBike(player);
+      const homeValueContext = getHomeValueContext(player);
       const availableTimeBlocks = getAvailableTimeBlocks(player);
-      const availableMoney = player.money + player.projectedIncome;
+      // Affordability is based on actual cash on hand, not projected future income —
+      // otherwise checkout could succeed and drive the player's real balance negative.
+      const availableMoney = player.money;
 
       // ── Pre-validate ──────────────────────────────────────────────────────
 
@@ -656,6 +989,19 @@ router.post(
       let totalTimeBlocks = 0;
       let totalPtoBlocks = 0;
       let totalCost = 0;
+
+      // Reject doing a "once per year" action more than once in a single checkout
+      // (the frontend expands cart quantity into repeated entries).
+      const perActionCount = new Map<string, number>();
+      for (const item of cartItems) {
+        perActionCount.set(item.actionId, (perActionCount.get(item.actionId) ?? 0) + 1);
+      }
+      for (const [aid, n] of perActionCount) {
+        const a = actionMap.get(aid);
+        if (n > 1 && a && ['once_per_year', 'once_per_two_years'].includes(a.frequency)) {
+          validationErrors.push(`${a.name} can only be done once${a.frequency === 'once_per_two_years' ? ' every two years' : ' per year'}.`);
+        }
+      }
 
       // Total PTO available across all active employments
       const totalPtoAvailable = player.employments
@@ -678,8 +1024,12 @@ router.post(
         const freqError = checkFrequencyLimit(action, history);
         if (freqError) validationErrors.push(freqError);
 
-        const ptoBlocks = item.ptoBlocks ?? 0;
-        const tb = item.timeBlocks > 0 ? item.timeBlocks : (action.minTimeBlocks - ptoBlocks);
+        const userInput = action.userInput as { options?: Array<{ value: string }> } | null;
+        if (userInput?.options?.length && !getSelectedOption(action, item.selectedOption)) {
+          validationErrors.push(`${action.name}: a plan must be selected`);
+        }
+
+        const { activityBlocks: tb, ptoBlocks } = resolveCartItemBlocks(action, item);
         const totalItemBlocks = tb + ptoBlocks;
 
         if (action.minTimeBlocks > 0 && totalItemBlocks < action.minTimeBlocks) {
@@ -689,44 +1039,120 @@ router.post(
           validationErrors.push(`${action.name}: maximum ${action.maxTimeBlocks} time blocks allowed`);
         }
 
-        // Required-PTO actions must use PTO
-        const reqs = (action.requirements ?? {}) as Record<string, unknown>;
-        const requiresPTO =
-          action.requiresPTO ||
-          reqs.hasPTOOrUnpaidTimeBlocks === true ||
-          reqs.hasPTODaysAvailable === true ||
-          (typeof reqs.ptoOrUnpaidTimeBlocks === 'number' && reqs.ptoOrUnpaidTimeBlocks > 0);
+        // Required-PTO actions must use PTO (unless the player is exempt — no job, not in school)
+        const requiresPTO = actionRequiresPTO(action, eligPlayer);
         if (requiresPTO && ptoBlocks < action.minTimeBlocks) {
           validationErrors.push(`${action.name}: requires PTO blocks`);
         }
 
         totalTimeBlocks += tb;
         totalPtoBlocks += ptoBlocks;
-        totalCost += calculateActionCost({
-          action,
+        totalCost += resolveCartItemCost(action, item, {
           timeBlocks: totalItemBlocks,
           familySize,
           playerAge: player.age,
           playerJobTitles: jobTitles,
           hasInsurance: player.hasHealthInsurance,
           hasBike,
+          ...homeValueContext,
         });
       }
 
-      if (totalTimeBlocks > availableTimeBlocks) {
+      // Reserve time blocks for required actions not being done in this checkout.
+      const requiredActions = computeRequiredActions(player, currentYear);
+      const cartActionNames = new Set(
+        cartItems.map((c) => actionMap.get(c.actionId)?.name).filter(Boolean) as string[],
+      );
+      const unmetRequired = requiredActions.filter((r) => !cartActionNames.has(r.actionName));
+      const reservedBlocks = unmetRequired.reduce((s, r) => s + r.blocks, 0);
+
+      if (totalTimeBlocks + reservedBlocks > availableTimeBlocks) {
         validationErrors.push(
-          `Not enough time blocks: need ${totalTimeBlocks}, have ${availableTimeBlocks}`,
+          reservedBlocks > 0
+            ? `${reservedBlocks} time block${reservedBlocks === 1 ? ' is' : 's are'} set aside for a required action (${unmetRequired
+                .map((r) => r.actionName)
+                .join(', ')}). Remove something or add that action to your plan.`
+            : `This cart uses ${totalTimeBlocks} time blocks, but you only have ${availableTimeBlocks} available. Reduce or remove an item to continue.`,
         );
       }
       if (totalPtoBlocks > totalPtoAvailable) {
         validationErrors.push(
-          `Not enough PTO: need ${totalPtoBlocks}, have ${totalPtoAvailable}`,
+          `This cart uses ${totalPtoBlocks} PTO blocks, but you only have ${totalPtoAvailable} available. Reduce or remove an item to continue.`,
         );
       }
       if (totalCost > availableMoney) {
         validationErrors.push(
-          `Not enough money: need $${totalCost.toFixed(2)}, have $${availableMoney.toFixed(2)}`,
+          `This cart costs ${formatMoney(totalCost)}, but you only have ${formatMoney(availableMoney)}. Reduce or remove an item to continue.`,
         );
+      }
+
+      // ── "Get Housing" / "Get Transportation" — resolve the player's choice ──
+      const housingResolved = new Map<string, Extract<ResolveHousingResult, { housing: HousingRow }>>();
+      const vehicleResolved = new Map<string, Extract<ResolveVehicleResult, { vehicle: VehicleRow }>>();
+      {
+        const cheapestRentAnnual = await getCheapestRentAnnual();
+        const couchYears = (player as unknown as { couchSurfYearsUsed?: number }).couchSurfYearsUsed ?? 0;
+        for (const item of cartItems) {
+          const action = actionMap.get(item.actionId);
+          if (!action) continue;
+          if (action.name === GET_HOUSING_ACTION) {
+            const housing = item.selectedHousingId
+              ? ((await prisma.housing.findUnique({ where: { id: item.selectedHousingId } })) as unknown as HousingRow | null)
+              : null;
+            const r = resolveGetHousing({
+              housing,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              player: { ...(player as any), couchSurfYearsUsed: couchYears },
+              cheapestRentAnnual,
+              projectedIncome: player.projectedIncome,
+              requestedLocation: item.housingLocation,
+              inflationRates: (session.inflationRates as unknown as InflationRates[]) ?? [],
+              currentYear,
+            });
+            if ('error' in r) validationErrors.push(r.error);
+            else housingResolved.set(item.actionId, r);
+          } else if (action.name === GET_TRANSPORT_ACTION) {
+            const vehicle = item.selectedVehicleId
+              ? ((await prisma.vehicle.findUnique({ where: { id: item.selectedVehicleId } })) as unknown as VehicleRow | null)
+              : null;
+            const r = resolveGetTransportation({
+              vehicle,
+              player: {
+                age: player.age,
+                location: player.location,
+                maritalStatus: player.maritalStatus,
+                children: player.children.map((c) => ({ age: c.age })),
+                spouse: player.spouse,
+                employments: player.employments.map((e) => ({
+                  isActive: e.isActive,
+                  job: { title: e.job.title, benefits: e.job.benefits },
+                })),
+                money: player.money,
+                vehicleOwnerships: player.vehicleOwnerships.map((o) => ({
+                  id: o.id,
+                  endAge: o.endAge,
+                  isSpouseVehicle: o.isSpouseVehicle,
+                })),
+              },
+            });
+            if ('error' in r) validationErrors.push(r.error);
+            else vehicleResolved.set(item.actionId, r);
+          }
+        }
+
+        // Combined up-front cost: action costs + home purchase + vehicle purchase,
+        // minus proceeds from selling the player's current owned home.
+        const housingUpFront = [...housingResolved.values()].reduce(
+          (s, r) => s + r.purchasePrice - r.saleProceeds,
+          0,
+        );
+        const vehiclePurchase = [...vehicleResolved.values()].reduce((s, r) => s + r.purchasePrice, 0);
+        const extraUpFront = Math.max(0, housingUpFront) + vehiclePurchase;
+        if (extraUpFront > 0 && totalCost + extraUpFront > availableMoney) {
+          validationErrors.push(
+            `Your plan needs ${formatMoney(totalCost + extraUpFront)} up front (including the home / vehicle purchase). You have ${formatMoney(availableMoney)} — take a loan on the Finances page first.`,
+          );
+        }
       }
 
       if (validationErrors.length > 0) {
@@ -746,16 +1172,17 @@ router.post(
       // Compute all deltas before the transaction
       for (const item of cartItems) {
         const action = actionMap.get(item.actionId)!;
-        const ptoBlocks = item.ptoBlocks ?? 0;
-        const tb = (item.timeBlocks > 0 ? item.timeBlocks : action.minTimeBlocks - ptoBlocks) + ptoBlocks;
+        const { activityBlocks, ptoBlocks } = resolveCartItemBlocks(action, item);
+        const tb = activityBlocks + ptoBlocks;
+        const itemEffects = resolveActionEffects(action, item.selectedOption);
 
-        totalLemonsEarned += calculateLemonsEarned(action, tb);
-        const { temporary, permanent } = calculateHealthDelta(action, tb);
+        totalLemonsEarned += calculateLemonsEarned(action, tb, itemEffects);
+        const { temporary, permanent } = calculateHealthDelta(action, tb, itemEffects);
         healthDeltaTemp += temporary;
         healthDeltaPerm += permanent;
-        stressDelta += calculateStressDelta(action, tb);
+        stressDelta += calculateStressDelta(action, tb, itemEffects);
 
-        const { skills, traits } = calculateAttributeGains(action, tb);
+        const { skills, traits } = calculateAttributeGains(action, tb, itemEffects);
         for (const [k, v] of Object.entries(skills)) skillGains[k] = (skillGains[k] ?? 0) + v;
         for (const [k, v] of Object.entries(traits)) traitGains[k] = (traitGains[k] ?? 0) + v;
       }
@@ -823,19 +1250,18 @@ router.post(
         // Upsert action history for each cart item
         for (const item of cartItems) {
           const action = actionMap.get(item.actionId)!;
-          const ptoBlocks = item.ptoBlocks ?? 0;
-          const activityBlocks = item.timeBlocks > 0 ? item.timeBlocks : Math.max(0, action.minTimeBlocks - ptoBlocks);
+          const { activityBlocks, ptoBlocks } = resolveCartItemBlocks(action, item);
           const tb = activityBlocks + ptoBlocks;
-          const cost = calculateActionCost({
-            action,
+          const cost = resolveCartItemCost(action, item, {
             timeBlocks: tb,
             familySize,
             playerAge: player.age,
             playerJobTitles: jobTitles,
             hasInsurance: player.hasHealthInsurance,
             hasBike,
+            ...homeValueContext,
           });
-          const lemons = calculateLemonsEarned(action, tb);
+          const lemons = calculateLemonsEarned(action, tb, resolveActionEffects(action, item.selectedOption));
 
           await tx.actionHistory.upsert({
             where: {
@@ -860,6 +1286,33 @@ router.post(
               totalTimeBlocks: { increment: tb },
               lemonsEarned: { increment: lemons },
             },
+          });
+        }
+
+        // ── Acquire housing / vehicles for "Get Housing" / "Get Transportation" ──
+        // Stress from these is already in the action effects, so applyMoveStress
+        // / applyChangeStress are false here.
+        for (const [, r] of housingResolved) {
+          await acquireHousing(tx, {
+            player,
+            housing: r.housing,
+            housingId: r.housing.id,
+            resolvedLocation: r.resolvedLocation,
+            currentOwnership: r.currentOwnership,
+            inflationRates: (session.inflationRates as unknown as InflationRates[]) ?? [],
+            currentYear,
+            applyMoveStress: false,
+          });
+        }
+        for (const [, r] of vehicleResolved) {
+          await acquireVehicle(tx, {
+            player: { id: player.id, age: player.age },
+            vehicleId: r.vehicle.id,
+            vehicleType: r.vehicle.type,
+            purchasePrice: r.purchasePrice,
+            forSpouse: false,
+            currentOwnershipId: r.currentOwnershipId,
+            applyChangeStress: false,
           });
         }
 

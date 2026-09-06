@@ -22,21 +22,15 @@ import { validatePlayerAlive } from '../middleware/validatePlayerAlive';
 import { getIO } from '../socket';
 import { sendNotification } from '../lib/yearCycle';
 import {
-  calculateTaxes,
-  calculateTaxPreparationFee,
   applyLoanInterest,
   applyRetirementInterest,
   calculateExpenseForecast,
-  type TaxBracket,
+  calculateCreditLimit,
+  sumLoanBalances,
 } from '../lib/financials';
-import { calculateAnnualVehicleCosts, type VehicleRow } from '../lib/vehicles';
-import { calculateAnnualHousingCosts, type HousingRow, type HomeImprovement } from '../lib/housing';
-import { CHILDCARE_COSTS } from '../lib/timeBlocks';
-import { getJobBenefits } from '../lib/jobs';
-import { getAccumulatedMultiplier, type InflationRates } from '../lib/inflation';
-
-const CPR_RENEWAL_COST = 75;
-const CPR_RENEWAL_INTERVAL_YEARS = 2;
+import { getRequiredActions } from '../lib/actionRequirements';
+import type { ParentContributions } from '../lib/playerInit';
+import { calculateMandatoryExpenses } from '../lib/expenses';
 
 const router = Router();
 
@@ -82,330 +76,29 @@ async function fetchFullPlayer(userId: string, gameSessionId: string) {
   });
 }
 
-/** Count household members: player + spouse (if married) + kids under 18 */
-function countHousehold(player: FullPlayer): number {
-  const kidsUnder18 = player.children.filter((c) => c.age < 18).length;
-  const spouseCount = player.maritalStatus === 'married' ? 1 : 0;
-  return 1 + spouseCount + kidsUnder18;
-}
-
-/** Check if player or spouse has accounting experience (waives tax prep fee) */
-function hasAccountingExperience(player: FullPlayer): boolean {
-  const playerHas = player.employments.some((e) => {
-    const benefits = getJobBenefits(e.job.benefits, e.job);
-    return benefits.waivesTaxPrepFee;
-  });
-  if (playerHas) return true;
+/**
+ * Compute the player's borrowing limit, current debt, and remaining headroom
+ * (Req 6 guardrail). Works with any player shape carrying loans + active
+ * employments plus the scalar income/spouse fields.
+ */
+function getCreditInfo(player: {
+  projectedIncome: number;
+  maritalStatus: string;
+  spouse: unknown;
+  loans: Array<{ currentBalance: number }>;
+  employments: Array<{ currentSalary: number }>;
+}): { creditLimit: number; currentDebt: number; available: number } {
   const spouse = player.spouse as SpouseData | null;
-  return spouse?.hasAccountingExperience ?? false;
-}
-
-/** Get total taxable income: player salary + spouse salary (if married) */
-function getTaxableIncome(player: FullPlayer): number {
-  const playerSalary = player.projectedIncome;
-  const spouse = player.spouse as SpouseData | null;
-  const spouseSalary = player.maritalStatus === 'married' ? (spouse?.salary ?? 0) : 0;
-  return playerSalary + spouseSalary;
-}
-
-/** Calculate health insurance cost (inflated by accumulated healthcare multiplier) */
-function calculateHealthInsuranceCost(player: FullPlayer, healthcareMult = 1): number {
-  if (!player.hasHealthInsurance) return 0;
-  // Free on parents' insurance until age 26
-  if (player.age < 26) return 0;
-
-  const kidsUnder18 = player.children.filter((c) => c.age < 18).length;
-
-  if (player.healthInsuranceType === 'family') {
-    // $12k/yr + $1k/child + $450/yr age increase
-    return (12000 + kidsUnder18 * 1000 + player.age * 450) * healthcareMult;
-  }
-  // Single: $6k/yr + $300/yr age increase
-  return (6000 + player.age * 300) * healthcareMult;
-}
-
-/** Calculate annual pet expenses (inflated by accumulated general multiplier) */
-function calculatePetExpenses(player: FullPlayer, generalMult = 1): number {
-  // Check if player has vet fee waiver (veterinarian job benefit)
-  const hasVetWaiver = player.employments.some((e) => {
-    const benefits = getJobBenefits(e.job.benefits, e.job);
-    return benefits.vetFeeWaiver;
-  });
-
-  let total = 0;
-  for (const pet of player.pets) {
-    if (pet.type === 'small') {
-      total += 300; // food
-      if (!hasVetWaiver) total += 75; // vet
-    } else {
-      total += 500; // food
-      if (!hasVetWaiver) total += 1000; // vet
-    }
-  }
-  return total * generalMult;
-}
-
-/** Calculate grocery cost (inflated by accumulated groceries multiplier) */
-function calculateGroceries(player: FullPlayer, groceriesMult = 1): number {
-  const kidsUnder18 = player.children.filter((c) => c.age < 18).length;
-  const spouseCount = player.maritalStatus === 'married' ? 1 : 0;
-  const householdSize = 1 + spouseCount + kidsUnder18;
-
-  // Bulk discount at 3+ people: $2400/person vs $3000/person
-  const ratePerPerson = householdSize >= 3 ? 2400 : 3000;
-  return ratePerPerson * householdSize * groceriesMult;
-}
-
-/** Calculate chronic condition costs (inflated by accumulated healthcare multiplier) */
-function calculateChronicConditionCosts(player: FullPlayer, healthcareMult = 1): number {
-  const conditions = (player.chronicConditions as string[]) ?? [];
-  if (conditions.length === 0) return 0;
-  const costPerCondition = player.hasHealthInsurance ? 3000 : 5000;
-  return conditions.length * costPerCondition * healthcareMult;
-}
-
-/** Calculate annual tuition (player only) */
-function calculateTuition(player: FullPlayer): number {
-  let total = 0;
-  for (const edu of player.educations) {
-    const program = edu.program;
-    const tuition = edu.isPartTime
-      ? (program.tuitionPartTime ?? program.tuitionFullTime * 0.5)
-      : program.tuitionFullTime;
-    total += tuition;
-  }
-  return total;
-}
-
-/** Calculate spouse tuition if enrolled in a program */
-async function calculateSpouseTuition(spouse: SpouseData): Promise<number> {
-  if (!spouse.educationProgramId) return 0;
-  const program = await prisma.educationProgram.findUnique({
-    where: { id: spouse.educationProgramId },
-  });
-  if (!program) return 0;
-  return spouse.isEduPartTime
-    ? (program.tuitionPartTime ?? program.tuitionFullTime * 0.5)
-    : program.tuitionFullTime;
-}
-
-/** Calculate childcare costs */
-function calculateChildcareCosts(player: FullPlayer): number {
-  const plan = (player as unknown as { childcarePlan: string }).childcarePlan as keyof typeof CHILDCARE_COSTS;
-  if (!plan || plan === 'none') return 0;
-  const kidsUnder18 = player.children.filter((c) => c.age < 18).length;
-  return CHILDCARE_COSTS[plan] * kidsUnder18;
-}
-
-/** Calculate all mandatory expenses for a player */
-async function calculateMandatoryExpenses(
-  player: FullPlayer,
-  session: { taxBrackets: unknown; currentYear: number; inflationRates?: unknown },
-): Promise<{
-  housing: number;
-  transportation: number;
-  healthInsurance: number;
-  childcare: number;
-  childExpenses: number;
-  petExpenses: number;
-  groceries: number;
-  miscellaneous: number;
-  chronicConditions: number;
-  tuition: number;
-  spouseTuition: number;
-  spouseVehicleCosts: number;
-  spouseCprRenewal: number;
-  taxPrepFee: number;
-  taxes: number;
-  loanMinPayments: number;
-  total: number;
-  breakdown: Record<string, number>;
-}> {
-  // ── Accumulated inflation multipliers ──────────────────────────────────────
-  // Hardcoded costs (groceries, health insurance, child/pet/misc expenses, etc.)
-  // are defined at their year-0 value, so we compound past inflation rates to
-  // bring them up to the current year. Catalog costs (housing, vehicles, tuition)
-  // are already inflated in place via applyGlobalCatalogInflation.
-  const inflationRates = (session.inflationRates as InflationRates[] | undefined) ?? [];
-  const generalMult = getAccumulatedMultiplier(inflationRates, 'general');
-  const healthcareMult = getAccumulatedMultiplier(inflationRates, 'healthcare');
-  const groceriesMult = getAccumulatedMultiplier(inflationRates, 'groceries');
-
-  // Housing
-  let housingCost = 0;
-  const currentOwnership = player.housingOwnerships[0];
-  if (currentOwnership) {
-    const housing = currentOwnership.housing as unknown as HousingRow;
-    const improvements = (currentOwnership.improvements as unknown as HomeImprovement[]) ?? [];
-    const occupants = countHousehold(player);
-    const housingResult = calculateAnnualHousingCosts({
-      housing,
-      occupants,
-      isRental: currentOwnership.isRental,
-      hasHomeInsurance: player.hasHomeInsurance,
-      improvements,
-    });
-    housingCost = housingResult.total;
-  }
-
-  // Transportation — player vehicles only (non-spouse)
-  let transportationCost = 0;
-  for (const vo of player.vehicleOwnerships) {
-    if (vo.isSpouseVehicle) continue;
-    const vehicle = vo.vehicle as unknown as VehicleRow;
-    const isMechanic = player.employments.some((e) => {
-      const b = getJobBenefits(e.job.benefits, e.job);
-      return b.autoMaintenanceDiscountPct > 0;
-    });
-    const costs = calculateAnnualVehicleCosts(vehicle, vo.yearsOwned, isMechanic);
-    transportationCost += costs.total;
-  }
-
-  // Spouse vehicle costs (tracked separately)
-  let spouseVehicleCosts = 0;
-  if (player.maritalStatus === 'married') {
-    for (const vo of player.vehicleOwnerships) {
-      if (!vo.isSpouseVehicle) continue;
-      const vehicle = vo.vehicle as unknown as VehicleRow;
-      const costs = calculateAnnualVehicleCosts(vehicle, vo.yearsOwned, false);
-      spouseVehicleCosts += costs.total;
-    }
-  }
-
-  // Health insurance
-  const healthInsurance = calculateHealthInsuranceCost(player, healthcareMult);
-
-  // Childcare
-  const childcare = calculateChildcareCosts(player);
-
-  // Child expenses ($11k/child under 18)
-  const kidsUnder18 = player.children.filter((c) => c.age < 18).length;
-  const childExpenses = kidsUnder18 * 11000 * generalMult;
-
-  // Pet expenses
-  const petExpenses = calculatePetExpenses(player, generalMult);
-
-  // Groceries
-  const groceries = calculateGroceries(player, groceriesMult);
-
-  // Miscellaneous ($1200/person: player + spouse)
-  const spouseCount = player.maritalStatus === 'married' ? 1 : 0;
-  const miscellaneous = (1 + spouseCount) * 1200 * generalMult;
-
-  // Chronic conditions
-  const chronicConditions = calculateChronicConditionCosts(player, healthcareMult);
-
-  // Player tuition
-  const tuition = calculateTuition(player);
-
-  // Spouse tuition
-  let spouseTuition = 0;
-  if (player.maritalStatus === 'married') {
-    const spouse = player.spouse as SpouseData | null;
-    if (spouse) {
-      spouseTuition = await calculateSpouseTuition(spouse);
-    }
-  }
-
-  // Spouse CPR auto-renewal
-  let spouseCprRenewal = 0;
-  if (player.maritalStatus === 'married') {
-    const spouse = player.spouse as SpouseData | null;
-    if (spouse?.certifications?.includes('CPR')) {
-      const spouseCprYear = (spouse as unknown as Record<string, unknown>).spouseCprYear as number | undefined;
-      if (spouseCprYear !== undefined && (session.currentYear - spouseCprYear) >= CPR_RENEWAL_INTERVAL_YEARS) {
-        spouseCprRenewal = CPR_RENEWAL_COST * generalMult;
-      }
-    }
-  }
-
-  // Taxes
-  const taxBrackets = (session.taxBrackets as unknown as TaxBracket[]) ?? [];
-  const income = getTaxableIncome(player);
-  const filingStatus = player.maritalStatus === 'married' ? 'married' : 'single';
-  const taxResult = calculateTaxes({ income, filingStatus, taxBrackets });
-  const taxes = taxResult.totalTax;
-
-  // Tax prep fee
-  const jobCount = player.employments.length;
-  const hasLoans = player.loans.length > 0;
-  const taxPrepFee = calculateTaxPreparationFee({
-    age: player.age,
-    filingStatus,
-    income,
-    hasLoans,
-    jobCount,
-    hasAccountingExperience: hasAccountingExperience(player),
-  }) * generalMult;
-
-  // Loan minimum payments (5% of balance after 8% interest)
-  const loanResults = applyLoanInterest(
-    player.loans.map((l) => ({
-      id: l.id,
-      currentBalance: l.currentBalance,
-      interestRate: l.interestRate,
-      owner: l.owner,
-      isJoint: l.isJoint,
-    })),
+  const annualIncome = Math.max(
+    player.projectedIncome,
+    player.employments.reduce((s, e) => s + e.currentSalary, 0),
   );
-  const loanMinPayments = loanResults.reduce((sum, l) => sum + l.minimumPayment, 0);
-
-  const total =
-    housingCost +
-    transportationCost +
-    spouseVehicleCosts +
-    healthInsurance +
-    childcare +
-    childExpenses +
-    petExpenses +
-    groceries +
-    miscellaneous +
-    chronicConditions +
-    tuition +
-    spouseTuition +
-    spouseCprRenewal +
-    taxPrepFee +
-    taxes +
-    loanMinPayments;
-
-  return {
-    housing: housingCost,
-    transportation: transportationCost,
-    healthInsurance,
-    childcare,
-    childExpenses,
-    petExpenses,
-    groceries,
-    miscellaneous,
-    chronicConditions,
-    tuition,
-    spouseTuition,
-    spouseVehicleCosts,
-    spouseCprRenewal,
-    taxPrepFee,
-    taxes,
-    loanMinPayments,
-    total,
-    breakdown: {
-      housing: housingCost,
-      transportation: transportationCost,
-      spouseVehicleCosts,
-      healthInsurance,
-      childcare,
-      childExpenses,
-      petExpenses,
-      groceries,
-      miscellaneous,
-      chronicConditions,
-      tuition,
-      spouseTuition,
-      spouseCprRenewal,
-      taxPrepFee,
-      taxes,
-      loanMinPayments,
-    },
-  };
+  const spouseIncome = player.maritalStatus === 'married' ? (spouse?.salary ?? 0) : 0;
+  const creditLimit = calculateCreditLimit({ annualIncome, spouseIncome });
+  const currentDebt = sumLoanBalances(player.loans, spouse?.loans ?? []);
+  return { creditLimit, currentDebt, available: Math.max(0, creditLimit - currentDebt) };
 }
+
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
 
@@ -519,6 +212,14 @@ router.get('/:playerId', authorize, async (req: Request, res: Response): Promise
       };
     });
 
+    const credit = getCreditInfo({
+      projectedIncome: player.projectedIncome,
+      maritalStatus: player.maritalStatus,
+      spouse: player.spouse,
+      loans: player.loans,
+      employments: player.employments,
+    });
+
     res.json({
       money: player.money,
       projectedIncome: player.projectedIncome,
@@ -529,6 +230,9 @@ router.get('/:playerId', authorize, async (req: Request, res: Response): Promise
       mandatoryExpenses: expenses,
       availableFunds: player.money + player.projectedIncome,
       yearComplete: player.yearComplete,
+      creditLimit: credit.creditLimit,
+      currentDebt: credit.currentDebt,
+      borrowingAvailable: credit.available,
     });
   } catch (err) {
     console.error('[finances/summary]', err);
@@ -559,6 +263,31 @@ router.post(
       });
       if (!session) {
         res.status(404).json({ error: 'Session not found' });
+        return;
+      }
+
+      // ── Credit limit check (manual loans only) ──────────────────────────────
+      const [existingLoans, activeEmployments] = await Promise.all([
+        prisma.loan.findMany({ where: { playerId: player.id } }),
+        prisma.employment.findMany({ where: { playerId: player.id, isActive: true } }),
+      ]);
+      const { creditLimit, currentDebt, available } = getCreditInfo({
+        projectedIncome: player.projectedIncome,
+        maritalStatus: player.maritalStatus,
+        spouse: player.spouse,
+        loans: existingLoans,
+        employments: activeEmployments,
+      });
+      if (currentDebt + amount > creditLimit) {
+        res.status(400).json({
+          error:
+            available > 0
+              ? `This loan would push your total debt over your borrowing limit of $${Math.round(creditLimit).toLocaleString()}. You can borrow up to $${Math.round(available).toLocaleString()} more right now — earning income raises this limit.`
+              : `You've reached your borrowing limit of $${Math.round(creditLimit).toLocaleString()}. Pay down existing debt or increase your income before taking another loan.`,
+          creditLimit,
+          currentDebt,
+          available,
+        });
         return;
       }
 
@@ -968,6 +697,27 @@ router.post(
         return;
       }
 
+      // Block the year from ending while a required action is still undone
+      // (secure housing after aging out of your parents', get a car in year 1).
+      const pc = fullPlayer.parentContributions as ParentContributions | null;
+      const activeHousing = fullPlayer.housingOwnerships[0];
+      const stillRequired = getRequiredActions({
+        currentYear: session.currentYear,
+        activeHousingType: (activeHousing?.housing as { type?: string } | undefined)?.type ?? null,
+        parentMaxAge: pc ? pc.maxParentAge : undefined,
+        age: fullPlayer.age,
+        couchSurfYearsUsed:
+          (fullPlayer as unknown as { couchSurfYearsUsed?: number }).couchSurfYearsUsed ?? 0,
+        hasVehicle: fullPlayer.vehicleOwnerships.some((o) => !o.isSpouseVehicle),
+      });
+      if (stillRequired.length > 0) {
+        res.status(400).json({
+          error: `You can't end the year yet: ${stillRequired.map((r) => r.reason).join(' ')} Go to the Actions page and take care of it first.`,
+          requiredActions: stillRequired,
+        });
+        return;
+      }
+
       const expenses = await calculateMandatoryExpenses(fullPlayer, session);
 
       // Check for pending penalties from prior early withdrawals
@@ -1019,6 +769,8 @@ router.post(
           isJoint: l.isJoint,
         })),
       );
+
+      let autoLoanIssued = 0;
 
       await prisma.$transaction(async (tx) => {
         // Deduct from money (money + projectedIncome combined)
@@ -1093,8 +845,38 @@ router.post(
               owner: 'player',
             },
           });
+          autoLoanIssued = autoLoanAmount;
         }
       });
+
+      // Auto-loans bypass the borrowing limit (the player can't be stranded), but
+      // warn when total debt is now over that limit so they know to course-correct.
+      if (autoLoanIssued > 0) {
+        const credit = getCreditInfo({
+          projectedIncome: player.projectedIncome,
+          maritalStatus: player.maritalStatus,
+          spouse: player.spouse,
+          loans: [
+            ...fullPlayer.loans.map((l) => ({ currentBalance: loanResults.find((r) => r.id === l.id)?.newBalance ?? l.currentBalance })),
+            { currentBalance: autoLoanIssued },
+          ],
+          employments: fullPlayer.employments,
+        });
+        await sendNotification(
+          player.id,
+          {
+            type: 'warning',
+            category: 'finances',
+            title: 'Automatic Loan Issued',
+            message:
+              credit.currentDebt > credit.creditLimit
+                ? `You couldn't cover your minimum loan payments, so an automatic loan of $${Math.round(autoLoanIssued).toLocaleString()} was added. Your total debt is now over your borrowing limit of $${Math.round(credit.creditLimit).toLocaleString()} — you need to increase your income or cut costs before this spirals.`
+                : `You couldn't cover your minimum loan payments, so an automatic loan of $${Math.round(autoLoanIssued).toLocaleString()} was added to keep you current.`,
+            persistent: true,
+          },
+          getIO(),
+        );
+      }
 
       if (isEarlyRetirementUse) {
         await sendNotification(

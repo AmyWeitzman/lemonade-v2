@@ -37,17 +37,11 @@ router.post(
         return;
       }
 
-      // Check player hasn't already marked year complete
-      if (player.yearComplete) {
-        res.status(400).json({ error: 'Year already marked as complete' });
+      // Expenses must be paid first — pay-expenses is what sets yearComplete.
+      if (!player.yearComplete) {
+        res.status(400).json({ error: 'Pay your annual expenses before ending the year.' });
         return;
       }
-
-      // Mark player year complete
-      await prisma.player.update({
-        where: { id: player.id },
-        data: { yearComplete: true },
-      });
 
       // Check if ALL living players have completed their year
       const livingPlayers = await prisma.player.findMany({

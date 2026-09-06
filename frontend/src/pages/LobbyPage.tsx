@@ -415,7 +415,11 @@ function SessionCard({ session, userId, mode, onEnter, onLeave, onDelete, onHide
 
       <CardActions sx={{ pt: 0, px: 2, pb: 1.5, flexWrap: 'wrap', gap: 0.5 }} onClick={(e) => e.stopPropagation()}>
         {mode === 'active' && isMySession && (
-          <Typography variant="caption" sx={{ color: theme.palette.primary.main, fontWeight: 600, mr: 'auto' }}>
+          <Typography
+            variant="caption"
+            onClick={onEnter}
+            sx={{ color: theme.palette.primary.main, fontWeight: 600, mr: 'auto', cursor: 'pointer' }}
+          >
             Click to enter game →
           </Typography>
         )}

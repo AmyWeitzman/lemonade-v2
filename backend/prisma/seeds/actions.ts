@@ -1000,24 +1000,6 @@ export async function seedActions(prisma: PrismaClient) {
         "discounts": {}
     },
     {
-        "name": "Request PTO",
-        "category": ["career"],
-        "executionType": "express",
-        "frequency": "unlimited",
-        "requirements": {
-            "hasPTODaysAvailable": true
-        },
-        "cost": 0,
-        "costFormula": "per_person_per_time_block",
-        "minTimeBlocks": 0,
-        "maxTimeBlocks": 0,
-        "seniorDiscount": false,
-        "effects": {
-            "convertPTODaysToActionBlocks": true
-        },
-        "discounts": {}
-    },
-    {
         "name": "Do Continuing Education",
         "category": ["career"],
         "executionType": "express",
@@ -1062,6 +1044,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "stress": 5,
             "scholarshipRoll": [
@@ -1145,43 +1128,19 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 4,
         "maxTimeBlocks": 4,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "userInput": {
             "type": "dropdown",
-            "options": ["Humanities", "Math", "Science", "Technology"]
+            "label": "Internship Focus",
+            "options": [
+                { "value": "Humanities", "label": "Humanities", "effects": { "communication": 8, "sociability": 10, "compassion": 10, "patience": 10, "charisma": 10, "organization": 2, "creativity": 8 } },
+                { "value": "Math", "label": "Math", "effects": { "math": 5, "analysis": 2, "organization": 2, "communication": 2 } },
+                { "value": "Science", "label": "Science", "effects": { "science": 5, "analysis": 2, "organization": 2, "caution": 3, "technology": 1, "communication": 2 } },
+                { "value": "Technology", "label": "Technology", "effects": { "technology": 5, "organization": 2, "communication": 2, "creativity": 3 } }
+            ]
         },
         "effects": {
-            "stress": 10,
-            "skillGainsByType": {
-                "Humanities": {
-                    "communication": 8,
-                    "sociability": 10,
-                    "compassion": 10,
-                    "patience": 10,
-                    "charisma": 10,
-                    "organization": 2,
-                    "creativity": 8
-                },
-                "Math": {
-                    "math": 5,
-                    "analysis": 2,
-                    "organization": 2,
-                    "communication": 2
-                },
-                "Science": {
-                    "science": 5,
-                    "analysis": 2,
-                    "organization": 2,
-                    "caution": 3,
-                    "technology": 1,
-                    "communication": 2
-                },
-                "Technology": {
-                    "technology": 5,
-                    "organization": 2,
-                    "communication": 2,
-                    "creativity": 3
-                }
-            }
+            "stress": 10
         },
         "discounts": {}
     },
@@ -1196,34 +1155,44 @@ export async function seedActions(prisma: PrismaClient) {
         "cost": 1000,
         "costFormula": "none",
         "minTimeBlocks": 0,
-        "maxTimeBlocks": 2,
+        "maxTimeBlocks": 4,
         "seniorDiscount": false,
-        "effects": {
-            "bravery": {
-                "semester": 5,
-                "year": 8
-            },
-            "compassion": {
-                "semester": 5,
-                "year": 8
-            },
-            "caution": {
-                "semester": 5,
-                "year": 8
-            },
-            "communication": {
-                "semester": 5,
-                "year": 8
-            },
-            "lemons": {
-                "semester": 2,
-                "year": 4
-            },
-            "stress": {
-                "semester": 20,
-                "year": 30
-            }
+        "allowsPTO": false,
+        "userInput": {
+            "type": "duration_sightseeing",
+            "label": "Program Plan",
+            "options": [
+                {
+                    "value": "semester_no_sightseeing",
+                    "label": "Semester, no sightseeing",
+                    "cost": 1000,
+                    "timeBlocks": 0,
+                    "effects": { "bravery": 5, "compassion": 5, "caution": 5, "communication": 5, "lemons": 2, "stress": 20 }
+                },
+                {
+                    "value": "semester_sightseeing",
+                    "label": "Semester, with sightseeing",
+                    "cost": 2000,
+                    "timeBlocks": 2,
+                    "effects": { "bravery": 5, "compassion": 5, "caution": 5, "communication": 5, "lemons": 4, "stress": 20 }
+                },
+                {
+                    "value": "year_no_sightseeing",
+                    "label": "Full Year, no sightseeing",
+                    "cost": 1000,
+                    "timeBlocks": 0,
+                    "effects": { "bravery": 8, "compassion": 8, "caution": 8, "communication": 8, "lemons": 4, "stress": 30 }
+                },
+                {
+                    "value": "year_sightseeing",
+                    "label": "Full Year, with sightseeing",
+                    "cost": 3000,
+                    "timeBlocks": 4,
+                    "effects": { "bravery": 8, "compassion": 8, "caution": 8, "communication": 8, "lemons": 6, "stress": 30 }
+                }
+            ]
         },
+        "effects": {},
         "discounts": {}
     },
     {
@@ -1239,24 +1208,25 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "userInput": {
             "type": "dropdown",
-            "options": ["Art", "Science", "Creative Writing", "Robotics", "Band/Orchestra", "Theater", "Model UN", "Intramural Sports", "CS", "Finance"]
+            "label": "Club",
+            "options": [
+                { "value": "Art", "label": "Art", "effects": { "sociability": 5, "art": 2, "creativity": 5 } },
+                { "value": "Science", "label": "Science", "effects": { "sociability": 5, "science": 2 } },
+                { "value": "Creative Writing", "label": "Creative Writing", "effects": { "sociability": 5, "writing": 2, "creativity": 5 } },
+                { "value": "Robotics", "label": "Robotics", "effects": { "sociability": 5, "science": 2, "technology": 2, "homeRepair": 2 } },
+                { "value": "Band/Orchestra", "label": "Band/Orchestra", "effects": { "sociability": 5, "music": 2 } },
+                { "value": "Theater", "label": "Theater", "effects": { "sociability": 5, "music": 2, "charisma": 5, "bravery": 5 } },
+                { "value": "Model UN", "label": "Model UN", "effects": { "sociability": 5, "communication": 5 } },
+                { "value": "Intramural Sports", "label": "Intramural Sports", "effects": { "sociability": 5, "physicalAbility": 5 } },
+                { "value": "CS", "label": "CS", "effects": { "sociability": 5, "technology": 2 } },
+                { "value": "Finance", "label": "Finance", "effects": { "sociability": 5, "math": 2, "organization": 5 } }
+            ]
         },
         "effects": {
-            "lemonsPerBlock": 1,
-            "skillGainsByType": {
-                "Art":              { "sociability": 5, "art": 2, "creativity": 5 },
-                "Science":          { "sociability": 5, "science": 2 },
-                "Creative Writing": { "sociability": 5, "writing": 2, "creativity": 5 },
-                "Robotics":         { "sociability": 5, "science": 2, "technology": 2, "homeRepair": 2 },
-                "Band/Orchestra":   { "sociability": 5, "music": 2 },
-                "Theater":          { "sociability": 5, "music": 2, "charisma": 5, "bravery": 5 },
-                "Model UN":         { "sociability": 5, "communication": 5 },
-                "Intramural Sports":{ "sociability": 5, "physicalAbility": 5 },
-                "CS":               { "sociability": 5, "technology": 2 },
-                "Finance":          { "sociability": 5, "math": 2, "organization": 5 }
-            }
+            "lemonsPerBlock": 1
         },
         "discounts": {}
     },
@@ -1273,6 +1243,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 1,
         "maxTimeBlocks": null,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "skillGains": "program",
             "stressByProgram": {
@@ -1315,6 +1286,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 1,
         "maxTimeBlocks": null,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "skillGains": "program",
             "stressByProgram": {
@@ -1352,6 +1324,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 1,
         "maxTimeBlocks": null,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "skillGains": "program",
             "stressByProgram": {
@@ -1391,6 +1364,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 12,
         "maxTimeBlocks": 12,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "stress": 30
         },
@@ -1409,6 +1383,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 1,
         "maxTimeBlocks": null,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "skillGains": "program",
             "stressByProgram": {
@@ -1452,6 +1427,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 1,
         "maxTimeBlocks": null,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "skillGains": "program",
             "stressByProgram": {
@@ -1492,6 +1468,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 1,
         "maxTimeBlocks": null,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "skillGains": "program",
             "stressByProgram": {
@@ -1531,6 +1508,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 1,
         "maxTimeBlocks": null,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "skillGains": "program",
             "stressByProgram": {
@@ -1560,6 +1538,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 10,
         "maxTimeBlocks": 10,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "skillGains": "program",
             "stress": {
@@ -1582,6 +1561,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 6,
         "maxTimeBlocks": 6,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "skillGains": "program",
             "stress": {
@@ -1604,6 +1584,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "skillGains": "program",
             "stress": {
@@ -1859,7 +1840,7 @@ export async function seedActions(prisma: PrismaClient) {
         "name": "Get Housing",
         "category": ["home-auto"],
         "executionType": "both",
-        "frequency": "unlimited",
+        "frequency": "once_per_year",
         "requirements": {},
         "cost": 0,
         "costFormula": "none",
@@ -1876,7 +1857,7 @@ export async function seedActions(prisma: PrismaClient) {
         "name": "Get Transportation",
         "category": ["home-auto"],
         "executionType": "both",
-        "frequency": "unlimited",
+        "frequency": "once_per_year",
         "requirements": {},
         "cost": 0,
         "costFormula": "none",
@@ -1920,7 +1901,7 @@ export async function seedActions(prisma: PrismaClient) {
             "hasPool": false
         },
         "cost": 0,
-        "costFormula": "none",
+        "costFormula": "percent_of_home_value",
         "minTimeBlocks": 0,
         "maxTimeBlocks": 0,
         "seniorDiscount": false,
@@ -1944,7 +1925,7 @@ export async function seedActions(prisma: PrismaClient) {
             "hasSolarPanels": false
         },
         "cost": 0,
-        "costFormula": "none",
+        "costFormula": "percent_of_home_value",
         "minTimeBlocks": 0,
         "maxTimeBlocks": 0,
         "seniorDiscount": false,
@@ -2051,6 +2032,7 @@ export async function seedActions(prisma: PrismaClient) {
         "executionType": "express",
         "frequency": "unlimited",
         "requirements": {
+            "isMarried": true,
             "maxAge": 45
         },
         "cost": 0,
@@ -2184,6 +2166,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "music": 2,
             "bravery": 10,
@@ -2207,6 +2190,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "music": 2,
             "bravery": 10,
@@ -2230,6 +2214,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "music": 2,
             "bravery": 10,
@@ -2253,6 +2238,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 10,
         "maxTimeBlocks": 10,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "music": 10,
             "creativity": 10,
@@ -2285,6 +2271,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 4,
         "maxTimeBlocks": 4,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "music": 5,
             "charisma": 10,
@@ -2315,6 +2302,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 20,
         "maxTimeBlocks": 20,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "music": 10,
             "creativity": 10,
@@ -2347,6 +2335,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 20,
         "maxTimeBlocks": 20,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "music": 5,
             "charisma": 8,
@@ -2376,6 +2365,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 36,
         "maxTimeBlocks": 36,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "music": 5,
             "charisma": 6,
@@ -2403,6 +2393,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 1,
         "maxTimeBlocks": null,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "writingPerBlock": 1,
             "creativityPerBlock": 1,
@@ -2424,6 +2415,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "stress": 10,
             "bookPublished": true,
@@ -2451,6 +2443,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "stress": 10,
             "publishCriteria": { "writing": 80, "creativity": 70 },
@@ -2476,6 +2469,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "success": {
                 "income": 500,
@@ -2506,6 +2500,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "successChance": {
                 "inputs": ["bravery", "charisma", "creativity"],
@@ -2550,6 +2545,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
+        "allowsPTO": false,
         "effects": {
             "successChance": {
                 "inputs": ["bravery", "charisma", "creativity"],

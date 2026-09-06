@@ -27,9 +27,18 @@ function fmt(n: number): string {
 interface Props {
   loans: LoanDetail[];
   playerMoney: number;
+  creditLimit: number;
+  currentDebt: number;
+  borrowingAvailable: number;
 }
 
-export default function LoanManagement({ loans, playerMoney }: Props) {
+export default function LoanManagement({
+  loans,
+  playerMoney,
+  creditLimit,
+  currentDebt,
+  borrowingAvailable,
+}: Props) {
   const queryClient = useQueryClient();
   const { playerId, gameSessionId } = useSelector((s: RootState) => s.auth);
 
@@ -84,9 +93,19 @@ export default function LoanManagement({ loans, playerMoney }: Props) {
       setNewLoanError('Enter a valid positive amount');
       return;
     }
+    if (amount > borrowingAvailable) {
+      setNewLoanError(
+        borrowingAvailable > 0
+          ? `Over your borrowing limit — you can borrow up to ${fmt(borrowingAvailable)} more.`
+          : `You've reached your borrowing limit of ${fmt(creditLimit)}. Pay down debt or increase your income first.`,
+      );
+      return;
+    }
     setNewLoanError('');
     takeLoanMutation.mutate(amount);
   };
+
+  const atLimit = borrowingAvailable <= 0;
 
   const handlePayLoan = (loanId: string) => {
     const raw = paymentAmounts[loanId] ?? '';
@@ -139,9 +158,35 @@ export default function LoanManagement({ loans, playerMoney }: Props) {
             Take Out a Loan
           </Typography>
         </Stack>
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
           8% annual interest · 5% minimum annual payment · Funds added to your money immediately
         </Typography>
+        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 1.5 }}>
+          <Chip
+            size="small"
+            variant="outlined"
+            label={`Borrowing limit: ${fmt(creditLimit)}`}
+            sx={{ fontSize: '0.7rem' }}
+          />
+          <Chip
+            size="small"
+            variant="outlined"
+            label={`Used: ${fmt(currentDebt)}`}
+            sx={{ fontSize: '0.7rem' }}
+          />
+          <Chip
+            size="small"
+            color={atLimit ? 'error' : 'success'}
+            label={`Available: ${fmt(borrowingAvailable)}`}
+            sx={{ fontSize: '0.7rem' }}
+          />
+        </Stack>
+        {atLimit && (
+          <Alert severity="warning" sx={{ mb: 1.5, py: 0.25, fontSize: '0.75rem' }}>
+            You've hit your borrowing limit. It rises as your income grows — earning
+            money or paying down debt frees up room to borrow again.
+          </Alert>
+        )}
         <Stack direction="row" spacing={1} alignItems="flex-start">
           <TextField
             size="small"
@@ -159,7 +204,7 @@ export default function LoanManagement({ loans, playerMoney }: Props) {
           <Button
             variant="contained"
             onClick={handleTakeLoan}
-            disabled={takeLoanMutation.isPending || !newLoanAmount}
+            disabled={takeLoanMutation.isPending || !newLoanAmount || atLimit}
             startIcon={
               takeLoanMutation.isPending ? (
                 <CircularProgress size={14} color="inherit" />

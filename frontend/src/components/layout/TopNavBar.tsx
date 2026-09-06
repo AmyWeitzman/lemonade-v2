@@ -104,7 +104,7 @@ function MiniPitcher({ fillPercent }: { fillPercent: number }) {
 export default function TopNavBar({ onMenuClick }: Props) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { playerName, health, stress, money } = useSelector(
+  const { username, health, stress, money } = useSelector(
     (state: RootState) => state.auth,
   );
   const { pitcherLemons, pitcherGoal, unreadMessages } = useSelector(
@@ -263,13 +263,13 @@ export default function TopNavBar({ onMenuClick }: Props) {
           </IconButton>
         </Tooltip>
 
-        {/* Player name */}
-        {playerName && (
+        {/* Player (human) username */}
+        {username && (
           <Typography
             variant="body2"
             sx={{ fontWeight: 600, whiteSpace: 'nowrap', ml: 0.5, flexShrink: 0 }}
           >
-            {playerName}
+            {username}
           </Typography>
         )}
       </Toolbar>

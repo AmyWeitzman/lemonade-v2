@@ -23,11 +23,12 @@ import {
   calculateSolarPanelsCost,
   calculateRemodelValueIncrease,
   SOLAR_PANELS_VALUE_INCREASE,
-  HOUSING_CHANGE_STRESS,
   HousingRow,
   HomeImprovement,
 } from '../lib/housing';
+import { acquireHousing } from '../lib/housingActions';
 import type { InflationRates } from '../lib/inflation';
+import type { ParentContributions } from '../lib/playerInit';
 
 const router = Router();
 
@@ -52,13 +53,33 @@ async function fetchFullPlayer(userId: string, gameSessionId: string) {
   });
 }
 
-function buildEligibilityPlayer(player: FullPlayer) {
+/** Annual rent of the cheapest rental in the catalog (for couch-surf eligibility). */
+async function getCheapestRentAnnual(): Promise<number> {
+  const rentals = await prisma.housing.findMany({
+    where: { isRental: true, rentPerYear: { gt: 0 } },
+    select: { rentPerYear: true },
+  });
+  return rentals.reduce(
+    (min, r) => Math.min(min, r.rentPerYear ?? Number.POSITIVE_INFINITY),
+    Number.POSITIVE_INFINITY,
+  );
+}
+
+function buildEligibilityPlayer(player: FullPlayer, cheapestRentAnnual?: number) {
+  const parentContributions = player.parentContributions as ParentContributions | null;
   return {
     age: player.age,
     maritalStatus: player.maritalStatus,
     children: player.children.map((c) => ({ age: c.age })),
     pets: player.pets.map((p) => ({ type: p.type, isAlive: p.isAlive })),
     educations: player.educations.map((e) => ({ isActive: e.isActive, programType: (e as any).programType })),
+    // Pass through as-is: null means "parents can never house you", so it must
+    // NOT be collapsed to undefined (which means "no restriction").
+    parentMaxAge: parentContributions ? parentContributions.maxParentAge : undefined,
+    couchSurfYearsUsed: (player as unknown as { couchSurfYearsUsed?: number }).couchSurfYearsUsed ?? 0,
+    money: player.money,
+    projectedIncome: player.projectedIncome,
+    cheapestRentAnnual,
   };
 }
 
@@ -128,7 +149,7 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
         where: { id: { in: ids } },
       }) as unknown as HousingRow[];
 
-      const eligPlayer = buildEligibilityPlayer(player);
+      const eligPlayer = buildEligibilityPlayer(player, await getCheapestRentAnnual());
       const occupants = countOccupants(player);
 
       const annotated = compareHousing.map((h) => {
@@ -190,7 +211,7 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     }
 
     // Annotate with eligibility
-    const eligPlayer = buildEligibilityPlayer(player);
+    const eligPlayer = buildEligibilityPlayer(player, await getCheapestRentAnnual());
     const occupants = countOccupants(player);
 
     const annotated = housing.map((h) => {
@@ -255,7 +276,7 @@ router.post(
       }
 
       // Eligibility check
-      const eligPlayer = buildEligibilityPlayer(player);
+      const eligPlayer = buildEligibilityPlayer(player, await getCheapestRentAnnual());
       const eligResult = checkHousingEligibility(housing, eligPlayer);
       if (!eligResult.eligible) {
         res.status(400).json({ error: 'Housing requirements not met', reasons: eligResult.reasons });
@@ -284,88 +305,64 @@ router.post(
       }
       const resolvedLocation = housing.location === 'both' ? requestedLocation! : housing.location;
 
-      // ── Handle sale of current owned home ────────────────────────────────
-      let saleProceeds = 0;
-      let soldOwnershipId: string | null = null;
-
-      if (currentOwnership && !currentOwnership.isRental) {
-        const improvements = (currentOwnership.improvements as unknown as HomeImprovement[]) ?? [];
-        const purchasePrice = currentOwnership.purchasePrice ?? 0;
-
-        // Determine purchase year from startAge — approximate using session year offset
-        // We use the inflationRates array length to estimate: purchaseYear = currentYear - yearsLived
-        const purchaseYear = currentYear - currentOwnership.yearsLived;
-
-        saleProceeds = calculateMarketValue(
-          purchasePrice,
-          inflationRates,
-          purchaseYear,
-          currentYear,
-          improvements,
-        );
-
-        soldOwnershipId = currentOwnership.id;
+      // Affordability: buying a home is paid in full from cash (no mortgages).
+      // If selling the current home still isn't enough, the player must take a loan.
+      if (!housing.isRental) {
+        const price = housing.purchasePrice ?? 0;
+        let proceeds = 0;
+        if (currentOwnership && !currentOwnership.isRental) {
+          proceeds = calculateMarketValue(
+            currentOwnership.purchasePrice ?? 0,
+            inflationRates,
+            currentYear - currentOwnership.yearsLived,
+            currentYear,
+            (currentOwnership.improvements as unknown as HomeImprovement[]) ?? [],
+          );
+        }
+        if (price > 0 && player.money + proceeds < price) {
+          const shortfall = Math.round(price - proceeds - player.money);
+          res.status(400).json({
+            error: `You're $${shortfall.toLocaleString()} short for ${housing.name}. Take out a loan on the Finances page, then try again.`,
+            shortfall,
+          });
+          return;
+        }
       }
 
-      // ── Stress for changing housing ───────────────────────────────────────
-      const stressIncrease = currentOwnership ? HOUSING_CHANGE_STRESS : 0;
+      // ── Persist in transaction (shared with the "Get Housing" cart action) ──
+      const acquired = await prisma.$transaction((tx) =>
+        acquireHousing(tx, {
+          player,
+          housing,
+          housingId,
+          resolvedLocation,
+          currentOwnership: currentOwnership
+            ? {
+                id: currentOwnership.id,
+                housingId: currentOwnership.housingId,
+                isRental: currentOwnership.isRental,
+                purchasePrice: currentOwnership.purchasePrice,
+                yearsLived: currentOwnership.yearsLived,
+                improvements: currentOwnership.improvements,
+              }
+            : null,
+          inflationRates,
+          currentYear,
+        }),
+      );
 
-      // ── Persist in transaction ────────────────────────────────────────────
-      const newOwnership = await prisma.$transaction(async (tx) => {
-        // Close out old ownership record
-        if (currentOwnership) {
-          await tx.housingOwnership.update({
-            where: { id: currentOwnership.id },
-            data: {
-              endAge: player.age,
-              ...(soldOwnershipId && !currentOwnership.isRental
-                ? { salePrice: saleProceeds }
-                : {}),
-            },
-          });
-        }
-
-        // Add sale proceeds to player money
-        const moneyDelta = saleProceeds;
-        const newStress = Math.min(100, player.stress + stressIncrease);
-
-        // Create new ownership record
-        const created = await tx.housingOwnership.create({
-          data: {
-            playerId: player.id,
-            housingId,
-            startAge: player.age,
-            isRental: housing.isRental,
-            purchasePrice: housing.isRental ? null : housing.purchasePrice,
-            totalRentPaid: 0,
-            yearsLived: 0,
-            chosenLocation: resolvedLocation,
-            improvements: [],
-          } as any,
-        });
-
-        // Update player: location, stress, money (add sale proceeds)
-        await tx.player.update({
-          where: { id: player.id },
-          data: {
-            location: resolvedLocation,
-            stress: newStress,
-            ...(moneyDelta > 0 ? { money: { increment: moneyDelta } } : {}),
-          },
-        });
-
-        return created;
-      });
-
-      // Notify player
-      const locationChanged = resolvedLocation !== player.location;
+      const saleProceeds = acquired.saleProceeds;
+      const purchasePrice = acquired.purchasePrice;
+      const stressIncrease = acquired.stressAdded;
+      const newOwnership = acquired.ownership;
+      const locationChanged = acquired.locationChanged;
       await sendNotification(
         player.id,
         {
           type: 'success',
           category: 'housing',
           title: 'Housing Selected',
-          message: `You are now living in ${housing.name}${locationChanged ? ` (moved to ${resolvedLocation})` : ''}${saleProceeds > 0 ? `. Sold previous home for $${Math.round(saleProceeds).toLocaleString()}` : ''}.`,
+          message: `You are now living in ${housing.name}${locationChanged ? ` (moved to ${resolvedLocation})` : ''}${purchasePrice > 0 ? `. Paid $${Math.round(purchasePrice).toLocaleString()}` : ''}${saleProceeds > 0 ? `${purchasePrice > 0 ? ' and sold' : '. Sold'} your previous home for $${Math.round(saleProceeds).toLocaleString()}` : ''}.`,
         },
         getIO(),
       );
@@ -388,12 +385,14 @@ router.post(
         changes: {
           location: resolvedLocation as string,
           stress: Math.min(100, player.stress + stressIncrease),
+          money: Math.round(player.money + saleProceeds - purchasePrice),
         } as Record<string, unknown>,
       });
 
       res.status(201).json({
         ownership: newOwnership,
         saleProceeds,
+        purchasePrice,
         stressAdded: stressIncrease,
         locationChanged,
         warnings: eligResult.warnings,

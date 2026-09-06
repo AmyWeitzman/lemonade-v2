@@ -15,7 +15,10 @@ export interface ActionRequirements {
   minAge?: number;
   maxAge?: number;
   enrolled?: boolean;
+  eligibleProgramTypes?: string[];
+  eligibleHousingNames?: string[];
   hasPool?: boolean;
+  hasSolarPanels?: boolean;
   location?: string;
   other?: string[];
   // Special flags used by specific actions
@@ -70,6 +73,7 @@ export interface ActionRow {
   maxTimeBlocks: number | null;
   timeBlockIncrement: number | null;
   requiresPTO: boolean;
+  allowsPTO: boolean;
   userInput: unknown;
   effects: unknown;
   executionType: string;
@@ -87,9 +91,10 @@ export interface PlayerForEligibility {
   isRetired: boolean;
   location: string;
   // Relations
-  educations: Array<{ isActive: boolean; graduated: boolean }>;
+  educations: Array<{ isActive: boolean; graduated: boolean; programType: string }>;
   housingOwnerships: Array<{
     endAge: number | null;
+    housingName: string;
     improvements: unknown; // HomeImprovement[]
   }>;
   employments: Array<{
@@ -110,6 +115,77 @@ export interface PlayerForEligibility {
 export interface EligibilityResult {
   eligible: boolean;
   reasons: string[];
+}
+
+// ─── Action userInput / option variants ───────────────────────────────────────
+
+export interface ActionUserInputOption {
+  value: string;
+  label: string;
+  /** Overrides the action's flat cost when this option is selected. */
+  cost?: number;
+  /** Overrides the activity time blocks consumed when this option is selected. */
+  timeBlocks?: number;
+  /** Merged on top of the action's base `effects` when this option is selected. */
+  effects?: Record<string, unknown>;
+}
+
+export interface ActionUserInput {
+  type: string;
+  label?: string;
+  options: ActionUserInputOption[];
+}
+
+export function getSelectedOption(
+  action: ActionRow,
+  selectedOption?: string | null,
+): ActionUserInputOption | null {
+  const userInput = action.userInput as ActionUserInput | null;
+  if (!userInput?.options || !selectedOption) return null;
+  return userInput.options.find((o) => o.value === selectedOption) ?? null;
+}
+
+/**
+ * Merge an action's base effects with the selected option's effects (if any).
+ * Option-specific keys take priority so a variant can override the default.
+ */
+export function resolveActionEffects(
+  action: ActionRow,
+  selectedOption?: string | null,
+): Record<string, unknown> {
+  const baseEffects = (action.effects ?? {}) as Record<string, unknown>;
+  const opt = getSelectedOption(action, selectedOption);
+  return opt?.effects ? { ...baseEffects, ...opt.effects } : baseEffects;
+}
+
+// ─── PTO exemption ─────────────────────────────────────────────────────────────
+
+/**
+ * A player is exempt from any PTO requirement when they have no job and aren't
+ * in school (nothing to "take time off" from — their time is already free),
+ * or when they're retired.
+ */
+function isPtoExempt(player: PlayerForEligibility): boolean {
+  if (player.isRetired) return true;
+  const hasActiveEmployment = player.employments.some((e) => e.isActive);
+  const isEnrolled = player.educations.some((e) => e.isActive && !e.graduated);
+  return !hasActiveEmployment && !isEnrolled;
+}
+
+/**
+ * Whether an action's blocks must actually be marked as PTO for this player —
+ * combines the action's raw PTO flags with the exemption above so a jobless,
+ * non-student player is never forced into a PTO choice they have no way to make.
+ */
+export function actionRequiresPTO(action: ActionRow, player: PlayerForEligibility): boolean {
+  const reqs = (action.requirements ?? {}) as ActionRequirements;
+  const rawRequiresPTO =
+    action.requiresPTO === true ||
+    reqs.hasPTOOrUnpaidTimeBlocks === true ||
+    reqs.hasPTODaysAvailable === true ||
+    (typeof reqs.ptoOrUnpaidTimeBlocks === 'number' && reqs.ptoOrUnpaidTimeBlocks > 0);
+  if (!rawRequiresPTO) return false;
+  return !isPtoExempt(player);
 }
 
 // ─── checkActionEligibility ───────────────────────────────────────────────────
@@ -219,25 +295,55 @@ export function checkActionEligibility(
   // Enrolled in education
   const isEnrolled = player.educations.some((e) => e.isActive && !e.graduated);
   if (reqs.enrolled === true && !isEnrolled) {
-    reasons.push('Must be enrolled in education');
+    reasons.push('Requires active enrollment in school');
   }
   if (reqs.inSchool === true && !isEnrolled) {
-    reasons.push('Must be enrolled in school');
+    reasons.push('Requires active enrollment in school');
   }
   if (reqs.inSchool === false && isEnrolled) {
     reasons.push('Must not be enrolled in school');
   }
 
+  // Eligible program types (e.g. must be actively enrolled in a bachelor's program)
+  if (reqs.eligibleProgramTypes && reqs.eligibleProgramTypes.length > 0) {
+    const hasEligibleProgram = player.educations.some(
+      (e) => e.isActive && !e.graduated && reqs.eligibleProgramTypes!.includes(e.programType),
+    );
+    if (!hasEligibleProgram) {
+      reasons.push(`Requires active enrollment in: ${reqs.eligibleProgramTypes.join(', ')}`);
+    }
+  }
+
+  // Requires currently owning one of a specific set of homes (e.g. a suburb house
+  // large enough for a pool/remodel), based on the player's active housing.
+  if (reqs.eligibleHousingNames && reqs.eligibleHousingNames.length > 0) {
+    const hasEligibleHousing = player.housingOwnerships.some(
+      (h) => h.endAge === null && reqs.eligibleHousingNames!.includes(h.housingName),
+    );
+    if (!hasEligibleHousing) {
+      reasons.push('Requires owning a home');
+    }
+  }
+
   // Has pool (home improvement)
-  if (reqs.hasPool === true) {
-    const hasPool = player.housingOwnerships.some((h) => {
+  const activeHasImprovement = (type: string) =>
+    player.housingOwnerships.some((h) => {
       if (h.endAge !== null) return false;
       const improvements = (h.improvements as Array<{ type: string }>) ?? [];
-      return improvements.some((imp) => imp.type === 'pool');
+      return improvements.some((imp) => imp.type === type);
     });
-    if (!hasPool) {
-      reasons.push('Requires a pool home improvement');
-    }
+
+  if (reqs.hasPool === true && !activeHasImprovement('pool')) {
+    reasons.push('Requires a pool home improvement');
+  }
+  if (reqs.hasPool === false && activeHasImprovement('pool')) {
+    reasons.push('Already has a pool');
+  }
+  if (reqs.hasSolarPanels === true && !activeHasImprovement('solarPanels')) {
+    reasons.push('Requires solar panels');
+  }
+  if (reqs.hasSolarPanels === false && activeHasImprovement('solarPanels')) {
+    reasons.push('Already has solar panels');
   }
 
   // Location
@@ -265,21 +371,17 @@ export function checkActionEligibility(
   }
 
   // PTO / unpaid time blocks available
-  // If the player has no job at all, they have free time and can always take a mental health day
-  if (reqs.hasPTOOrUnpaidTimeBlocks === true && !player.isRetired) {
-    const hasActiveEmployment = player.employments.some((e) => e.isActive);
-    if (hasActiveEmployment) {
-      const hasPTO = player.employments.some(
-        (e) => e.isActive && (e.ptoRemaining > 0 || e.unpaidTimeOffRemaining > 0),
-      );
-      if (!hasPTO) {
-        reasons.push('Requires available PTO or unpaid time off');
-      }
+  // A player with no job and not in school is exempt — they have free time available.
+  if (reqs.hasPTOOrUnpaidTimeBlocks === true && !isPtoExempt(player)) {
+    const hasPTO = player.employments.some(
+      (e) => e.isActive && (e.ptoRemaining > 0 || e.unpaidTimeOffRemaining > 0),
+    );
+    if (!hasPTO) {
+      reasons.push('Requires available PTO or unpaid time off');
     }
-    // No job = no PTO requirement; player has free time blocks available
   }
 
-  if (reqs.hasPTODaysAvailable === true) {
+  if (reqs.hasPTODaysAvailable === true && !isPtoExempt(player)) {
     const hasPTO = player.employments.some((e) => e.isActive && e.ptoRemaining > 0);
     if (!hasPTO) {
       reasons.push('Requires available PTO days');
@@ -320,14 +422,20 @@ export interface CostInput {
   playerJobTitles: string[];
   hasInsurance: boolean;
   hasBike: boolean;
+  /** Purchase price of the player's current active home, for percent-of-home-value costs (e.g. pool, solar). */
+  originalHomeValue?: number;
+  /** Years the player has owned their current active home, for percent-of-home-value costs. */
+  yearsOwned?: number;
 }
 
 /**
  * Calculate the final cost of an action after applying discounts and cost formula.
  */
 export function calculateActionCost(input: CostInput): number {
-  const { action, timeBlocks, familySize, playerAge, playerJobTitles, hasInsurance, hasBike } =
-    input;
+  const {
+    action, timeBlocks, familySize, playerAge, playerJobTitles, hasInsurance, hasBike,
+    originalHomeValue, yearsOwned,
+  } = input;
 
   const discounts = (action.discounts ?? {}) as ActionDiscounts;
 
@@ -382,6 +490,15 @@ export function calculateActionCost(input: CostInput): number {
     case 'base_plus_per_person_per_time_block': {
       const base = action.baseCost ?? 0;
       totalCost = base + baseCostPerUnit * familySize * timeBlocks;
+      break;
+    }
+    case 'percent_of_home_value': {
+      const effects = (action.effects ?? {}) as Record<string, unknown>;
+      const basePercent = typeof effects.costBasePercent === 'number' ? effects.costBasePercent : 0;
+      const perYearPercent = typeof effects.costPerYearOwnedPercent === 'number' ? effects.costPerYearOwnedPercent : 0;
+      const homeValue = originalHomeValue ?? 0;
+      const years = yearsOwned ?? 0;
+      totalCost = (homeValue * (basePercent + perYearPercent * years)) / 100;
       break;
     }
     default:

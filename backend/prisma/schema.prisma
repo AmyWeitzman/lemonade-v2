@@ -111,6 +111,9 @@ model Player {
   // Internship flag (reset each year)
   didInternshipThisYear Boolean @default(false)
 
+  // Couch-surfing: lifetime count of years spent on a friend's couch (max 2)
+  couchSurfYearsUsed Int @default(0)
+
   // Game progress
   totalLemonsEarned     Int @default(0)
   goodDeedCount         Int @default(0)
@@ -513,6 +516,7 @@ model Action {
   maxTimeBlocks      Int?
   timeBlockIncrement Int?
   requiresPTO        Boolean @default(false)
+  allowsPTO          Boolean @default(true) // false = this action's time can never be marked as PTO (e.g. school/gig actions)
 
   // User input (JSONB) — for actions requiring player-entered values (amounts, dropdowns)
   userInput Json?

@@ -19,7 +19,8 @@ export interface TimeBlockBreakdown {
   childcare: number;   // calculated childcare blocks
   commute: number;     // placeholder — 0 until jobs have commute field
   pets: number;        // 2 blocks if any living pets, else 0
-  activities: number;  // remainder = 60 - sleep - work - childcare - commute - pets
+  chores: number;      // 2 blocks if couch-surfing (chores for the host), else 0
+  activities: number;  // remainder = 60 - sleep - work - childcare - commute - pets - chores
 }
 
 export interface ChildcareInput {
@@ -51,6 +52,7 @@ export interface PlayerTimeBlockInput {
   children: Array<{ age: number }>;
   pets: Array<{ isAlive: boolean }>;
   playerHousingLocation: string; // 'city' | 'suburb' — from active HousingOwnership.chosenLocation
+  playerHousingType?: string;    // active HousingOwnership.housing.type — 'couch' adds 2 chore blocks
   spouse: {
     jobId?: string | null;
     isJobPartTime: boolean;
@@ -293,10 +295,13 @@ export function calculateTimeBlocks(playerData: PlayerTimeBlockInput): TimeBlock
   const livingPets = playerData.pets.filter((p) => p.isAlive).length;
   const pets = livingPets > 0 ? 2 : 0;
 
-  // 5. Activities — remainder
-  const activities = Math.max(0, TOTAL - SLEEP - work - childcare - commute - pets);
+  // 5. Chores — 2 blocks if couch-surfing (the player does chores for their host)
+  const chores = playerData.playerHousingType === 'couch' ? 2 : 0;
 
-  return { total: TOTAL, sleep: SLEEP, work, ptoUsed, childcare, commute, pets, activities };
+  // 6. Activities — remainder
+  const activities = Math.max(0, TOTAL - SLEEP - work - childcare - commute - pets - chores);
+
+  return { total: TOTAL, sleep: SLEEP, work, ptoUsed, childcare, commute, pets, chores, activities };
 }
 
 // ─── getAvailableActivityBlocks ───────────────────────────────────────────────
