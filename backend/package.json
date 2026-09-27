@@ -10,7 +10,8 @@
     "format": "prettier --write src",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "ts-node --transpile-only prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.2",
@@ -23,6 +24,9 @@
     "jsonwebtoken": "^9.0.2",
     "socket.io": "^4.7.4",
     "zod": "^3.22.4"
+  },
+  "prisma": {
+    "seed": "ts-node --transpile-only prisma/seed.ts"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

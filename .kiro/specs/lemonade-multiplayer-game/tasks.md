@@ -9,13 +9,13 @@
   - Configure environment variables via `.env` files
   - _Requirements: Req 49, Req 53_
 
-- [ ] 2. Database Schema and Migrations
+- [x] 2. Database Schema and Migrations
   - Create Prisma schema for all core entities: User, GameSession, Player, Child, Pet, Loan, Employment, Education, HousingOwnership, VehicleOwnership, AdoptionApplication, Message, Notification, RetirementTransaction, ActionHistory, MarriageCompatibility, WritingProgress, ActingProgress, MusicProgress
   - Write and run initial migrations
   - Seed static game data tables: actions, jobs, education programs, housing catalog, vehicle catalog, cards
   - _Requirements: Req 1, Req 2, Req 49_
 
-- [ ] 3. Authentication System
+- [x] 3. Authentication System
   - Implement `POST /api/auth/login` endpoint accepting `firstname.lastname` username format
   - Create or retrieve User record on login; generate JWT (7-day expiry)
   - Implement `authorize` middleware to validate JWT on protected routes
@@ -23,7 +23,7 @@
   - Implement `GET /api/auth/me` and `POST /api/auth/refresh` endpoints
   - _Requirements: Req 8.1 (design section)_
 
-- [ ] 4. Game Session Management API
+- [x] 4. Game Session Management API
   - Implement `POST /api/sessions` — create game with unique 6-character code, creator display name, theme, max players
   - Implement `GET /api/sessions` and `GET /api/sessions/:id`
   - Implement `POST /api/sessions/:id/join` — validate code, capacity, and waiting status; create Player record
@@ -31,7 +31,7 @@
   - Implement `DELETE /api/sessions/:id` (host only)
   - _Requirements: Req 1_
 
-- [ ] 5. WebSocket Server Setup
+- [x] 5. WebSocket Server Setup
   - Configure Socket.IO server with JWT authentication on connection
   - Implement room management: join/leave game session rooms
   - Define and wire all server→client events: `playerJoined`, `playerLeft`, `yearStarted`, `lemonAdded`, `pitcherUpdated`, `cardDrawn`, `goodDeedOpportunity`, `notification`, `playerStateChanged`, `messageReceived`, `gameEnded`, `messageReactionUpdated`, `playerDied`
@@ -41,13 +41,13 @@
 
 ## Phase 2: Core Game Engine
 
-- [ ] 6. Player Profile Initialization
+- [x] 6. Player Profile Initialization
   - Implement `POST /api/players/:id/initialize` — roll traits (bell curve), skills (bell/right-skewed), parent contributions (d10), starting money (savings + parent wealth + organization modifier), chronic conditions (20% chance)
   - Implement trait/skill adjustment UI flow: allow up to 50% total trait adjustment (max 10%/trait) and 10% total skill adjustment (max 2%/skill)
   - Display job and college requirements during adjustment so players can make informed choices
   - _Requirements: Req 2_
 
-- [ ] 7. Year Cycle Engine
+- [x] 7. Year Cycle Engine
   - Implement `startNewYear(sessionId)` — increment age, apply aging health loss, reset stress, process job raises, apply job skill/trait gains, age children and pets, roll for grandchildren, apply inflation, update tax brackets every 5 years, reset year flags, send birthday notifications
   - Implement `POST /api/year/complete` — validate expenses paid, mark player year complete, trigger `startNewYear` when all players done
   - Implement `GET /api/year/status` — return completion status per player
@@ -61,13 +61,13 @@
   - Expose time block state to frontend via player state
   - _Requirements: Req 4, Req 32_
 
-- [ ] 9. Health and Stress Calculation Engines
+- [x] 9. Health and Stress Calculation Engines
   - Implement `calculateStress(player)` — aggregate job stress, education stress, debt stress (1% per $20k), children stress, pet stress, housing overcrowding stress, card stress, expense forecast stress; apply stress tolerance modifier
   - Implement `calculateHealth(player)` — apply stress-based health loss thresholds, aging health loss by decade, chronic condition max health cap
   - Implement `applyHealthEffects(player, temporaryChange, permanentChange)` — handle temporary vs permanent health changes, chronic condition 80% effectiveness rule
   - _Requirements: Req 5, Req 16, Req 39_
 
-- [ ] 10. Financial Calculation Engine
+- [x] 10. Financial Calculation Engine
   - Implement `calculateTaxes(player, session)` — progressive tax brackets, joint filing for married players, early retirement withdrawal penalty
   - Implement `calculateTaxPreparationFee(player)` — simple filing waiver, accounting experience waiver, complexity-based fee
   - Implement `applyLoanInterest(loans)` — 8% annual interest, 5% minimum payment
@@ -75,7 +75,7 @@
   - Implement expense forecast: project next year's mandatory expenses vs available funds, calculate stress impact
   - _Requirements: Req 6, Req 37, Req 39, Req 40_
 
-- [ ] 11. Random Event and Probability System
+- [x] 11. Random Event and Probability System
   - Implement `bellCurve(min, max)`, `rightSkewed(min, max)`, `leftSkewed(min, max)`, `rollDie(sides)` distribution helpers
   - Implement `drawCard(player)` — filter eligible cards, weighted frequency selection
   - Implement `attemptCardDraw(player)` — 20% chance per action, max 3 cards/year, broadcast `cardDrawn` event
@@ -83,7 +83,7 @@
   - Implement pet death rolls — 50% chance per pet in death age range
   - _Requirements: Req 9, Req 55_
 
-- [ ] 12. Inflation Engine
+- [x] 12. Inflation Engine
   - Implement `generateInflationRates()` — random rates within ranges: housing 4-7%, salary 2-5%, auto insurance 2-5%, home insurance 7-9%, other 0.1-0.3%
   - Implement `applyInflation(player, session)` — apply to housing rent/value, salaries, vehicle insurance, action costs
   - Update tax brackets every 5 years (+$15,000 per bracket threshold)
@@ -92,7 +92,7 @@
 
 ## Phase 3: Game Systems
 
-- [ ] 13. Action System
+- [x] 13. Action System
   - Implement `GET /api/actions` with filters (category, stress impact, health impact, cost, time blocks, eligibility, location, favorites, good deed, senior discount, PTO required) and sort (lemons/TB, lemons/$, cost/TB, min cost)
   - Implement `GET /api/actions/search?q=term` — search by name/description
   - Implement eligibility checker — validate skills, traits, health, certifications, age, enrollment, location, other requirements
@@ -102,7 +102,7 @@
   - Apply senior discounts (age >= 65), job-specific discounts, per-person and per-time-block costs
   - _Requirements: Req 8, Req 22, Req 34_
 
-- [ ] 14. Employment System
+- [x] 14. Employment System
   - Implement `GET /api/jobs` with filters (salary, PTO, time blocks, stress, degree, skills/traits, location, perks) and sort
   - Implement `GET /api/jobs/search?q=term`
   - Implement `POST /api/jobs/:id/apply` — check education, skill, trait, health, certification requirements; assign job; adjust time blocks and projected income (half salary for mid-year switch)
@@ -113,7 +113,7 @@
   - Support full-time, part-time, and seasonal employment; multi-job tracking
   - _Requirements: Req 11, Req 44, Req 45, Req 46_
 
-- [ ] 15. Education System
+- [x] 15. Education System
   - Implement `GET /api/education/programs` with filters and `GET /api/education/programs/search?q=term`
   - Implement `POST /api/education/enroll` — check skill/trait/prerequisite requirements; reject with hints if not met; set full-time or part-time
   - Implement annual academic progress — grant skill percentages per year (full-time: full %, part-time: half %); check graduation requirements (gen ed + field + major credits); award degree on completion
@@ -123,7 +123,7 @@
   - Apply education stress (STEM multiplier)
   - _Requirements: Req 10, Req 33_
 
-- [ ] 16. Housing System
+- [x] 16. Housing System
   - Implement `GET /api/housing` with filters (location, capacity, pet limits, rent vs buy, max cost) and compare feature
   - Implement `POST /api/housing/:id/select` — validate occupancy limits, enforce age/enrollment restrictions, track `HousingOwnership` history, handle sale of current owned home (calculate market value with appreciation + improvements)
   - Implement `POST /api/housing/improvements` — remodel (50-80% value increase), pool (cost + annual maintenance + value increase + pool actions), solar panels (60% utility reduction + 2 lemons/year)
@@ -132,7 +132,7 @@
   - Enforce pet limits when selecting new housing
   - _Requirements: Req 12, Req 42_
 
-- [ ] 17. Transportation System
+- [x] 17. Transportation System
   - Implement `GET /api/vehicles` with filters (max cost, min people, car vs non-car, fuel type, age) and compare feature
   - Implement `POST /api/vehicles/:id/purchase` — validate family capacity, track `VehicleOwnership` history, deduct purchase price
   - Implement `POST /api/vehicles/:id/sell` — calculate depreciated value (15%/year, floor at 10% of original)
@@ -141,7 +141,7 @@
   - Track both player and spouse vehicles separately
   - _Requirements: Req 13_
 
-- [ ] 18. Financial Management API
+- [x] 18. Financial Management API
   - Implement `GET /api/finances/:playerId` — full financial summary
   - Implement `POST /api/finances/loan` — create loan, auto-loan if can't afford minimum payment
   - Implement `POST /api/finances/loan/payment` — pay down loans (own, spouse, joint separately)
@@ -152,7 +152,7 @@
   - Implement college fund contributions (1 lemon per 1% of money contributed)
   - _Requirements: Req 6, Req 18, Req 28, Req 29, Req 30, Req 37, Req 38_
 
-- [ ] 19. Relationship and Family System
+- [x] 19. Relationship and Family System
   - Implement `POST /api/relationships/marry` — execute marriage: combine finances, add spouse loans, initialize compatibility tracking, charge wedding cost (minus parent contribution for first marriage)
   - Implement annual marriage compatibility calculation — score based on debt stress history, current stress, family actions, compassion, patience, stress tolerance, communication; grant 1%/year to communication/compassion/patience (max 20% total)
   - Implement `POST /api/relationships/divorce` — finalize next year: split assets using formula, keep all children, vehicle choice, +10% stress
@@ -161,14 +161,14 @@
   - Implement grandchildren roll at year start (ages 25-40 children)
   - _Requirements: Req 14, Req 14A, Req 14B, Req 14C_
 
-- [ ] 20. Dating App (Find Love Action)
+- [x] 20. Dating App (Find Love Action)
   - Implement `executeFindLoveAction(player, preferences)` — validate communication >= 50 and compassion >= 50
   - Implement `generateCandidate(player, preferences, index)` — determine education by age (50/50 degree chance), select eligible job (exclude actor/author/ride-share/musician), calculate financial profile (money, retirement savings, debt via d5 multiplier), assign vehicle and housing, calculate initial compatibility score
   - Implement marriage execution from selected candidate — create Spouse record, combine finances, charge wedding cost, add spouse cart item
   - Charge 2 time blocks + 1 lemon if no candidate selected; 6 time blocks + 3 lemons if married
   - _Requirements: Req 14A_
 
-- [ ] 21. Pet System
+- [x] 21. Pet System
   - Implement `POST /api/pets/adopt` — validate housing pet limits, charge adoption fee by size
   - Implement `POST /api/pets/:id/release`
   - Apply annual pet expenses: food ($300 small/$500 large), vet fees ($75 small/$1000 large); waive vet fees for veterinarian job
@@ -176,58 +176,58 @@
   - Grant annual lemons for pet ownership
   - _Requirements: Req 17_
 
-- [ ] 22. Card System Effects and Good Deed Flow
+- [x] 22. Card System Effects and Good Deed Flow
   - Implement card effect application — costs, temporary health, permanent health, stress, skills, traits, insurance rate changes
   - Implement good deed opportunity broadcast — notify all other players via `goodDeedOpportunity` WebSocket event
   - Implement `POST /api/cards/:id/respond` — accept (2 lemons × good deed multiplier, increment good deed count) or decline (−1 lemon × bad deed multiplier, increment bad deed count)
   - Implement annual good deed options — present 3 identical options to all players; each player selects one for 2 lemons × multiplier
   - _Requirements: Req 9, Req 19_
 
-- [ ] 23. Lemonade Pitcher System
+- [x] 23. Lemonade Pitcher System
   - Implement pitcher capacity calculation — lemons per player by age bracket (20-22: 10, 23-30: 20, 31-50: 40, 51-65: 60, 66+: 80); recalculate on player death or departure
   - Implement `GET /api/pitcher/:sessionId` — current lemons, yearly goal, recommended per player
   - Implement grace year logic — one grace year if goal missed; end game if missed again
   - Broadcast `pitcherUpdated` on every lemon change
   - _Requirements: Req 7_
 
-- [ ] 24. Aging, Death, and Retirement System
+- [x] 24. Aging, Death, and Retirement System
   - Implement aging health loss in year cycle (40s: -1%, 50s: -2%, 60s: -3%, 70s: -4%, 80s: -5%)
   - Implement `handlePlayerDeath(player)` — mark deceased, notify player and session, send system chat message, check if all players dead (end game)
   - Implement retirement: mark player retired at 65 (no forced retirement display), allow penalty-free withdrawals, auto-retire spouse at 65, prevent forcing retired spouse to work
   - Implement pension tracking and annual pension payments for eligible jobs
   - _Requirements: Req 15, Req 16, Req 38_
 
-- [ ] 25. Insurance System
+- [x] 25. Insurance System
   - Implement health insurance toggle — single ($6k/yr + $300 age increase) vs family ($12k/yr + $1k/child + $450 age increase); parent insurance free until age 26; all children under 18 required on plan
   - Implement home insurance toggle for owned homes
   - Implement auto insurance calculation by vehicle type, age, and driver factors
   - Apply insurance reductions to card costs (health, auto, home)
   - _Requirements: Req 29_
 
-- [ ] 26. Notification System
+- [x] 26. Notification System
   - Implement `sendNotification(player, notification)` — save to DB, broadcast via WebSocket `notification` event
   - Implement `GET /api/notifications/:playerId` and `POST /api/notifications/:id/dismiss`
-  - Trigger notifications for: CPR expiration, childcare changes needed, spouse retirement warning, retirement savings penalty-free, graduation, health too low for job, new year birthday, adoption available/complete, child turns 18, job loss, pet death, housing/transport change required
+  - Trigger notifications for: CPR expiration, childcare changes needed, spouse retirement warning, retirement savings penalty-free, graduation, health too low for job, new year birthday, adoption available/complete, child turns 18, job loss, pet death, housing/transport change required, pregnancy result (children born, stillborn, etc)
   - Display persistent notifications in navbar; show accordion on actions and expenses pages
   - _Requirements: Req 21_
 
 
 ## Phase 4: Multiplayer Coordination
 
-- [ ] 27. Messaging System
+- [x] 27. Messaging System
   - Implement `POST /api/messages` — sanitize content (strip HTML, trim, max 500 chars), save, broadcast `messageReceived`
   - Implement `GET /api/messages/:sessionId` (paginated) and `GET /api/messages/:sessionId/recent` (last 50)
   - Implement `POST /api/messages/:messageId/react` — toggle emoji reaction (add/remove), validate against 10 supported emojis, broadcast `messageReactionUpdated`
   - Implement `sendSystemMessage(sessionId, content)` for automated events (player joined, year started, player died, etc.)
   - _Requirements: Req 25_
 
-- [ ] 28. Career Progression Systems
+- [x] 28. Career Progression Systems
   - Implement writing career — track time blocks toward book (20 TB = complete); self-publish or submit to publisher (check writing + creativity thresholds); calculate author income by published books and skill level
   - Implement acting career — audition rolls (bravery + perseverance); grant role and payment on success; consolation skill gains on failure; 15% agent fee reduction
   - Implement music career — track EPs and albums released; calculate performance income by type and skill; enforce minimum releases for headline tour eligibility
   - _Requirements: Req 26_
 
-- [ ] 29. Spouse Management
+- [x] 29. Spouse Management
   - Implement Spouse cart item — manage spouse job (one job max), school (PT + PT job allowed), vehicle
   - Track spouse vehicle separately; apply vehicle costs and cards to spouse vehicle
   - Auto-pay spouse minimum loan payments; allow additional payments on spouse/joint loans
@@ -235,30 +235,30 @@
   - Auto-retire spouse at 65; prevent forcing retired spouse to work
   - _Requirements: Req 27_
 
-- [ ] 30. Internship and PTO Systems
+- [x] 30. Internship and PTO Systems
   - Implement internship action — enrolled students only, once per year, grant field skills, reduce summer job pay by 25% and time blocks by 4 if also employed
   - Implement PTO request action — convert job time blocks to activity time blocks (max half job's TBs); require PTO for travel actions; reset PTO on job change
   - Implement unpaid time off for eligible jobs (teacher, professor: 4 TBs; flight attendant/pilot: 8 discounted travel tickets)
   - _Requirements: Req 31, Req 35_
 
-- [ ] 31. Certification and License System
+- [x] 31. Certification and License System
   - Track CPR certification status and 2-year expiration
   - Notify player on expiration; block actions requiring CPR
   - Auto-grant certifications from educational programs
   - Track professional licenses from jobs
   - _Requirements: Req 43_
 
-- [ ] 32. Location-Based Restrictions
+- [x] 32. Location-Based Restrictions
   - Mark jobs, housing, and actions as city-only, suburb-only, or both
   - Filter available options by player's current location (but allow viewing all)
-  - Require new housing selection when changing location
+  - Require new location selection when changing housing
   - Apply location-specific card eligibility
   - Enforce bike restriction (no inter-area travel)
   - _Requirements: Req 47_
 
 ## Phase 5: Frontend — Core UI
 
-- [ ] 33. App Shell and Navigation
+- [x] 33. App Shell and Navigation
   - Build responsive app shell with primary navigation bar (health bar, stress bar, money display, mini pitcher, notification badge, message badge, player name)
   - Implement themed page routes: Lemonade (home), Squeeze the Day (actions), Harvest (finances), Seeds to Trees (jobs), Zest for Learning (education), You Won't Get A 🍋 (transportation), Home Sour Home (housing), Lemonade Stand (pitcher), Life's Lemons (scrapbook)
   - Implement secondary navigation drawer: Tending the Garden (profile), Lemon Tea (chat), Planting & Pruning (notifications), Nutrients (settings)
@@ -266,7 +266,7 @@
   - Store collapse/expand preferences and filter preferences in browser cookies
   - _Requirements: Req 50, Req 41_
 
-- [ ] 34. Home Page and Game Lobby
+- [x] 34. Home Page and Game Lobby
   - Build landing page with username entry (firstname.lastname format validation)
   - Build game lobby showing active and completed game history
   - Build "Create New Game" flow — display name, theme, max players; show generated 6-character code with copy button; waiting room with player list; enable "Start Game" at 2+ players
@@ -280,13 +280,13 @@
   - Show parent contribution results (die roll outcome)
   - _Requirements: Req 2_
 
-- [ ] 36. Profile Drawer (Tending the Garden)
+- [x] 36. Profile Drawer (Tending the Garden)
   - Build collapsible profile drawer with sections: skills progress bar (all skills plotted), traits progress bar (all traits plotted), health/stress bars with max health indicator (grayed out above max with tooltip), finances summary, family (spouse, children, pets), certifications, timeline
   - Notes feature: text input, speech-to-text, drawing canvas, timeline placement
   - Show chronic condition health cap explanation in tooltip
   - _Requirements: Req 23_
 
-- [ ] 37. Actions Page (Squeeze the Day)
+- [x] 37. Actions Page (Squeeze the Day)
   - Build action catalog with search bar, filter panel (category, cost, time blocks, health/stress impact, eligibility toggle, location, favorites, good deed, senior discount, PTO required, etc.), and sort dropdown
   - Build time block visualizer — 60-block scale showing sleep/work/childcare/commute/pets/activities allocation
   - Build action card component — name, description, requirements (with eligibility indicators), cost, time blocks, effects (lemons, health, stress, skills)
@@ -296,14 +296,14 @@
   - Re-filter actions in real-time on cart changes
   - _Requirements: Req 8, Req 22_
 
-- [ ] 38. Jobs Page (Seeds to Trees)
+- [x] 38. Jobs Page (Seeds to Trees)
   - Build job catalog with search, filters (salary, PTO, time blocks, stress, degree, skills/traits, location, perks, raise type), and sort
   - Build job card — title, requirements, salary, raise schedule, time blocks, stress, PTO, benefits, skill/trait gains
   - Implement apply flow — show requirement check results; on success assign job and update time blocks/projected income
   - Show current employment status and history
   - _Requirements: Req 11_
 
-- [ ] 39. Education Page (Zest for Learning)
+- [x] 39. Education Page (Zest for Learning)
   - Build program catalog with search, filters, and sort
   - Build program card — name, type, field, requirements, tuition, skill gains, stress level
   - Implement enrollment flow — full-time vs part-time selection, requirement check with hints on rejection
@@ -312,7 +312,7 @@
   - Show change major and drop out options
   - _Requirements: Req 10_
 
-- [ ] 40. Housing Page (Home Sour Home)
+- [x] 40. Housing Page (Home Sour Home)
   - Build housing catalog sorted by cost (low→high) with filters (location, recommended/legal max occupancy, pet limits, rent vs buy, max cost) and compare feature (side-by-side)
   - Build housing card — name, type, location, costs (rent/purchase, utilities, insurance), occupancy limits, pet limit, improvement options
   - Implement selection flow — occupancy validation, stress notification on change
@@ -320,14 +320,14 @@
   - Show current home value for owned homes
   - _Requirements: Req 12, Req 42_
 
-- [ ] 41. Transportation Page (You Won't Get A 🍋)
+- [x] 41. Transportation Page (You Won't Get A 🍋)
   - Build vehicle catalog sorted by cost with filters (max cost, min people, car vs non-car, fuel type, age) and compare feature
   - Build vehicle card — name, type, fuel, purchase price, annual costs (insurance, gas, maintenance), capacity
   - Implement purchase/sell flow — family capacity validation, depreciation calculation on sale
   - Show both player and spouse vehicles with individual cost breakdowns
   - _Requirements: Req 13_
 
-- [ ] 42. Finances Page (Harvest)
+- [x] 42. Finances Page (Harvest)
   - Build financial summary — current money, projected income, retirement savings, loans (own/spouse/joint), college fund
   - Build annual expenses breakdown — all mandatory expense line items with totals
   - Build loan management — take out loan, make payments (own/spouse/joint separately), show interest accrual
@@ -337,14 +337,14 @@
   - Show net health and stress changes for the year
   - _Requirements: Req 6, Req 18, Req 37_
 
-- [ ] 43. Lemonade Pitcher Page (Lemonade Stand)
+- [x] 43. Lemonade Pitcher Page (Lemonade Stand)
   - Build pitcher visualization — animated pitcher filling with lemons, current count, yearly goal line, recommended per-player contribution
   - Show contributions breakdown by player
   - Show grace year status if applicable
   - Display mini pitcher in navbar with tooltip
   - _Requirements: Req 7_
 
-- [ ] 44. Messaging Interface (Lemon Tea)
+- [x] 44. Messaging Interface (Lemon Tea)
   - Build chat panel accessible from all pages
   - Show message history (paginated, scrollable) with player names color-coded
   - System messages styled in gray italic
