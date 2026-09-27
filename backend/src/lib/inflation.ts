@@ -13,7 +13,7 @@ import { prisma } from './prisma';
 export interface InflationRates {
   year: number;
   housing: number;       // 4–7%  — rent, purchase price
-  salary: number;        // 3–5%  — job salaries (matches general so employed players keep pace)
+  salary: number;        // 2–5%  — job salaries (matches general so employed players keep pace)
   autoInsurance: number; // 2–5%  — vehicle insurance
   homeInsurance: number; // 7–9%  — home insurance
   healthcare: number;    // 4–7%  — health insurance, chronic conditions
@@ -37,7 +37,7 @@ export function generateInflationRates(year: number): InflationRates {
   return {
     year,
     housing: randomInRange(0.04, 0.07),
-    salary: randomInRange(0.03, 0.05),
+    salary: randomInRange(0.02, 0.05),
     autoInsurance: randomInRange(0.02, 0.05),
     homeInsurance: randomInRange(0.07, 0.09),
     healthcare: randomInRange(0.04, 0.07),
