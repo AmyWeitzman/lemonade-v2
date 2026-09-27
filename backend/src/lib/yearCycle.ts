@@ -517,8 +517,9 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     let newJobHealthGracePeriod = player.jobHealthGracePeriod ?? 0;
     const healthCheckUpdates: Array<{
       employmentId: string;
-      shouldFire: boolean;
-      shouldNotify: boolean;
+      action: 'none' | 'warn' | 'fire';
+      jobTitle: string;
+      jobMinHealth: number | undefined;
     }> = [];
 
     for (const employment of player.employments) {
@@ -530,7 +531,10 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       const { checkJobHealthRequirement } = await import('./jobs');
       const healthCheck = checkJobHealthRequirement(newHealth, jobMinHealth, newJobHealthGracePeriod);
 
-      if (healthCheck.shouldNotify) {
+      // Update grace period based on this employment's check
+      newJobHealthGracePeriod = healthCheck.gracePeriodYear;
+
+      if (healthCheck.recommendedAction === 'warn') {
         await sendNotification(
           player.id,
           {
@@ -545,15 +549,14 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
         );
       }
 
-      if (healthCheck.shouldFire) {
+      if (healthCheck.recommendedAction === 'fire') {
         healthCheckUpdates.push({
           employmentId: employment.id,
-          shouldFire: true,
-          shouldNotify: false,
+          action: 'fire',
+          jobTitle: job.title,
+          jobMinHealth,
         });
       }
-
-      newJobHealthGracePeriod = healthCheck.newGracePeriod;
     }
 
     // h. Process job raises for each active employment
@@ -633,7 +636,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
 
       // Apply health-based auto-fire if needed
       const healthFireCheck = healthCheckUpdates.find((h) => h.employmentId === employment.id);
-      if (healthFireCheck?.shouldFire) {
+      if (healthFireCheck?.action === 'fire') {
         isActive = false;
         endReason = 'fired_health';
         endAge = newAge;
@@ -644,7 +647,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
             type: 'error',
             category: 'job',
             title: 'Fired Due to Health',
-            message: `You have been fired from your job as ${job.title} because your health remained below the required minimum for more than one year.`,
+            message: `You have been fired from your job as ${healthFireCheck.jobTitle} because your health (${newHealth.toFixed(0)}%) remained below the required minimum (${healthFireCheck.jobMinHealth}%) for more than one year.`,
             persistent: true,
             actionRequired: false,
           },

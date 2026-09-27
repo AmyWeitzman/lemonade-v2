@@ -364,34 +364,34 @@ export function checkBikeRestriction(
 
 /**
  * Check if player's current health meets the job's minimum health requirement.
+ * Implements a 1-year grace period: first year below requirement triggers a warning,
+ * second year (still below) results in termination.
+ *
  * Returns an object with:
- *   - meetsRequirement: boolean
- *   - newGracePeriod: updated grace period counter
- *   - shouldNotify: whether to send a notification (first year below requirement)
- *   - shouldFire: whether to auto-fire the job (grace period exceeded)
+ *   - meetsRequirement: boolean — true if health >= jobMinHealth
+ *   - gracePeriodYear: number — 0 if meets requirement, 1 if first year below, 2+ if multiple years below
+ *   - recommendedAction: string — 'none' | 'warn' | 'fire'
  *
  * Grace period logic:
- *   - Year 0 (first time below): increment grace period, notify player
- *   - Year 1+ (still below): auto-fire the job
- *   - If health recovers above requirement: reset grace period to 0
+ *   - Health >= requirement: reset to 0, no action
+ *   - Health < requirement, gracePeriodYear was 0: increment to 1, recommend 'warn'
+ *   - Health < requirement, gracePeriodYear >= 1: recommend 'fire'
  */
 export function checkJobHealthRequirement(
   playerHealth: number,
   jobMinHealth: number | undefined,
-  currentGracePeriod: number,
+  currentGracePeriodYear: number,
 ): {
   meetsRequirement: boolean;
-  newGracePeriod: number;
-  shouldNotify: boolean;
-  shouldFire: boolean;
+  gracePeriodYear: number;
+  recommendedAction: 'none' | 'warn' | 'fire';
 } {
   // No health requirement for this job
   if (jobMinHealth === undefined) {
     return {
       meetsRequirement: true,
-      newGracePeriod: 0,
-      shouldNotify: false,
-      shouldFire: false,
+      gracePeriodYear: 0,
+      recommendedAction: 'none',
     };
   }
 
@@ -401,21 +401,25 @@ export function checkJobHealthRequirement(
   if (meetsRequirement) {
     return {
       meetsRequirement: true,
-      newGracePeriod: 0,
-      shouldNotify: false,
-      shouldFire: false,
+      gracePeriodYear: 0,
+      recommendedAction: 'none',
     };
   }
 
   // Health is below requirement
-  const newGracePeriod = currentGracePeriod + 1;
-  const shouldNotify = currentGracePeriod === 0; // First year below requirement
-  const shouldFire = newGracePeriod > 1; // Second year or later below requirement
-
-  return {
-    meetsRequirement: false,
-    newGracePeriod,
-    shouldNotify,
-    shouldFire,
-  };
+  if (currentGracePeriodYear === 0) {
+    // First year below requirement — warn player
+    return {
+      meetsRequirement: false,
+      gracePeriodYear: 1,
+      recommendedAction: 'warn',
+    };
+  } else {
+    // Second year or later below requirement — fire the job
+    return {
+      meetsRequirement: false,
+      gracePeriodYear: currentGracePeriodYear + 1,
+      recommendedAction: 'fire',
+    };
+  }
 }
