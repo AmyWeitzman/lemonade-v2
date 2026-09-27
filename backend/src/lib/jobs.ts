@@ -359,3 +359,67 @@ export function checkBikeRestriction(
 
   return null;
 }
+
+// ─── checkJobHealthRequirement ────────────────────────────────────────────────
+
+/**
+ * Check if player's current health meets the job's minimum health requirement.
+ * Implements a 1-year grace period: first year below requirement triggers a warning,
+ * second year (still below) results in termination.
+ *
+ * Returns an object with:
+ *   - meetsRequirement: boolean — true if health >= jobMinHealth
+ *   - gracePeriodYear: number — 0 if meets requirement, 1 if first year below, 2+ if multiple years below
+ *   - recommendedAction: string — 'none' | 'warn' | 'fire'
+ *
+ * Grace period logic:
+ *   - Health >= requirement: reset to 0, no action
+ *   - Health < requirement, gracePeriodYear was 0: increment to 1, recommend 'warn'
+ *   - Health < requirement, gracePeriodYear >= 1: recommend 'fire'
+ */
+export function checkJobHealthRequirement(
+  playerHealth: number,
+  jobMinHealth: number | undefined,
+  currentGracePeriodYear: number,
+): {
+  meetsRequirement: boolean;
+  gracePeriodYear: number;
+  recommendedAction: 'none' | 'warn' | 'fire';
+} {
+  // No health requirement for this job
+  if (jobMinHealth === undefined) {
+    return {
+      meetsRequirement: true,
+      gracePeriodYear: 0,
+      recommendedAction: 'none',
+    };
+  }
+
+  const meetsRequirement = playerHealth >= jobMinHealth;
+
+  // Health is good — reset grace period
+  if (meetsRequirement) {
+    return {
+      meetsRequirement: true,
+      gracePeriodYear: 0,
+      recommendedAction: 'none',
+    };
+  }
+
+  // Health is below requirement
+  if (currentGracePeriodYear === 0) {
+    // First year below requirement — warn player
+    return {
+      meetsRequirement: false,
+      gracePeriodYear: 1,
+      recommendedAction: 'warn',
+    };
+  } else {
+    // Second year or later below requirement — fire the job
+    return {
+      meetsRequirement: false,
+      gracePeriodYear: currentGracePeriodYear + 1,
+      recommendedAction: 'fire',
+    };
+  }
+}
