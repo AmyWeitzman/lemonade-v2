@@ -1,0 +1,36 @@
+
+# 2026-09-27 17:51:51.968544
++Integrate the shiftTaxBrackets() function into yearCycle such that it is called when currentYear % 5 === 0. Add a test to verify that brackets shift at years 5, 10, 15, etc. Verify that tax calculations are correct after the bracket shift.
+
+# 2026-09-27 18:02:46.598587
++First, let me understand the current code structure. Please show me the shiftTaxBrackets() function in financials.ts (around line 175-186) and the yearCycle.ts file to understand where it should be called.
+
+# 2026-09-27 18:05:33.717653
++Implement job health grace period enforcement:
++
++1. Add jobHealthGracePeriod field to the Player model to track years below health requirement
++2. Add a helper function to check job health requirements and update grace period
++3. Integrate health requirement checks into the yearCycle:
++   - Check if player's current health is below their job's minHealth requirement
++   - If below requirement for first time (year 0), increment grace period counter and notify player
++   - If already in grace period and still below requirement at year end, auto-fire the job
++4. Add test to verify: notification on first year below, and auto-firing on second year if still below
++
++This implements the 1-year grace period as documented in Game_Instructions.md:28-29
+
+# 2026-09-27 18:11:07.573788
++Implement job health grace period enforcement system:
++
++1. In jobs.ts, add a new helper function `checkJobHealthRequirement()` that:
++   - Takes a player object and their active job
++   - Returns an object with {meetsRequirement, gracePeriodYear, recommendedAction}
++   - Handles when player health is below job's minHealth requirement
++
++2. In yearCycle.ts, integrate grace period enforcement into the startNewYear function:
++   - After job annual checks, check if any active employments have health requirements not met
++   - If health is below requirement:
++     - If gracePeriodYear is 0: increment jobHealthGracePeriod to 1, send first-year warning notification
++     - If gracePeriodYear >= 1 and still below: fire the job with endReason='fired_health', send notification
++   - Reset gracePeriodYear to 0 if health is back above requirement
++
++This implements the 1-year grace period as documented in Game_Instructions.md:28-29

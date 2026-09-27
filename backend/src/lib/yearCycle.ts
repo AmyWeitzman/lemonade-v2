@@ -35,6 +35,7 @@ import {
 } from './certifications';
 import type { ParentContributions } from './playerInit';
 import { getMandatoryExpensesTotal } from './expenses';
+import { checkJobHealthRequirement } from './jobs';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -571,6 +572,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       ptoRemaining: number;
       ptoUsed: number;
       unpaidTimeOffRemaining: number;
+      healthGracePeriodYear: number;
     }> = [];
 
     for (const employment of player.employments) {
@@ -666,6 +668,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
         ptoRemaining: newPtoRemaining,
         ptoUsed: newPtoUsed,
         unpaidTimeOffRemaining: newUnpaidTimeOff,
+        healthGracePeriodYear: newJobHealthGracePeriod,
       });
     }
 
@@ -1037,6 +1040,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
             endAge: eu.endAge,
             ptoRemaining: eu.ptoRemaining,
             unpaidTimeOffRemaining: eu.unpaidTimeOffRemaining,
+            healthGracePeriodYear: eu.healthGracePeriodYear,
             ...({ ptoUsed: eu.ptoUsed } as Record<string, unknown>),
           } as Parameters<typeof tx.employment.update>[0]['data'],
         });

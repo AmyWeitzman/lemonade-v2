@@ -280,6 +280,7 @@ model Employment {
   isPartTime       Boolean @default(false)
   isSeasonal       Boolean @default(false)
   consecutiveMissedRaiseYears Int @default(0)
+  healthGracePeriodYear Int @default(0) // tracks years below health requirement (1 = first year, 2+ = fire)
   chosenLocation   String  @default("city") // resolved location: 'city' | 'suburb' (set at apply time from job.location)
   endAge           Int?
   endReason        String? // 'quit' | 'fired_performance' | 'fired_health' | 'retired'
