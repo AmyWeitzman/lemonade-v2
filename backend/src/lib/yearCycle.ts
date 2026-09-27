@@ -13,6 +13,7 @@ import {
   applyGlobalCatalogInflation,
   type InflationRates,
 } from './inflation';
+import { shiftTaxBrackets } from './financials';
 import {
   calculateAnnualSkillGains,
   checkGraduationRequirements,
@@ -1045,11 +1046,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
   let taxBrackets = (session.taxBrackets as unknown) as TaxBracket[];
   const nextYear = session.currentYear + 1;
   if (nextYear % 5 === 0 && taxBrackets.length > 0) {
-    taxBrackets = taxBrackets.map((bracket, index) => ({
-      ...bracket,
-      minIncome: index === 0 ? 0 : bracket.minIncome + 15000,
-      maxIncome: bracket.maxIncome !== null ? bracket.maxIncome + 15000 : null,
-    }));
+    taxBrackets = shiftTaxBrackets(taxBrackets);
   }
 
   // 7. Check adoption availability
