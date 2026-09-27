@@ -359,3 +359,63 @@ export function checkBikeRestriction(
 
   return null;
 }
+
+// ─── checkJobHealthRequirement ────────────────────────────────────────────────
+
+/**
+ * Check if player's current health meets the job's minimum health requirement.
+ * Returns an object with:
+ *   - meetsRequirement: boolean
+ *   - newGracePeriod: updated grace period counter
+ *   - shouldNotify: whether to send a notification (first year below requirement)
+ *   - shouldFire: whether to auto-fire the job (grace period exceeded)
+ *
+ * Grace period logic:
+ *   - Year 0 (first time below): increment grace period, notify player
+ *   - Year 1+ (still below): auto-fire the job
+ *   - If health recovers above requirement: reset grace period to 0
+ */
+export function checkJobHealthRequirement(
+  playerHealth: number,
+  jobMinHealth: number | undefined,
+  currentGracePeriod: number,
+): {
+  meetsRequirement: boolean;
+  newGracePeriod: number;
+  shouldNotify: boolean;
+  shouldFire: boolean;
+} {
+  // No health requirement for this job
+  if (jobMinHealth === undefined) {
+    return {
+      meetsRequirement: true,
+      newGracePeriod: 0,
+      shouldNotify: false,
+      shouldFire: false,
+    };
+  }
+
+  const meetsRequirement = playerHealth >= jobMinHealth;
+
+  // Health is good — reset grace period
+  if (meetsRequirement) {
+    return {
+      meetsRequirement: true,
+      newGracePeriod: 0,
+      shouldNotify: false,
+      shouldFire: false,
+    };
+  }
+
+  // Health is below requirement
+  const newGracePeriod = currentGracePeriod + 1;
+  const shouldNotify = currentGracePeriod === 0; // First year below requirement
+  const shouldFire = newGracePeriod > 1; // Second year or later below requirement
+
+  return {
+    meetsRequirement: false,
+    newGracePeriod,
+    shouldNotify,
+    shouldFire,
+  };
+}

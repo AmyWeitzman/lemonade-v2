@@ -114,6 +114,9 @@ model Player {
   // Couch-surfing: lifetime count of years spent on a friend's couch (max 2)
   couchSurfYearsUsed Int @default(0)
 
+  // Job health grace period: tracks consecutive years below job's health requirement
+  jobHealthGracePeriod Int @default(0)
+
   // Game progress
   totalLemonsEarned     Int @default(0)
   goodDeedCount         Int @default(0)

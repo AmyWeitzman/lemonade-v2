@@ -513,6 +513,49 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       }
     }
 
+    // h. Check job health requirements and apply grace period logic
+    let newJobHealthGracePeriod = player.jobHealthGracePeriod ?? 0;
+    const healthCheckUpdates: Array<{
+      employmentId: string;
+      shouldFire: boolean;
+      shouldNotify: boolean;
+    }> = [];
+
+    for (const employment of player.employments) {
+      if (!employment.isActive) continue;
+
+      const job = employment.job;
+      const jobMinHealth = (job.requirements as Record<string, unknown>)?.minHealth as number | undefined;
+
+      const { checkJobHealthRequirement } = await import('./jobs');
+      const healthCheck = checkJobHealthRequirement(newHealth, jobMinHealth, newJobHealthGracePeriod);
+
+      if (healthCheck.shouldNotify) {
+        await sendNotification(
+          player.id,
+          {
+            type: 'warning',
+            category: 'job',
+            title: 'Health Below Job Requirement',
+            message: `Your health (${newHealth.toFixed(0)}%) has fallen below the minimum required for your job as ${job.title} (${jobMinHealth}%). You have one year to recover or you will be fired.`,
+            persistent: true,
+            actionRequired: false,
+          },
+          io,
+        );
+      }
+
+      if (healthCheck.shouldFire) {
+        healthCheckUpdates.push({
+          employmentId: employment.id,
+          shouldFire: true,
+          shouldNotify: false,
+        });
+      }
+
+      newJobHealthGracePeriod = healthCheck.newGracePeriod;
+    }
+
     // h. Process job raises for each active employment
     const employmentUpdates: Array<{
       id: string;
@@ -587,6 +630,27 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
 
       // Reset unpaid time off to job's base value for the new year
       const newUnpaidTimeOff = job.unpaidTimeOff ?? 0;
+
+      // Apply health-based auto-fire if needed
+      const healthFireCheck = healthCheckUpdates.find((h) => h.employmentId === employment.id);
+      if (healthFireCheck?.shouldFire) {
+        isActive = false;
+        endReason = 'fired_health';
+        endAge = newAge;
+
+        await sendNotification(
+          player.id,
+          {
+            type: 'error',
+            category: 'job',
+            title: 'Fired Due to Health',
+            message: `You have been fired from your job as ${job.title} because your health remained below the required minimum for more than one year.`,
+            persistent: true,
+            actionRequired: false,
+          },
+          io,
+        );
+      }
 
       employmentUpdates.push({
         id: employment.id,
@@ -952,6 +1016,8 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
           // Reset internship flag for the new year
           ...({ didInternshipThisYear: false } as Record<string, unknown>),
           ...({ couchSurfYearsUsed: newCouchSurfYearsUsed } as Record<string, unknown>),
+          // Update job health grace period
+          jobHealthGracePeriod: newJobHealthGracePeriod,
         } as Parameters<typeof tx.player.update>[0]['data'],
       });
 
