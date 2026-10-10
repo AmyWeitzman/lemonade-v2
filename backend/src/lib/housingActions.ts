@@ -26,7 +26,7 @@ export interface CurrentHousingOwnership {
 }
 
 export interface AcquireHousingArgs {
-  player: { id: string; age: number; stress: number; location: string };
+  player: { id: string; age: number; stress: number; location: string; maritalStatus?: string; spouse?: unknown };
   housing: HousingRow;
   housingId: string;
   resolvedLocation: string;
@@ -102,10 +102,16 @@ export async function acquireHousing(
     } as any,
   });
 
+  // Update player location and sync spouse location if married
+  const updatedSpouse = player.maritalStatus === 'married' && player.spouse
+    ? { ...(player.spouse as Record<string, unknown>), location: resolvedLocation }
+    : player.spouse;
+
   await tx.player.update({
     where: { id: player.id },
     data: {
       location: resolvedLocation,
+      ...(updatedSpouse ? { spouse: updatedSpouse as any } : {}),
       // Relative updates so this composes with any other player update in the
       // same transaction (the "Get Housing" cart action already wrote stress).
       ...(stressAdded > 0 ? { stress: { increment: stressAdded } } : {}),
