@@ -332,13 +332,13 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     // d. Retirement check — mark player retired at 65 (Req 15.5)
     const isNowRetired = player.isRetired || newAge >= 65;
 
-    // e. Auto-retire spouse at 65 (Req 15.8)
+    // e. Auto-retire spouse at 65 (Req 15.8) and terminate employment
     const spouse = player.spouse as Record<string, unknown> | null;
     let updatedSpouse = spouse;
     if (spouse && typeof spouse.age === 'number' && !spouse.isRetired) {
       const spouseNewAge = (spouse.age as number) + 1;
       if (spouseNewAge >= 65) {
-        updatedSpouse = { ...spouse, age: spouseNewAge, isRetired: true };
+        updatedSpouse = { ...spouse, age: spouseNewAge, isRetired: true, jobId: null };
         // Notify player that spouse has retired
         await sendNotification(
           player.id,

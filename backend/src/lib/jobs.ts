@@ -340,6 +340,7 @@ export function checkBikeRestriction(
   jobLocation: string, // 'city' | 'suburb' | 'both'
   playerHousingLocation: string, // 'city' | 'suburb'
   vehicleOwnerships: Array<{ endAge: number | null; vehicle: { type: string; restrictedToArea: boolean } }>,
+  spouseLocation?: string, // 'city' | 'suburb' (optional)
 ): string | null {
   if (jobLocation === 'both') return null; // job is available everywhere
 
@@ -355,6 +356,11 @@ export function checkBikeRestriction(
   // Bike is restricted to area — job must be in same location as housing
   if (jobLocation !== playerHousingLocation) {
     return `Bike cannot travel between city and suburb. Job is in ${jobLocation} but your housing is in ${playerHousingLocation}.`;
+  }
+
+  // If spouse exists and is in different location, they also cannot move with a bike-only restriction
+  if (spouseLocation && spouseLocation !== playerHousingLocation) {
+    return `Bike cannot travel between city and suburb. Your spouse is in ${spouseLocation} but the new housing is in ${playerHousingLocation}.`;
   }
 
   return null;
