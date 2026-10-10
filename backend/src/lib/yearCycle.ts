@@ -442,6 +442,32 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       }
     }
 
+    // e3b. Check spouse CPR certification expiry
+    if (spouse && Array.isArray(spouse.certifications)) {
+      const spouseCerts = spouse.certifications as CertificationEntry[];
+      const spouseExpiredCerts = spouseCerts.filter(
+        (cert) => cert.type === 'cpr' && cert.expirationYear && cert.expirationYear <= session.currentYear + 1,
+      );
+      if (spouseExpiredCerts.length > 0) {
+        updatedSpouse = {
+          ...updatedSpouse,
+          certifications: spouseCerts.filter((cert) => cert.type !== 'cpr'),
+        };
+        await sendNotification(
+          player.id,
+          {
+            type: 'warning',
+            category: 'certification',
+            title: "Spouse's CPR Certification Expired",
+            message:
+              "Your spouse's CPR certification has expired. They are no longer eligible for certain jobs that require CPR certification.",
+            persistent: true,
+          },
+          io,
+        );
+      }
+    }
+
     // e4. Parents' move-out deadline reminder (parent-contribution roll).
     // parentMaxAge: null = parents can never house you, -1 = no limit, N = out by N.
     const parentMaxAge = (player.parentContributions as ParentContributions | null)?.maxParentAge;
