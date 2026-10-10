@@ -191,8 +191,13 @@ router.post(
           },
           update: {
             currentScore: 0,
+            yearlyScores: {},
             debtStressHistory: [],
             familyActionHistory: [],
+            totalYearsMarried: 0,
+            communicationGained: 0,
+            compassionGained: 0,
+            patienceGained: 0,
           },
         });
       });
