@@ -496,6 +496,7 @@ export function buildSpouseFromCandidate(
     isEduPartTime: false,
     vehicleId: candidate.vehicleId ?? null,
     housingId: candidate.housingId ?? null,
+    location: 'city', // Default location; will match player's location when they marry
     loans,
     money: candidate.money,
     retirementSavings: candidate.retirementSavings,
