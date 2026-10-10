@@ -191,8 +191,13 @@ router.post(
           },
           update: {
             currentScore: 0,
+            yearlyScores: {},
             debtStressHistory: [],
             familyActionHistory: [],
+            totalYearsMarried: 0,
+            communicationGained: 0,
+            compassionGained: 0,
+            patienceGained: 0,
           },
         });
       });
@@ -259,9 +264,15 @@ router.post(
         return;
       }
 
-      // Fetch all player loans to calculate total balance
+      // Fetch all loans and separate by owner
       const loans = await prisma.loan.findMany({ where: { playerId: player.id } });
-      const totalLoanBalance = loans.reduce((sum, l) => sum + l.currentBalance, 0);
+      const playerLoansBalance = loans
+        .filter((l) => l.owner === 'player' || l.isJoint)
+        .reduce((sum, l) => sum + l.currentBalance, 0);
+      const spouseLoansBalance = loans
+        .filter((l) => l.owner === 'spouse')
+        .reduce((sum, l) => sum + l.currentBalance, 0);
+      const totalLoanBalance = playerLoansBalance + spouseLoansBalance;
 
       const settlement = calculateDivorceSettlement({
         currentMoney: player.money,
@@ -272,7 +283,7 @@ router.post(
         playerOriginalSavings: spouse.playerOriginalSavings ?? 0,
         spouseOriginalSavings: spouse.originalSavings ?? 0,
         playerOriginalLoans: 0,
-        spouseOriginalLoans: spouse.originalLoans ?? 0,
+        spouseOriginalLoans: spouseLoansBalance,
       });
 
       const newStress = Math.min(100, player.stress + settlement.stressAdded);
@@ -290,9 +301,12 @@ router.post(
           },
         });
 
-        // Remove spouse-owned loans (they go back to spouse)
+        // Remove spouse-owned and joint loans (they go back to spouse or are split)
         await tx.loan.deleteMany({
-          where: { playerId: player.id, owner: 'spouse' },
+          where: {
+            playerId: player.id,
+            OR: [{ owner: 'spouse' }, { isJoint: true }],
+          },
         });
       });
 

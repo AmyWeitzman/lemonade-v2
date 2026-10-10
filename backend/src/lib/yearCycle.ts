@@ -338,7 +338,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     if (spouse && typeof spouse.age === 'number' && !spouse.isRetired) {
       const spouseNewAge = (spouse.age as number) + 1;
       if (spouseNewAge >= 65) {
-        updatedSpouse = { ...spouse, age: spouseNewAge, isRetired: true, jobId: null };
+        updatedSpouse = { ...spouse, age: spouseNewAge, isRetired: true, jobId: null, salary: 0 };
         // Notify player that spouse has retired
         await sendNotification(
           player.id,
@@ -436,6 +436,32 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
               'Your CPR certification has expired. Renew it or you will not be eligible for certain jobs and actions that require a CPR certification.',
             persistent: true,
             actionRequired: true,
+          },
+          io,
+        );
+      }
+    }
+
+    // e3b. Check spouse CPR certification expiry
+    if (spouse && Array.isArray(spouse.certifications)) {
+      const spouseCerts = spouse.certifications as CertificationEntry[];
+      const spouseExpiredCerts = spouseCerts.filter(
+        (cert) => cert.type === 'cpr' && cert.expirationYear && cert.expirationYear <= session.currentYear + 1,
+      );
+      if (spouseExpiredCerts.length > 0) {
+        updatedSpouse = {
+          ...updatedSpouse,
+          certifications: spouseCerts.filter((cert) => cert.type !== 'cpr'),
+        };
+        await sendNotification(
+          player.id,
+          {
+            type: 'warning',
+            category: 'certification',
+            title: "Spouse's CPR Certification Expired",
+            message:
+              "Your spouse's CPR certification has expired. They are no longer eligible for certain jobs that require CPR certification.",
+            persistent: true,
           },
           io,
         );
@@ -1099,6 +1125,28 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       // Update pets
       for (const pu of petUpdates) {
         await tx.pet.update({ where: { id: pu.id }, data: { age: pu.age, isAlive: pu.isAlive } });
+      }
+
+      // Increment vehicle ownership ages (for depreciation calculations)
+      const vehicleOwnerships = await tx.vehicleOwnership.findMany({
+        where: { playerId: player.id, endAge: null },
+      });
+      for (const vo of vehicleOwnerships) {
+        await tx.vehicleOwnership.update({
+          where: { id: vo.id },
+          data: { yearsOwned: (vo.yearsOwned ?? 0) + 1 },
+        });
+      }
+
+      // Increment housing ownership ages (for appreciation calculations)
+      const housingOwnerships = await tx.housingOwnership.findMany({
+        where: { playerId: player.id, endAge: null },
+      });
+      for (const ho of housingOwnerships) {
+        await tx.housingOwnership.update({
+          where: { id: ho.id },
+          data: { yearsLived: (ho.yearsLived ?? 0) + 1 },
+        });
       }
     });
 
