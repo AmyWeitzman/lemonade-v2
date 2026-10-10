@@ -373,12 +373,22 @@ router.get('/summary', authorize, async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // Spouse vehicle costs
+    // Spouse vehicle costs — check for mechanic benefit
     let spouseVehicleCosts = 0;
+    let hasSpouseMechanicBenefit = false;
+    if (spouse.jobId) {
+      const spouseJob = await prisma.job.findUnique({ where: { id: spouse.jobId } });
+      if (spouseJob) {
+        const { getJobBenefits } = await import('../lib/jobs');
+        const benefits = getJobBenefits(spouseJob.benefits, spouseJob);
+        hasSpouseMechanicBenefit = (benefits.autoMaintenanceDiscountPct ?? 0) > 0;
+      }
+    }
+
     const spouseVehicleBreakdown: Record<string, number> = {};
     for (const vo of player.vehicleOwnerships) {
       const vehicle = vo.vehicle as unknown as VehicleRow;
-      const costs = calculateAnnualVehicleCosts(vehicle, vo.yearsOwned, false);
+      const costs = calculateAnnualVehicleCosts(vehicle, vo.yearsOwned, hasSpouseMechanicBenefit);
       spouseVehicleCosts += costs.total;
       spouseVehicleBreakdown[vehicle.name] = costs.total;
     }

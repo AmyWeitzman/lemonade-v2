@@ -137,11 +137,22 @@ function calculateHealthInsuranceCost(player: PlayerForExpenses, healthcareMult 
   return (6000 + player.age * 300) * healthcareMult;
 }
 
-function calculatePetExpenses(player: PlayerForExpenses, generalMult = 1): number {
-  const hasVetWaiver = player.employments.some((e) => {
+async function calculatePetExpenses(player: PlayerForExpenses, generalMult = 1): Promise<number> {
+  let hasVetWaiver = player.employments.some((e) => {
     const benefits = getJobBenefits(e.job.benefits, e.job);
     return benefits.vetFeeWaiver;
   });
+  // Check spouse vet waiver if not found on player
+  if (!hasVetWaiver && player.maritalStatus === 'married') {
+    const spouse = player.spouse as SpouseExpenseData | null;
+    if (spouse?.jobId) {
+      const job = await prisma.job.findUnique({ where: { id: spouse.jobId } });
+      if (job) {
+        const benefits = getJobBenefits(job.benefits, job);
+        hasVetWaiver = benefits.vetFeeWaiver;
+      }
+    }
+  }
   let total = 0;
   for (const pet of player.pets) {
     if (pet.type === 'small') {
@@ -294,7 +305,7 @@ export async function calculateMandatoryExpenses(
 
   const kidsUnder18 = player.children.filter((c) => c.age < 18).length;
   const childExpenses = kidsUnder18 * 11000 * generalMult;
-  const petExpenses = calculatePetExpenses(player, generalMult);
+  const petExpenses = await calculatePetExpenses(player, generalMult);
 
   // Apply household shopping discount (once, not per person)
   const shoppingDiscount = await getHouseholdShoppingDiscount(player);
