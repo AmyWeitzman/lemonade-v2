@@ -56,6 +56,7 @@ const spouseDataSchema = z.object({
   isEduPartTime: z.boolean().default(false),
   vehicleId: z.string().nullable().optional(),
   housingId: z.string().nullable().optional(),
+  location: z.enum(['city', 'suburb']).default('city'),
   loans: z.array(spouseLoanSchema).default([]),
   money: z.number().nonnegative().default(0),
   retirementSavings: z.number().nonnegative().default(0),
@@ -320,6 +321,12 @@ router.post(
             playerId: player.id,
             OR: [{ owner: 'spouse' }, { isJoint: true }],
           },
+        });
+
+        // Mark spouse vehicles as ended (they go with the spouse)
+        await tx.vehicleOwnership.updateMany({
+          where: { playerId: player.id, isSpouseVehicle: true, endAge: null },
+          data: { endAge: player.age },
         });
       });
 
