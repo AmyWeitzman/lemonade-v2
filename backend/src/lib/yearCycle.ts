@@ -50,6 +50,11 @@ interface TaxBracket {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Flat health loss (percentage-points, not %) per year based on age decade.
+ * E.g., age 70+ loses exactly 4 health points per year, not 4% of maxHealth.
+ * (Req 16.1–16.5)
+ */
 function agingHealthLoss(age: number): number {
   if (age >= 80) return 5;
   if (age >= 70) return 4;
@@ -302,10 +307,10 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     const newAge = player.age + 1;
 
     // b. Aging health loss (semi-permanent — reduces current health only, maxHealth unchanged)
-    const healthLossPct = agingHealthLoss(newAge);
-    const healthLoss = (healthLossPct / 100) * player.maxHealth;
-    const newMaxHealth = Math.max(0, player.maxHealth - healthLoss);
-    const newHealth = Math.max(0, Math.min(player.health - healthLoss, newMaxHealth));
+    //    Flat percentage-point loss per age decade (not percentage of maxHealth)
+    const healthLoss = agingHealthLoss(newAge);
+    const newHealth = Math.max(0, player.health - healthLoss);
+    const newMaxHealth = player.maxHealth;
 
     // c. Reset stress
     const newStress = 0;
