@@ -161,6 +161,10 @@ function playerHasBike(player: FullPlayer): boolean {
   );
 }
 
+function playerHasActiveTransportation(player: FullPlayer): boolean {
+  return player.vehicleOwnerships.some((v) => v.endAge === null && !v.isSpouseVehicle);
+}
+
 /** Actions the player MUST do this year (get housing / transportation). */
 function computeRequiredActions(player: FullPlayer, currentYear: number): RequiredAction[] {
   const activeHousing = player.housingOwnerships.find((h) => h.endAge === null);
@@ -989,6 +993,29 @@ router.post(
       let totalTimeBlocks = 0;
       let totalPtoBlocks = 0;
       let totalCost = 0;
+
+      // First-year transportation requirement: if year 0 and player doesn't have
+      // transportation, must select a transportation action (unless parent gave a car)
+      if (
+        currentYear === 0 &&
+        !playerHasActiveTransportation(player)
+      ) {
+        const parentContrib = player.parentContributions as ParentContributions | null;
+        const parentGaveCar = parentContrib?.car !== null;
+
+        if (!parentGaveCar) {
+          const hasTransportInCart = cartItems.some((item) => {
+            const action = actionMap.get(item.actionId);
+            return action && action.name === GET_TRANSPORT_ACTION;
+          });
+
+          if (!hasTransportInCart) {
+            validationErrors.push(
+              'In your first year, you must select a transportation option before checkout (or your parents gave you a car).',
+            );
+          }
+        }
+      }
 
       // Reject doing a "once per year" action more than once in a single checkout
       // (the frontend expands cart quantity into repeated entries).
