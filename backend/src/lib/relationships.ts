@@ -19,6 +19,7 @@ export interface SpouseData {
   isEduPartTime: boolean;
   vehicleId?: string | null;
   housingId?: string | null;
+  location: 'city' | 'suburb';
   loans: SpouseLoan[];
   money: number;
   retirementSavings: number;
