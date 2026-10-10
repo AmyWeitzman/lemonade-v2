@@ -569,6 +569,24 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       }
     }
 
+    // g2. Spouse pension payments if spouse is retired (Req 38 extended)
+    let spousePensionIncome = 0;
+    if (updatedSpouse && typeof updatedSpouse.isRetired === 'boolean' && updatedSpouse.isRetired) {
+      if (updatedSpouse.jobId && typeof updatedSpouse.jobId === 'string') {
+        const spouseJob = await prisma.job.findUnique({ where: { id: updatedSpouse.jobId } });
+        if (spouseJob?.hasPension && spouseJob.pensionPercentage) {
+          // Estimate spouse years of service (can't track precisely without employment records)
+          // Use a conservative estimate: spouse current position took 5 years on average
+          const estimatedSpouseYearsOfService = 5;
+          spousePensionIncome = calculatePensionPayment(
+            spouseJob.pensionPercentage,
+            spouseJob.baseSalary,
+            estimatedSpouseYearsOfService,
+          );
+        }
+      }
+    }
+
     // h. Check job health requirements and apply grace period logic
     let newJobHealthGracePeriod = player.jobHealthGracePeriod ?? 0;
     const healthCheckUpdates: Array<{
@@ -1070,8 +1088,8 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
           // Persist updated certifications (CPR expiry removals)
           certifications: updatedCertifications as unknown as Prisma.InputJsonValue,
           // Add pension income, deduct spouse CPR renewal charge, deduct internship pay reduction
-          ...(pensionIncome > 0 || spouseCprCharge > 0 || internshipPayDeduction > 0
-            ? { money: { increment: pensionIncome - spouseCprCharge - internshipPayDeduction } }
+          ...(pensionIncome > 0 || spousePensionIncome > 0 || spouseCprCharge > 0 || internshipPayDeduction > 0
+            ? { money: { increment: pensionIncome + spousePensionIncome - spouseCprCharge - internshipPayDeduction } }
             : {}),
           yearComplete: false,
           cardsReceivedThisYear: 0,
@@ -1167,6 +1185,20 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
           category: 'year',
           title: 'Pension Payment Received',
           message: `You received $${pensionIncome.toLocaleString()} in pension income this year.`,
+        },
+        io,
+      );
+    }
+
+    // Notify player of spouse pension income if any
+    if (spousePensionIncome > 0) {
+      await sendNotification(
+        player.id,
+        {
+          type: 'success',
+          category: 'year',
+          title: "Spouse's Pension Payment Received",
+          message: `Your spouse received $${spousePensionIncome.toLocaleString()} in pension income this year.`,
         },
         io,
       );

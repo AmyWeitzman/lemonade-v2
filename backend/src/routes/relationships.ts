@@ -137,6 +137,17 @@ router.post(
         return;
       }
 
+      // Validate player has meaningful income to support spouse
+      // Spouse with higher income than player might be okay (they support themselves)
+      const spouseIncome = (spouseData.salary ?? 0) + (spouseData.retirementSavings ?? 0) / 40; // Rough annual draw from retirement
+      const playerIncome = player.money + (player.projectedIncome ?? 0);
+      if (playerIncome <= 0 && spouseIncome <= 0) {
+        res.status(400).json({
+          error: 'You and your spouse need at least some income to support the marriage. Build up savings or get a job first.',
+        });
+        return;
+      }
+
       // Build spouse JSON to store on player
       const spouseRecord = {
         ...fullSpouseData,
@@ -298,6 +309,8 @@ router.post(
             maritalStatus: 'divorced',
             spouse: Prisma.JsonNull,
             stress: newStress,
+            // Reset childcare plan since household composition changed
+            childcarePlan: 'none',
           },
         });
 
