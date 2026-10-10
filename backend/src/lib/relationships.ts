@@ -29,6 +29,8 @@ export interface SpouseData {
   originalMoney: number;
   originalSavings: number;
   originalLoans: number;
+  playerOriginalMoney: number;
+  playerOriginalSavings: number;
 }
 
 export interface SpouseLoan {
