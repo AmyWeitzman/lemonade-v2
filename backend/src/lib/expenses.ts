@@ -197,6 +197,7 @@ export interface MandatoryExpensesResult {
   taxes: number;
   retirementWithdrawalPenalty: number;
   loanMinPayments: number;
+  spouseLoanMinPayments: number;
   total: number;
   breakdown: Record<string, number>;
 }
@@ -309,6 +310,15 @@ export async function calculateMandatoryExpenses(
   );
   const loanMinPayments = loanResults.reduce((sum, l) => sum + l.minimumPayment, 0);
 
+  let spouseLoanMinPayments = 0;
+  if (player.maritalStatus === 'married') {
+    const spouse = player.spouse as SpouseExpenseData | null;
+    if (spouse?.loans && spouse.loans.length > 0) {
+      const spouseLoanResults = applyLoanInterest(spouse.loans);
+      spouseLoanMinPayments = spouseLoanResults.reduce((sum, l) => sum + l.minimumPayment, 0);
+    }
+  }
+
   const total =
     housingCost +
     transportationCost +
@@ -326,7 +336,8 @@ export async function calculateMandatoryExpenses(
     taxPrepFee +
     taxes +
     retirementWithdrawalPenalty +
-    loanMinPayments;
+    loanMinPayments +
+    spouseLoanMinPayments;
 
   const breakdown = {
     housing: housingCost,
@@ -346,6 +357,7 @@ export async function calculateMandatoryExpenses(
     taxes,
     retirementWithdrawalPenalty,
     loanMinPayments,
+    spouseLoanMinPayments,
   };
 
   return {
@@ -366,6 +378,7 @@ export async function calculateMandatoryExpenses(
     taxes,
     retirementWithdrawalPenalty,
     loanMinPayments,
+    spouseLoanMinPayments,
     total,
     breakdown,
   };

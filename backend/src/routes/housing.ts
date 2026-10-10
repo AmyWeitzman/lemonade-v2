@@ -309,6 +309,8 @@ router.post(
 
       // Bike area restriction: cannot move to a different area if only transportation is a bike
       // (Req 13.3 — bike can't travel between areas)
+      const spouse = player.spouse as Record<string, unknown> | null;
+      const spouseLocation = (spouse?.location as string | undefined) ?? player.location;
       const bikeRestriction = checkBikeRestriction(
         resolvedLocation,
         player.location,
@@ -316,6 +318,7 @@ router.post(
           endAge: v.endAge,
           vehicle: { type: v.vehicle.type, restrictedToArea: v.vehicle.restrictedToArea },
         })),
+        spouseLocation,
       );
       if (bikeRestriction) {
         res.status(400).json({ error: bikeRestriction });

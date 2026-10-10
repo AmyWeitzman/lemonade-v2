@@ -35,6 +35,10 @@ import {
   hasCertification,
   type CertificationEntry,
 } from './certifications';
+import {
+  restoreTemporaryHealth,
+  type MutableHealthState,
+} from './healthStress';
 import type { ParentContributions } from './playerInit';
 import { getMandatoryExpensesTotal } from './expenses';
 import { checkJobHealthRequirement } from './jobs';
@@ -308,11 +312,19 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     // a. Increment age
     const newAge = player.age + 1;
 
-    // b. Aging health loss (semi-permanent — reduces current health only, maxHealth unchanged)
+    // b. Restore temporary health debt at year start
+    const healthState: MutableHealthState = {
+      health: player.health,
+      maxHealth: player.maxHealth,
+      temporaryHealthDebt: player.temporaryHealthDebt ?? 0,
+    };
+    restoreTemporaryHealth(healthState);
+
+    // c. Aging health loss (semi-permanent — reduces current health only, maxHealth unchanged)
     //    Flat percentage-point loss per age decade (not percentage of maxHealth)
     const healthLoss = agingHealthLoss(newAge);
-    const newHealth = Math.max(0, player.health - healthLoss);
-    const newMaxHealth = player.maxHealth;
+    const newHealth = Math.max(0, healthState.health - healthLoss);
+    const newMaxHealth = healthState.maxHealth;
 
     // c. Reset stress
     const newStress = 0;
@@ -320,13 +332,13 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     // d. Retirement check — mark player retired at 65 (Req 15.5)
     const isNowRetired = player.isRetired || newAge >= 65;
 
-    // e. Auto-retire spouse at 65 (Req 15.8)
+    // e. Auto-retire spouse at 65 (Req 15.8) and terminate employment
     const spouse = player.spouse as Record<string, unknown> | null;
     let updatedSpouse = spouse;
     if (spouse && typeof spouse.age === 'number' && !spouse.isRetired) {
       const spouseNewAge = (spouse.age as number) + 1;
       if (spouseNewAge >= 65) {
-        updatedSpouse = { ...spouse, age: spouseNewAge, isRetired: true };
+        updatedSpouse = { ...spouse, age: spouseNewAge, isRetired: true, jobId: null };
         // Notify player that spouse has retired
         await sendNotification(
           player.id,
@@ -1020,6 +1032,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
           age: newAge,
           health: newHealth,
           maxHealth: newMaxHealth,
+          temporaryHealthDebt: 0,
           stress: newStress,
           skills: newSkills,
           traits: newTraits,

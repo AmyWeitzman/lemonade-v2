@@ -143,6 +143,8 @@ router.post(
         originalMoney: marriageResult.spouseOriginalMoney,
         originalSavings: marriageResult.spouseOriginalSavings,
         originalLoans: marriageResult.spouseOriginalLoans,
+        playerOriginalMoney: marriageResult.playerOriginalMoney,
+        playerOriginalSavings: marriageResult.playerOriginalSavings,
       };
 
       await prisma.$transaction(async (tx) => {
@@ -265,9 +267,9 @@ router.post(
         currentMoney: player.money,
         currentRetirementSavings: player.retirementSavings,
         currentLoanBalance: totalLoanBalance,
-        playerOriginalMoney: spouse.originalMoney ?? 0,
+        playerOriginalMoney: spouse.playerOriginalMoney ?? 0,
         spouseOriginalMoney: spouse.originalMoney ?? 0,
-        playerOriginalSavings: spouse.originalSavings ?? 0,
+        playerOriginalSavings: spouse.playerOriginalSavings ?? 0,
         spouseOriginalSavings: spouse.originalSavings ?? 0,
         playerOriginalLoans: 0,
         spouseOriginalLoans: spouse.originalLoans ?? 0,
