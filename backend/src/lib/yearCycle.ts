@@ -31,6 +31,8 @@ import { calculateInternshipJobPayReduction } from './internship';
 import {
   checkCertificationExpiry,
   revokeCertification,
+  grantCertification,
+  hasCertification,
   type CertificationEntry,
 } from './certifications';
 import type { ParentContributions } from './playerInit';
@@ -371,15 +373,25 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       updatedSpouse = { ...spouse, age: (spouse.age as number) + 1 };
     }
 
-    // e2. Spouse CPR auto-renewal — charge $75 every 2 years if spouse has CPR cert
+    // e2. Spouse CPR auto-renewal — charge $75 every 2 years if spouse has CPR cert (Req 43)
     const CPR_RENEWAL_COST = 75;
     const CPR_RENEWAL_INTERVAL = 2;
     let spouseCprCharge = 0;
-    if (updatedSpouse && Array.isArray(updatedSpouse.certifications) && (updatedSpouse.certifications as string[]).includes('CPR')) {
+    if (updatedSpouse && hasCertification(updatedSpouse, 'cpr', session.currentYear)) {
       const spouseCprYear = (updatedSpouse as Record<string, unknown>).spouseCprYear as number | undefined;
       if (spouseCprYear === undefined || (session.currentYear + 1 - spouseCprYear) >= CPR_RENEWAL_INTERVAL) {
         spouseCprCharge = CPR_RENEWAL_COST;
-        updatedSpouse = { ...updatedSpouse, spouseCprYear: session.currentYear + 1 };
+        // Renew the CPR certification by granting it again (extends expiry by 2 years)
+        const renewedCerts = grantCertification(
+          updatedSpouse,
+          'cpr',
+          session.currentYear + 1,
+        );
+        updatedSpouse = {
+          ...updatedSpouse,
+          certifications: renewedCerts,
+          spouseCprYear: session.currentYear + 1,
+        };
         await sendNotification(
           player.id,
           {
