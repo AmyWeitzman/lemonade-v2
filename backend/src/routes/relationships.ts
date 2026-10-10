@@ -149,9 +149,10 @@ router.post(
         return;
       }
 
-      // Build spouse JSON to store on player
+      // Build spouse JSON to store on player (sync location with player)
       const spouseRecord = {
         ...fullSpouseData,
+        location: player.location,
         originalMoney: marriageResult.spouseOriginalMoney,
         originalSavings: marriageResult.spouseOriginalSavings,
         originalLoans: marriageResult.spouseOriginalLoans,
