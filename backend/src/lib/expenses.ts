@@ -137,6 +137,17 @@ function calculateChronicConditionCosts(player: PlayerForExpenses, healthcareMul
   return conditions.length * costPerCondition * healthcareMult;
 }
 
+async function calculatePendingRetirementWithdrawalPenalty(playerId: string, currentYear: number): Promise<number> {
+  const penaltyTransaction = await prisma.retirementTransaction.findFirst({
+    where: {
+      playerId,
+      year: currentYear,
+      type: 'penalty',
+    },
+  });
+  return penaltyTransaction?.amount ?? 0;
+}
+
 function calculateTuition(player: PlayerForExpenses): number {
   let total = 0;
   for (const edu of player.educations) {
@@ -184,6 +195,7 @@ export interface MandatoryExpensesResult {
   spouseCprRenewal: number;
   taxPrepFee: number;
   taxes: number;
+  retirementWithdrawalPenalty: number;
   loanMinPayments: number;
   total: number;
   breakdown: Record<string, number>;
@@ -279,6 +291,13 @@ export async function calculateMandatoryExpenses(
       hasAccountingExperience: hasAccountingExperience(player),
     }) * generalMult;
 
+  // Early retirement withdrawal penalty from prior year (Req 37.8)
+  // Penalty is charged the following year, not the year of withdrawal
+  const retirementWithdrawalPenalty = await calculatePendingRetirementWithdrawalPenalty(
+    (player as any).id,
+    session.currentYear,
+  );
+
   const loanResults = applyLoanInterest(
     player.loans.map((l) => ({
       id: l.id,
@@ -306,6 +325,7 @@ export async function calculateMandatoryExpenses(
     spouseCprRenewal +
     taxPrepFee +
     taxes +
+    retirementWithdrawalPenalty +
     loanMinPayments;
 
   const breakdown = {
@@ -324,6 +344,7 @@ export async function calculateMandatoryExpenses(
     spouseCprRenewal,
     taxPrepFee,
     taxes,
+    retirementWithdrawalPenalty,
     loanMinPayments,
   };
 
@@ -343,6 +364,7 @@ export async function calculateMandatoryExpenses(
     spouseCprRenewal,
     taxPrepFee,
     taxes,
+    retirementWithdrawalPenalty,
     loanMinPayments,
     total,
     breakdown,

@@ -192,9 +192,10 @@ export function calculateHealth(player: HealthPlayerInput): MutableHealthState {
   }
 
   // 2. Aging health loss — semi-permanent (Req 16.1–16.5)
+  //    Flat percentage-point loss per age decade (not percentage of maxHealth).
   //    Reduces current health only; maxHealth is untouched so the player can
   //    earn health back through actions. Does NOT auto-restore next year.
-  const agingLoss = agingHealthLossPct(age);
+  const agingLoss = agingHealthLossFlat(age);
   if (agingLoss > 0) {
     health = Math.max(0, health - agingLoss);
   }
@@ -310,9 +311,11 @@ export function restoreTemporaryHealth(state: MutableHealthState): MutableHealth
 // ─── Internal Helpers ─────────────────────────────────────────────────────────
 
 /**
- * Flat percentage-point health loss per year based on age decade (Req 16.1–16.5).
+ * Flat health loss (percentage-points, not %) per year based on age decade.
+ * E.g., age 70+ loses exactly 4 health points per year, not 4% of maxHealth.
+ * (Req 16.1–16.5)
  */
-function agingHealthLossPct(age: number): number {
+function agingHealthLossFlat(age: number): number {
   if (age >= 80) return 5;
   if (age >= 70) return 4;
   if (age >= 60) return 3;

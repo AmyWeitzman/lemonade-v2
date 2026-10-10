@@ -38,8 +38,6 @@ export interface TaxInput {
   /** Combined taxable income (salary + any other income) */
   income: number;
   filingStatus: 'single' | 'married';
-  /** Early retirement withdrawal amount taken this year (if any) */
-  earlyRetirementWithdrawal?: number;
   taxBrackets: TaxBracket[];
 }
 
@@ -102,10 +100,12 @@ export interface ExpenseForecastResult {
 /**
  * Calculate progressive income taxes.
  * Married players file jointly (combined income, married brackets).
- * Early retirement withdrawal before age 65 incurs 10% additional penalty (Req 37.8).
+ *
+ * Note: Early retirement withdrawal penalties are NOT applied here. They are
+ * tracked separately and added to expenses in the following year (Req 37.8).
  */
 export function calculateTaxes(input: TaxInput): TaxResult {
-  const { income, filingStatus, earlyRetirementWithdrawal = 0, taxBrackets } = input;
+  const { income, filingStatus, taxBrackets } = input;
 
   const brackets = taxBrackets
     .filter((b) => b.filingStatus === filingStatus)
@@ -128,15 +128,13 @@ export function calculateTaxes(input: TaxInput): TaxResult {
     bracketBreakdown.push({ rate: bracket.rate, incomeInBracket, taxInBracket });
   }
 
-  // 10% penalty on early retirement withdrawal (Req 37.8)
-  const earlyWithdrawalPenalty = earlyRetirementWithdrawal * 0.1;
-  const totalTax = baseTax + earlyWithdrawalPenalty;
+  const totalTax = baseTax;
   const effectiveRate = taxableIncome > 0 ? totalTax / taxableIncome : 0;
 
   return {
     taxableIncome,
     baseTax,
-    earlyWithdrawalPenalty,
+    earlyWithdrawalPenalty: 0,
     totalTax,
     effectiveRate,
     bracketBreakdown,
