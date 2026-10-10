@@ -87,6 +87,12 @@ router.put(
           return;
         }
 
+        // If spouse is in education, job must be part-time (Req 27)
+        if (spouse.educationProgramId && !isPartTime) {
+          res.status(400).json({ error: 'Spouse must work part-time when also enrolled in education' });
+          return;
+        }
+
         // Validate part-time eligibility
         if (isPartTime && !job.partTime) {
           res.status(400).json({ error: 'This job does not allow part-time employment' });
