@@ -29,6 +29,7 @@ import {
 import { acquireHousing } from '../lib/housingActions';
 import type { InflationRates } from '../lib/inflation';
 import type { ParentContributions } from '../lib/playerInit';
+import { checkBikeRestriction } from '../lib/jobs';
 
 const router = Router();
 
@@ -49,6 +50,7 @@ async function fetchFullPlayer(userId: string, gameSessionId: string) {
         orderBy: { createdAt: 'desc' },
         take: 1,
       },
+      vehicleOwnerships: { include: { vehicle: true } },
     },
   });
 }
@@ -304,6 +306,21 @@ router.post(
         return;
       }
       const resolvedLocation = housing.location === 'both' ? requestedLocation! : housing.location;
+
+      // Bike area restriction: cannot move to a different area if only transportation is a bike
+      // (Req 13.3 — bike can't travel between areas)
+      const bikeRestriction = checkBikeRestriction(
+        resolvedLocation,
+        player.location,
+        player.vehicleOwnerships.map((v) => ({
+          endAge: v.endAge,
+          vehicle: { type: v.vehicle.type, restrictedToArea: v.vehicle.restrictedToArea },
+        })),
+      );
+      if (bikeRestriction) {
+        res.status(400).json({ error: bikeRestriction });
+        return;
+      }
 
       // Affordability: buying a home is paid in full from cash (no mortgages).
       // If selling the current home still isn't enough, the player must take a loan.
