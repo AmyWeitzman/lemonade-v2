@@ -87,6 +87,39 @@ function hasAccountingExperience(player: PlayerForExpenses): boolean {
   return spouse?.hasAccountingExperience ?? false;
 }
 
+/** Check if spouse has mechanic job benefit for vehicle maintenance discount. */
+async function spouseHasMechanicBenefit(spouse: SpouseExpenseData | null): Promise<boolean> {
+  if (!spouse?.jobId) return false;
+  const job = await prisma.job.findUnique({ where: { id: spouse.jobId } });
+  if (!job) return false;
+  const benefits = getJobBenefits(job.benefits, job);
+  return (benefits.autoMaintenanceDiscountPct ?? 0) > 0;
+}
+
+/** Get household shopping discount from player or spouse (whichever is higher). */
+async function getHouseholdShoppingDiscount(player: PlayerForExpenses): Promise<number> {
+  let playerDiscount = 0;
+  // Check player's job for shopping discount
+  for (const e of player.employments) {
+    const b = getJobBenefits(e.job.benefits, e.job);
+    playerDiscount = Math.max(playerDiscount, b.shoppingDiscountPct ?? 0);
+  }
+
+  let spouseDiscount = 0;
+  if (player.maritalStatus === 'married') {
+    const spouse = player.spouse as SpouseExpenseData | null;
+    if (spouse?.jobId) {
+      const job = await prisma.job.findUnique({ where: { id: spouse.jobId } });
+      if (job) {
+        const b = getJobBenefits(job.benefits, job);
+        spouseDiscount = b.shoppingDiscountPct ?? 0;
+      }
+    }
+  }
+
+  return Math.max(playerDiscount, spouseDiscount);
+}
+
 /** Total taxable income: player salary + spouse salary (if married). */
 function getTaxableIncome(player: PlayerForExpenses): number {
   const spouse = player.spouse as SpouseExpenseData | null;
@@ -104,11 +137,22 @@ function calculateHealthInsuranceCost(player: PlayerForExpenses, healthcareMult 
   return (6000 + player.age * 300) * healthcareMult;
 }
 
-function calculatePetExpenses(player: PlayerForExpenses, generalMult = 1): number {
-  const hasVetWaiver = player.employments.some((e) => {
+async function calculatePetExpenses(player: PlayerForExpenses, generalMult = 1): Promise<number> {
+  let hasVetWaiver = player.employments.some((e) => {
     const benefits = getJobBenefits(e.job.benefits, e.job);
     return benefits.vetFeeWaiver;
   });
+  // Check spouse vet waiver if not found on player
+  if (!hasVetWaiver && player.maritalStatus === 'married') {
+    const spouse = player.spouse as SpouseExpenseData | null;
+    if (spouse?.jobId) {
+      const job = await prisma.job.findUnique({ where: { id: spouse.jobId } });
+      if (job) {
+        const benefits = getJobBenefits(job.benefits, job);
+        hasVetWaiver = benefits.vetFeeWaiver;
+      }
+    }
+  }
   let total = 0;
   for (const pet of player.pets) {
     if (pet.type === 'small') {
@@ -122,12 +166,13 @@ function calculatePetExpenses(player: PlayerForExpenses, generalMult = 1): numbe
   return total * generalMult;
 }
 
-function calculateGroceries(player: PlayerForExpenses, groceriesMult = 1): number {
+function calculateGroceries(player: PlayerForExpenses, groceriesMult = 1, shoppingDiscountPct = 0): number {
   const kidsUnder18 = player.children.filter((c) => c.age < 18).length;
   const spouseCount = player.maritalStatus === 'married' ? 1 : 0;
   const householdSize = 1 + spouseCount + kidsUnder18;
   const ratePerPerson = householdSize >= 3 ? 2400 : 3000;
-  return ratePerPerson * householdSize * groceriesMult;
+  const cost = ratePerPerson * householdSize * groceriesMult;
+  return cost * (1 - shoppingDiscountPct);
 }
 
 function calculateChronicConditionCosts(player: PlayerForExpenses, healthcareMult = 1): number {
@@ -227,23 +272,31 @@ export async function calculateMandatoryExpenses(
     housingCost = housingResult.total;
   }
 
-  // Transportation — player vehicles only
+  // Determine mechanic benefits early (player + spouse combined for household)
+  const spouse = player.spouse as SpouseExpenseData | null;
+  const playerIsMechanic = player.employments.some((e) => {
+    const b = getJobBenefits(e.job.benefits, e.job);
+    return b.autoMaintenanceDiscountPct > 0;
+  });
+  let spouseIsMechanic = false;
+  if (player.maritalStatus === 'married') {
+    spouseIsMechanic = await spouseHasMechanicBenefit(spouse);
+  }
+  const hasAnyMechanicBenefit = playerIsMechanic || spouseIsMechanic;
+
+  // Transportation — player vehicles (apply combined mechanic benefit)
   let transportationCost = 0;
   for (const vo of player.vehicleOwnerships) {
     if (vo.isSpouseVehicle) continue;
-    const isMechanic = player.employments.some((e) => {
-      const b = getJobBenefits(e.job.benefits, e.job);
-      return b.autoMaintenanceDiscountPct > 0;
-    });
-    transportationCost += calculateAnnualVehicleCosts(vo.vehicle as VehicleRow, vo.yearsOwned, isMechanic).total;
+    transportationCost += calculateAnnualVehicleCosts(vo.vehicle as VehicleRow, vo.yearsOwned, hasAnyMechanicBenefit).total;
   }
 
-  // Spouse vehicle costs (tracked separately)
+  // Spouse vehicle costs (tracked separately — apply combined mechanic benefit)
   let spouseVehicleCosts = 0;
   if (player.maritalStatus === 'married') {
     for (const vo of player.vehicleOwnerships) {
       if (!vo.isSpouseVehicle) continue;
-      spouseVehicleCosts += calculateAnnualVehicleCosts(vo.vehicle as VehicleRow, vo.yearsOwned, false).total;
+      spouseVehicleCosts += calculateAnnualVehicleCosts(vo.vehicle as VehicleRow, vo.yearsOwned, hasAnyMechanicBenefit).total;
     }
   }
 
@@ -252,8 +305,11 @@ export async function calculateMandatoryExpenses(
 
   const kidsUnder18 = player.children.filter((c) => c.age < 18).length;
   const childExpenses = kidsUnder18 * 11000 * generalMult;
-  const petExpenses = calculatePetExpenses(player, generalMult);
-  const groceries = calculateGroceries(player, groceriesMult);
+  const petExpenses = await calculatePetExpenses(player, generalMult);
+
+  // Apply household shopping discount (once, not per person)
+  const shoppingDiscount = await getHouseholdShoppingDiscount(player);
+  const groceries = calculateGroceries(player, groceriesMult, shoppingDiscount);
 
   const spouseCount = player.maritalStatus === 'married' ? 1 : 0;
   const miscellaneous = (1 + spouseCount) * 1200 * generalMult;
