@@ -290,9 +290,12 @@ router.post(
           },
         });
 
-        // Remove spouse-owned loans (they go back to spouse)
+        // Remove spouse-owned and joint loans (they go back to spouse or are split)
         await tx.loan.deleteMany({
-          where: { playerId: player.id, owner: 'spouse' },
+          where: {
+            playerId: player.id,
+            OR: [{ owner: 'spouse' }, { isJoint: true }],
+          },
         });
       });
 

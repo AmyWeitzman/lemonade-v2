@@ -338,7 +338,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     if (spouse && typeof spouse.age === 'number' && !spouse.isRetired) {
       const spouseNewAge = (spouse.age as number) + 1;
       if (spouseNewAge >= 65) {
-        updatedSpouse = { ...spouse, age: spouseNewAge, isRetired: true, jobId: null };
+        updatedSpouse = { ...spouse, age: spouseNewAge, isRetired: true, jobId: null, salary: 0 };
         // Notify player that spouse has retired
         await sendNotification(
           player.id,
@@ -1099,6 +1099,28 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       // Update pets
       for (const pu of petUpdates) {
         await tx.pet.update({ where: { id: pu.id }, data: { age: pu.age, isAlive: pu.isAlive } });
+      }
+
+      // Increment vehicle ownership ages (for depreciation calculations)
+      const vehicleOwnerships = await tx.vehicleOwnership.findMany({
+        where: { playerId: player.id, endAge: null },
+      });
+      for (const vo of vehicleOwnerships) {
+        await tx.vehicleOwnership.update({
+          where: { id: vo.id },
+          data: { yearsOwned: (vo.yearsOwned ?? 0) + 1 },
+        });
+      }
+
+      // Increment housing ownership ages (for appreciation calculations)
+      const housingOwnerships = await tx.housingOwnership.findMany({
+        where: { playerId: player.id, endAge: null },
+      });
+      for (const ho of housingOwnerships) {
+        await tx.housingOwnership.update({
+          where: { id: ho.id },
+          data: { yearsLived: (ho.yearsLived ?? 0) + 1 },
+        });
       }
     });
 
