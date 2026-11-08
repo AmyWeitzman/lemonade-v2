@@ -871,7 +871,6 @@ export default function ActionCard({
             Remove ({(displayTB + displayPTO) * cartQuantity} TB)
           </Button>
         ) : needsCartConfig ? (
-          /* "Get Housing" / "Get Transportation" — add to cart, then pick in the cart */
           <Button
             size="small"
             variant={!isBlocked ? 'contained' : 'outlined'}
@@ -882,7 +881,7 @@ export default function ActionCard({
             startIcon={<AddShoppingCartIcon sx={{ fontSize: '0.9rem !important' }} />}
             sx={{ fontSize: '0.7rem' }}
           >
-            Add to Cart &amp; choose {action.name === 'Get Housing' ? 'a home' : 'a vehicle'}
+            Add to Cart
           </Button>
         ) : (
           <>

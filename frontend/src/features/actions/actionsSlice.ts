@@ -88,7 +88,12 @@ const CART_STORAGE_PREFIX = 'lemonade_cart_';
 const loadCart = (gameSessionId: string): CartItem[] => {
   try {
     const raw = localStorage.getItem(CART_STORAGE_PREFIX + gameSessionId);
-    return raw ? (JSON.parse(raw) as CartItem[]) : [];
+    if (!raw) return [];
+    const items = JSON.parse(raw) as CartItem[];
+    return items.map(item => ({
+      ...item,
+      frequency: item.frequency || 'unlimited',
+    }));
   } catch {
     return [];
   }
