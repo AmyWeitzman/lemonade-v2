@@ -18,7 +18,7 @@ export default function SkillsQuiz({ answers, onAnswerChange, onNext, showUnansw
   const rawRemaining = QUIZ_SKILLS_BUDGET - rawSpent;
 
   const allAnswered = SKILL_KEYS.every((key) => answers[key] !== undefined);
-  const canProceed = allAnswered && rawRemaining >= 0;
+  const canProceed = allAnswered && rawRemaining === 0;
 
   return (
     <>

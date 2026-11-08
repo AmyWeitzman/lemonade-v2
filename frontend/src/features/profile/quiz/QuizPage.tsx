@@ -18,13 +18,11 @@ import {
 } from './quizUtils';
 import SkillsQuiz from './SkillsQuiz';
 import TraitsQuiz from './TraitsQuiz';
-import ProfileSummary from './ProfileSummary';
-import type { RolledPlayerData } from '../../../pages/ProfileSetupPage';
 import api from '../../../lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type QuizStep = 'skills' | 'traits' | 'summary';
+type QuizStep = 'skills' | 'traits';
 
 interface QuizPageProps {
   playerId: string;
@@ -38,7 +36,20 @@ const SKILL_KEYS = Object.keys(SKILL_LABELS);
 // The 13 trait keys from TRAIT_LABELS
 const TRAIT_KEYS = Object.keys(TRAIT_LABELS);
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// Type for player data from API
+type RolledPlayerData = {
+  traits: Record<string, number>;
+  skills: Record<string, number>;
+  money: number;
+  collegeFund: number;
+  chronicConditions: string[];
+  parentContributions: {
+    car: string | null;
+    collegeFund: number;
+    maxParentAge: number | null;
+    weddingContribution: number;
+  };
+};
 
 export default function QuizPage({
   playerId,
@@ -50,7 +61,6 @@ export default function QuizPage({
   const [quizStep, setQuizStep] = useState<QuizStep>('skills');
   const [showUnanswered, setShowUnanswered] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [rolledPlayer, setRolledPlayer] = useState<RolledPlayerData | null>(null);
 
   // ── Derived deltas ─────────────────────────────────────────────────────────
   const skillDeltas = computeQuizSkillDeltas(skillAnswers);
@@ -73,11 +83,10 @@ export default function QuizPage({
 
       return player;
     },
-    onSuccess: (player) => {
-      setRolledPlayer(player);
+    onSuccess: () => {
       setSubmitError(null);
       onRollSuccess(); // update Redux hasRolledProfile
-      setQuizStep('summary');
+      onConfirmSuccess(); // go directly to game, skip summary page
     },
     onError: (err: unknown) => {
       const msg =
@@ -131,10 +140,6 @@ export default function QuizPage({
     generateMutation.mutate();
   }, [traitAnswers, generateMutation]);
 
-  const handleProceed = useCallback(() => {
-    onConfirmSuccess();
-  }, [onConfirmSuccess]);
-
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (quizStep === 'skills') {
@@ -162,13 +167,6 @@ export default function QuizPage({
     );
   }
 
-  // quizStep === 'summary' — rolledPlayer is guaranteed non-null here
-  return (
-    <ProfileSummary
-      rolledPlayer={rolledPlayer!}
-      skillDeltas={skillDeltas}
-      traitDeltas={traitDeltas}
-      onProceed={handleProceed}
-    />
-  );
+  // Summary step removed — go directly to game after profile generation
+  return null;
 }

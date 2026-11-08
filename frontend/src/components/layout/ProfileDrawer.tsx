@@ -686,16 +686,9 @@ export default function ProfileDrawer({ open, onClose }: ProfileDrawerProps) {
               color={stressBarColor(stress)}
             />
             {chronicConditions.length > 0 && (
-              <Box sx={{ mt: 1 }}>
-                <Typography variant="caption" fontWeight={600} color="text.secondary">
-                  Chronic Conditions:
-                </Typography>
-                <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 0.5 }}>
-                  {chronicConditions.map((c, i) => (
-                    <Chip key={i} label={c.replace(/_/g, ' ')} size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
-                  ))}
-                </Stack>
-              </Box>
+              <Typography variant="caption" color="warning.main" sx={{ mt: 1, display: 'block' }}>
+                You have {chronicConditions.length} chronic condition{chronicConditions.length > 1 ? 's' : ''}
+              </Typography>
             )}
           </AccordionDetails>
         </Accordion>

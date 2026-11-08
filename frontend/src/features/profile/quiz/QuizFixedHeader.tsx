@@ -11,7 +11,7 @@ import QuizBudgetIndicator from './QuizBudgetIndicator';
 // Must match SetupShell STEPPER_HEIGHT
 export const STEPPER_H = 56;
 // Height of the fixed header — used by quiz bodies to set top padding
-export const HEADER_H = 148;
+export const HEADER_H = 190;
 
 interface QuizFixedHeaderProps {
   title: string;
@@ -58,6 +58,9 @@ export default function QuizFixedHeader({
             spent={budgetSpent}
             remaining={budgetRemaining}
           />
+          <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary', fontStyle: 'italic' }}>
+            You have a budget of 24 to influence your starting {title.toLowerCase().slice(0, -1)} levels. Make your selections based on how much your character enjoys those {title.toLowerCase()}. You must use your full budget.
+          </Typography>
           <Typography
             variant="h6"
             fontWeight={700}

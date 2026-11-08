@@ -377,7 +377,20 @@ function LifeCard({
           <Stack spacing={0.5}>
             <Stack direction="row" alignItems="center" justifyContent="space-between">
               <Typography variant="caption">Health Insurance</Typography>
-              {profile.hasHealthInsurance ? (
+              <Box sx={{ width: '50%', textAlign: 'right', pr: 1 }}>
+                <Typography variant="caption" color="text.primary"># Chronic Conditions</Typography>
+              </Box>
+            </Stack>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              {profile.age < 27 ? (
+                <Chip
+                  label="🛡️ Parent's plan"
+                  size="small"
+                  color="success"
+                  variant="outlined"
+                  sx={{ fontSize: '0.65rem', height: 20 }}
+                />
+              ) : profile.hasHealthInsurance ? (
                 <Chip
                   label={`🛡️ ${profile.healthInsuranceType === 'family' ? 'Family' : 'Single'} plan`}
                   size="small"
@@ -388,26 +401,17 @@ function LifeCard({
               ) : (
                 <Chip label="No insurance" size="small" color="warning" variant="outlined" sx={{ fontSize: '0.65rem', height: 20 }} />
               )}
-            </Stack>
-            {profile.chronicConditions.length > 0 ? (
-              <Box>
-                <Typography variant="caption" color="text.secondary">Chronic conditions:</Typography>
-                <Stack direction="row" flexWrap="wrap" spacing={0.5} sx={{ mt: 0.4 }}>
-                  {profile.chronicConditions.map((c, i) => (
-                    <Chip
-                      key={i}
-                      label={c.replace(/_/g, ' ')}
-                      size="small"
-                      color="warning"
-                      variant="outlined"
-                      sx={{ fontSize: '0.65rem', height: 20 }}
-                    />
-                  ))}
-                </Stack>
+              <Box sx={{ width: '50%', display: 'flex', justifyContent: 'center' }}>
+                <Typography 
+                  variant="caption" 
+                  color={profile.chronicConditions.length > 0 ? 'warning.main' : 'text.secondary'} 
+                  fontWeight={600}
+                  paddingLeft={7}
+                >
+                  {profile.chronicConditions.length}
+                </Typography>
               </Box>
-            ) : (
-              <Typography variant="caption" color="success.main">✓ No chronic conditions</Typography>
-            )}
+            </Stack>
           </Stack>
         </Box>
 
@@ -487,7 +491,7 @@ function LifeCard({
               </Stack>
             </Box>
           ) : (
-            <Typography variant="caption" color="text.secondary">No home selected</Typography>
+            <Typography variant="caption" color="text.secondary">No home</Typography>
           )}
         </Box>
 

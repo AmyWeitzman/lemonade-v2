@@ -107,7 +107,7 @@ export default function ProfileReviewPage() {
   // Redirect to profile setup if state is missing (direct navigation)
   useEffect(() => {
     if (!state?.rolledPlayer) {
-      navigate('/setup/profile', { replace: true });
+      navigate('/', { replace: true });
     }
   }, [state, navigate]);
 
