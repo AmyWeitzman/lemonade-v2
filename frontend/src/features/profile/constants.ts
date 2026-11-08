@@ -90,7 +90,9 @@ export const TRAIT_MAX_DELTA = 10;
 export const SKILL_MAX_DELTA = 2;
 
 // Quiz constants (personality quiz replaces slider-based adjustment)
-export const QUIZ_SKILLS_BUDGET = 34;
-export const QUIZ_TRAITS_BUDGET = 49;
+// Budget = 24 for skills (8 skills × 3 avg), allowing redistribution within this pool
+// Budget = 39 for traits (13 traits × 3 avg), allowing redistribution within this pool
+export const QUIZ_SKILLS_BUDGET = 24;
+export const QUIZ_TRAITS_BUDGET = 39;
 export const SKILL_DELTA_MAP: Record<number, number> = { 1: -2, 2: -1, 3: 0, 4: 1, 5: 2 };
 export const TRAIT_DELTA_MAP: Record<number, number> = { 1: -10, 2: -5, 3: 0, 4: 5, 5: 10 };

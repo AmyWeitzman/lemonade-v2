@@ -40,7 +40,7 @@ export default function ProfileSetupPage() {
   }, [dispatch]);
 
   const handleConfirmSuccess = useCallback(() => {
-    navigate('/setup/review');
+    navigate('/'); // go directly to game home
   }, [navigate]);
 
   return (

@@ -29,7 +29,7 @@ export default function TraitsQuiz({
   const rawRemaining = QUIZ_TRAITS_BUDGET - rawSpent;
 
   const allAnswered = TRAIT_KEYS.every((key) => answers[key] !== undefined);
-  const canSubmit = allAnswered && rawRemaining >= 0;
+  const canSubmit = allAnswered && rawRemaining === 0;
 
   return (
     <>

@@ -51,14 +51,26 @@ export default function LikertQuestion({
           p: 1.5,
         }}
       >
-        {/* Skill/trait name */}
-        <Typography
-          variant="h6"
-          fontWeight={600}
-          sx={{ mb: 1.25, color: showError ? 'error.main' : 'text.primary', fontSize: '1.15rem' }}
+        {/* Skill/trait name with icon background for readability */}
+        <Box
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            bgcolor: 'background.paper',
+            borderRadius: 1,
+            px: 1,
+            py: 0.5,
+            mb: 1.25,
+          }}
         >
-          {prompt}
-        </Typography>
+          <Typography
+            variant="h6"
+            fontWeight={600}
+            sx={{ color: showError ? 'error.main' : 'text.primary', fontSize: '1.15rem' }}
+          >
+            {prompt}
+          </Typography>
+        </Box>
 
         {/* Likert buttons — equal width, fill container */}
         <Box sx={{ display: 'flex', gap: 0.75 }}>
@@ -86,7 +98,7 @@ export default function LikertQuestion({
                         color: 'primary.main',
                         borderColor: 'primary.main',
                         bgcolor: 'background.paper',
-                        '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main' },
+                        '&:hover': { bgcolor: '#e6ebefff', borderColor: 'primary.main' },
                       }),
                   ...(showError && !isSelected && !isDisabled
                     ? { borderColor: 'error.main', color: 'error.main' }

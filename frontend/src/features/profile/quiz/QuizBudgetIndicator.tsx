@@ -9,13 +9,13 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { Box, LinearProgress, Stack, Typography } from '@mui/material';
 
 interface QuizBudgetIndicatorProps {
-  /** "Skills Budget" or "Traits Budget" */
+  /** "Skills" or "Traits" - used as label prefix */
   label: string;
-  /** Total budget (34 for skills, 89 for traits) */
+  /** Total budget available (24 for skills, 49 for traits) */
   total: number;
-  /** Sum of selected deltas */
+  /** Sum of selected deltas (positive = above average, negative = below average) */
   spent: number;
-  /** total - spent (may be negative) */
+  /** total - spent (positive = budget remaining, negative = over budget) */
   remaining: number;
 }
 
@@ -25,28 +25,28 @@ export default function QuizBudgetIndicator({
   spent,
   remaining,
 }: QuizBudgetIndicatorProps) {
-  const isWarning = remaining <= 0;
+  const isWarning = remaining < 0;
   const progressPct = total > 0 ? Math.min(100, (spent / total) * 100) : 0;
 
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
         <Typography variant="body1" fontWeight={600}>
-          {label}
+          {label} (Total: {total})
         </Typography>
         <Stack direction="row" alignItems="center" spacing={0.5}>
           {isWarning && (
             <WarningAmberIcon fontSize="small" sx={{ color: 'error.main' }} />
           )}
           <Typography variant="body2" fontWeight={700} sx={{ color: 'text.primary' }}>
-            {spent} / {total} spent —{' '}
+            {`Used: ${spent}`} | {' '}
           </Typography>
           <Typography
             variant="body2"
             fontWeight={700}
             sx={{ color: isWarning ? 'error.main' : 'text.primary' }}
           >
-            {remaining} remaining
+            Remaining: {remaining}
           </Typography>
         </Stack>
       </Stack>
