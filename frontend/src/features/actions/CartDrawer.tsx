@@ -177,8 +177,8 @@ export default function CartDrawer({
                     </Box>
                   )}
 
-                  {/* Quantity adjuster — how many times this action is being done */}
-                  {onUpdateQuantity && !item.locked && (
+                  {/* Quantity adjuster */}
+                  {onUpdateQuantity && !item.locked && item.frequency !== 'once_per_year' && (
                     <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 0.75, pl: 0.25 }}>
                       <Typography variant="caption" color="text.secondary" sx={{ mr: 0.25 }}>
                         Times:

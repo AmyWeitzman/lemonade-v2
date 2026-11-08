@@ -18,6 +18,7 @@ export interface CartItem {
   quantity: number;        // number of times this action is being done (>= 1)
   executionType: string;
   category: string[];
+  frequency: string;
   requiresPTO: boolean;    // if true, must use PTO blocks
   allowsPTO: boolean;      // if false, this action's blocks can never be marked as PTO
   selectedOption?: string;      // value of the chosen userInput option, if the action has one

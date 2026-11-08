@@ -239,7 +239,7 @@ export default function ActionCard({
     'Get CPR Certification', 'Change Major', 'Apply for Scholarships',
   ];
   const needsCartConfig = NEEDS_CART_CONFIG.includes(action.name);
-  const isSingular = SINGULAR_ACTIONS.includes(action.name);
+  const isSingular = SINGULAR_ACTIONS.includes(action.name) || action.frequency === 'once_per_year';
 
   // ── Option variants (userInput) ────────────────────────────────────────────
   const userInput = action.userInput as ActionUserInput | null;

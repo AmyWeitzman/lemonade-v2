@@ -208,6 +208,7 @@ export default function ActionsPage() {
         quantity: 1,
         executionType: act.executionType,
         category: act.category,
+        frequency: act.frequency,
         requiresPTO: false,
         allowsPTO: false,
       }));
@@ -389,6 +390,7 @@ export default function ActionsPage() {
       quantity,
       executionType: action.executionType,
       category: action.category,
+      frequency: action.frequency,
       requiresPTO: action.requiresPTO,
       allowsPTO: action.allowsPTO,
       selectedOption,

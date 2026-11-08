@@ -386,6 +386,11 @@ router.post(
     const player = req.player!;
 
     try {
+      if (player.maritalStatus !== 'married') {
+        res.status(400).json({ error: 'Player must be married to try for a child' });
+        return;
+      }
+
       if (player.age > 45) {
         res.status(400).json({ error: 'Player must be age 45 or younger to try for a child' });
         return;
@@ -484,6 +489,23 @@ router.post(
       if (existingApp) {
         res.status(400).json({ error: 'You already have an active adoption application' });
         return;
+      }
+
+      // Single parent adoption limit: max 4 children under 18 at the time of adoption
+      if (player.maritalStatus !== 'married') {
+        const childrenUnder18 = await prisma.child.findMany({
+          where: {
+            playerId: player.id,
+            age: { lt: 18 },
+          },
+        });
+
+        if (childrenUnder18.length >= 4) {
+          res.status(400).json({
+            error: 'Single parents can adopt a maximum of 4 children under 18. You currently have ' + childrenUnder18.length + ' children under 18.',
+          });
+          return;
+        }
       }
 
       // Check eligibility
