@@ -129,8 +129,9 @@ const actionsSlice = createSlice({
     addToCart(state, action: PayloadAction<CartItem>) {
       const existing = state.cart.find((i) => i.actionId === action.payload.actionId);
       if (existing) {
-        // Same per-instance config (TB/PTO/cost/lemons) is assumed — just add more instances.
-        // Re-adding with a newly selected option (e.g. a different plan) updates the choice.
+        if (existing.frequency === 'once_per_year') {
+          return;
+        }
         existing.quantity += action.payload.quantity;
         existing.timeBlocks = action.payload.timeBlocks;
         existing.ptoBlocks = action.payload.ptoBlocks;
