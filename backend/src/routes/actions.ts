@@ -161,10 +161,6 @@ function playerHasBike(player: FullPlayer): boolean {
   );
 }
 
-function playerHasActiveTransportation(player: FullPlayer): boolean {
-  return player.vehicleOwnerships.some((v) => v.endAge === null && !v.isSpouseVehicle);
-}
-
 /** Actions the player MUST do this year (get housing / transportation). */
 function computeRequiredActions(player: FullPlayer, currentYear: number): RequiredAction[] {
   const activeHousing = player.housingOwnerships.find((h) => h.endAge === null);
@@ -327,6 +323,17 @@ function resolveCartItemBlocks(
   return { activityBlocks, ptoBlocks };
 }
 
+function validateItemBlocks(action: ActionRow, player: PlayerForEligibility, activity: number, pto: number): string[] {
+  const total = activity + pto;
+  const errors: string[] = [];
+  if (total < action.minTimeBlocks) errors.push(`${action.name}: minimum ${action.minTimeBlocks} time blocks required`);
+  if (action.maxTimeBlocks !== null && total > action.maxTimeBlocks) {
+    errors.push(`${action.name}: maximum ${action.maxTimeBlocks} time blocks allowed`);
+  }
+  if (actionRequiresPTO(action, player) && pto < action.minTimeBlocks) errors.push(`${action.name}: requires PTO blocks`);
+  return errors;
+}
+
 /** Resolve the authoritative cost for a cart item, honoring a selected option's fixed cost override. */
 function resolveCartItemCost(
   action: ActionRow,
@@ -392,6 +399,8 @@ const validateCartSchema = z.object({
   gameSessionId: z.string().min(1),
   actionIds: z.array(z.string().min(1)).min(1),
   quantities: jsonQueryRecord(z.number().int().min(1)),
+  activityBlocks: jsonQueryRecord(z.number().int().min(0)),
+  ptoBlocks: jsonQueryRecord(z.number().int().min(0)),
   selectedOptions: jsonQueryRecord(z.string()),
   // actionId -> chosen housing / vehicle id for "Get Housing" / "Get Transportation"
   selectedHousingIds: jsonQueryRecord(z.string()),
@@ -657,6 +666,8 @@ router.get(
       gameSessionId,
       actionIds,
       quantities,
+      activityBlocks,
+      ptoBlocks,
       selectedOptions,
       selectedHousingIds,
       housingLocations,
@@ -691,6 +702,7 @@ router.get(
       // otherwise checkout could succeed and drive the player's real balance negative.
       const availableMoney = player.money;
       let totalTimeBlocks = 0;
+      let totalPtoBlocks = 0;
       let totalCost = 0;
       const errors: string[] = [];
       const resolvedHousing: Array<Extract<ResolveHousingResult, { housing: HousingRow }>> = [];
@@ -705,7 +717,11 @@ router.get(
 
         const qty = quantities?.[actionId] ?? 1;
         const selectedOption = selectedOptions?.[actionId];
-        const { activityBlocks: tb } = resolveCartItemBlocks(action, { timeBlocks: 0, selectedOption });
+        const { activityBlocks: tb, ptoBlocks: pto } = resolveCartItemBlocks(action, {
+          timeBlocks: activityBlocks?.[actionId] ?? 0, ptoBlocks: ptoBlocks?.[actionId], selectedOption,
+        });
+        totalPtoBlocks += pto * qty;
+        errors.push(...validateItemBlocks(action, eligPlayer, tb, pto));
 
         const eligResult = checkActionEligibility(action, eligPlayer);
         if (!eligResult.eligible) {
@@ -764,7 +780,7 @@ router.get(
         if (freqError) errors.push(freqError);
 
         const cost = resolveCartItemCost(action, { selectedOption }, {
-          timeBlocks: tb,
+          timeBlocks: tb + pto,
           familySize,
           playerAge: player.age,
           playerJobTitles: jobTitles,
@@ -784,6 +800,10 @@ router.get(
       );
       const unmetRequired = requiredActions.filter((r) => !cartActionNames.has(r.actionName));
       const reservedBlocks = unmetRequired.reduce((s, r) => s + r.blocks, 0);
+      const availablePto = player.employments.filter((e) => e.isActive).reduce((sum, e) => sum + e.ptoRemaining, 0);
+      if (totalPtoBlocks > availablePto) {
+        errors.push(`This cart uses ${totalPtoBlocks} PTO blocks, but you only have ${availablePto} available.`);
+      }
 
       if (totalTimeBlocks + reservedBlocks > availableTimeBlocks) {
         if (reservedBlocks > 0) {
@@ -994,29 +1014,6 @@ router.post(
       let totalPtoBlocks = 0;
       let totalCost = 0;
 
-      // First-year transportation requirement: if year 0 and player doesn't have
-      // transportation, must select a transportation action (unless parent gave a car)
-      if (
-        currentYear === 0 &&
-        !playerHasActiveTransportation(player)
-      ) {
-        const parentContrib = player.parentContributions as ParentContributions | null;
-        const parentGaveCar = parentContrib?.car !== null;
-
-        if (!parentGaveCar) {
-          const hasTransportInCart = cartItems.some((item) => {
-            const action = actionMap.get(item.actionId);
-            return action && action.name === GET_TRANSPORT_ACTION;
-          });
-
-          if (!hasTransportInCart) {
-            validationErrors.push(
-              'In your first year, you must select a transportation option before checkout (or your parents gave you a car).',
-            );
-          }
-        }
-      }
-
       // Reject doing a "once per year" action more than once in a single checkout
       // (the frontend expands cart quantity into repeated entries).
       const perActionCount = new Map<string, number>();
@@ -1059,18 +1056,7 @@ router.post(
         const { activityBlocks: tb, ptoBlocks } = resolveCartItemBlocks(action, item);
         const totalItemBlocks = tb + ptoBlocks;
 
-        if (action.minTimeBlocks > 0 && totalItemBlocks < action.minTimeBlocks) {
-          validationErrors.push(`${action.name}: minimum ${action.minTimeBlocks} time blocks required`);
-        }
-        if (action.maxTimeBlocks !== null && totalItemBlocks > action.maxTimeBlocks) {
-          validationErrors.push(`${action.name}: maximum ${action.maxTimeBlocks} time blocks allowed`);
-        }
-
-        // Required-PTO actions must use PTO (unless the player is exempt — no job, not in school)
-        const requiresPTO = actionRequiresPTO(action, eligPlayer);
-        if (requiresPTO && ptoBlocks < action.minTimeBlocks) {
-          validationErrors.push(`${action.name}: requires PTO blocks`);
-        }
+        validationErrors.push(...validateItemBlocks(action, eligPlayer, tb, ptoBlocks));
 
         totalTimeBlocks += tb;
         totalPtoBlocks += ptoBlocks;

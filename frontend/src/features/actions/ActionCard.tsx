@@ -208,6 +208,8 @@ interface Props {
   onRemoveFromCart: (id: string) => void;
   /** Called when the PTO split changes for an item already in the cart */
   onUpdateCartPto?: (actionId: string, timeBlocks: number, ptoBlocks: number) => void;
+  /** Opens the express picker dialog for a "Get Housing" / "Get Transportation" action. */
+  onExpressAcquisition?: (action: ActionItem, timeBlocks: number, ptoBlocks: number) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -228,6 +230,7 @@ export default function ActionCard({
   expressCheckingOut = false,
   onRemoveFromCart,
   onUpdateCartPto,
+  onExpressAcquisition,
 }: Props) {
   const [addQty, setAddQty] = useState(1);
 
@@ -281,7 +284,7 @@ export default function ActionCard({
 
   const isVariable = !isPricedOption && action.maxTimeBlocks !== null && action.maxTimeBlocks > action.minTimeBlocks;
   const increment = action.timeBlockIncrement ?? 1;
-  const minBlocks = action.minTimeBlocks || 1;
+  const minBlocks = action.minTimeBlocks;
   const maxBlocks = action.maxTimeBlocks ?? minBlocks;
 
   // Available PTO this action can use (not yet committed elsewhere)
@@ -298,20 +301,16 @@ export default function ActionCard({
 
   // ── Local state for block selection ─────────────────────────────────────────
 
-  // For fixed-block actions: radio 'activity' | 'pto'
-  const [fixedMode, setFixedMode] = useState<'activity' | 'pto'>(
-    requiresPTO ? 'pto' : 'activity',
-  );
-
   // For variable-block actions: total slider + PTO split
+  // For fixed-block actions: PTO split only (activity is derived: minBlocks - ptoSplit)
   const snapToIncrement = (val: number) =>
     Math.max(minBlocks, Math.round(val / increment) * increment);
 
   const [totalBlocks, setTotalBlocks] = useState(snapToIncrement(minBlocks));
-  const [ptoSplit, setPtoSplit] = useState(requiresPTO ? snapToIncrement(minBlocks) : 0);
+  const [ptoSplit, setPtoSplit] = useState(requiresPTO ? minBlocks : 0);
 
   // Derived splits
-  const activitySplit = Math.max(0, totalBlocks - ptoSplit);
+  const activitySplit = isVariable ? Math.max(0, totalBlocks - ptoSplit) : Math.max(0, minBlocks - ptoSplit);
 
   // Clamp ptoSplit when totalBlocks changes
   const handleTotalChange = (_: Event, val: number | number[]) => {
@@ -322,16 +321,17 @@ export default function ActionCard({
 
   const adjustPto = (delta: number) => {
     setPtoSplit((prev) => {
+      const maxPto = isVariable ? totalBlocks : minBlocks;
       const next = prev + delta;
-      return Math.max(requiresPTO ? minBlocks : 0, Math.min(next, totalBlocks, availablePTO));
+      return Math.max(requiresPTO ? minBlocks : 0, Math.min(next, maxPto, availablePTO));
     });
   };
 
   // Active TB/PTO for display and cart
   const selectedTB = isPricedOption
     ? (selectedOption?.timeBlocks ?? 0)
-    : isVariable ? activitySplit : (fixedMode === 'activity' ? minBlocks : 0);
-  const selectedPTO = isPricedOption || !ptoAllowed ? 0 : isVariable ? ptoSplit : (fixedMode === 'pto' ? minBlocks : 0);
+    : activitySplit;
+  const selectedPTO = isPricedOption || !ptoAllowed ? 0 : ptoSplit;
 
   // In-cart values for display when already added
   const displayTB = inCart ? cartTimeBlocks : selectedTB;
@@ -710,8 +710,8 @@ export default function ActionCard({
               </Typography>
             )}
 
-            {!(requiresPTO && ptoDisabled) && isVariable ? (
-              /* Variable-block: total slider + PTO split */
+            {/* Variable-block WITH max: slider for total blocks */}
+            {!(requiresPTO && ptoDisabled) && isVariable && maxBlocks > minBlocks ? (
               <>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
                   <Typography variant="caption" color="text.secondary" fontWeight={600}>Total blocks</Typography>
@@ -727,91 +727,97 @@ export default function ActionCard({
                   marks
                   sx={{ mt: 0, mb: 1 }}
                 />
+              </>
+            ) : null}
+
+            {/* Time blocks breakdown (always shown except for housing/transport and when PTO disabled) */}
+            {!(requiresPTO && ptoDisabled) && !isPricedOption && maxBlocks !== 0 ? (
+              <Box sx={{ mt: (isVariable && maxBlocks > minBlocks) ? 0 : 0 }}>
                 {!ptoAllowed ? (
                   <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    ⏱ {activitySplit} activity
+                    ⏱ {selectedTB} activity
                   </Typography>
                 ) : (
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                  <Box>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      ⏱ {activitySplit} activity
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', mx: 0.75 }}>+</Typography>
-                    <Typography
-                      component="span"
-                      variant="caption"
-                      sx={{
-                        color: requiresPTO ? 'warning.dark' : ptoDisabled ? 'text.disabled' : 'primary.main',
-                        fontWeight: 600,
-                      }}
-                    >
-                      🏖️ {ptoSplit} PTO
-                    </Typography>
-                    {ptoDisabled && !requiresPTO && (
-                      <Typography component="span" variant="caption" color="error.main" sx={{ ml: 0.5 }}>
-                        (No PTO available)
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Box>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        ⏱ {activitySplit} activity
                       </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', mx: 0.75 }}>+</Typography>
+                      <Typography
+                        component="span"
+                        variant="caption"
+                        sx={{
+                          color: requiresPTO ? 'warning.dark' : ptoDisabled ? 'text.disabled' : 'primary.main',
+                          fontWeight: 600,
+                        }}
+                      >
+                        🏖️ {ptoSplit} PTO
+                      </Typography>
+                      {ptoDisabled && !requiresPTO && (
+                        <Typography component="span" variant="caption" color="error.main" sx={{ ml: 0.5 }}>
+                          (No PTO available)
+                        </Typography>
+                      )}
+                    </Box>
+                    {!requiresPTO && (
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <IconButton
+                          size="small"
+                          onClick={() => adjustPto(-1)}
+                          disabled={ptoSplit <= 0}
+                          sx={{ p: 0, width: 24, height: 24, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}
+                        >
+                          <RemoveIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }} />
+                        </IconButton>
+                        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 24, textAlign: 'center' }}>
+                          PTO
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() => adjustPto(1)}
+                          disabled={ptoDisabled || ptoSplit >= totalBlocks || ptoSplit >= availablePTO}
+                          sx={{ p: 0, width: 24, height: 24, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}
+                        >
+                          <AddIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }} />
+                        </IconButton>
+                      </Stack>
                     )}
-                  </Box>
-                  {!requiresPTO && (
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <IconButton
-                        size="small"
-                        onClick={() => adjustPto(-1)}
-                        disabled={ptoSplit <= 0}
-                        sx={{ p: 0, width: 24, height: 24, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}
-                      >
-                        <RemoveIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }} />
-                      </IconButton>
-                      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 24, textAlign: 'center' }}>
-                        PTO
-                      </Typography>
-                      <IconButton
-                        size="small"
-                        onClick={() => adjustPto(1)}
-                        disabled={ptoDisabled || ptoSplit >= totalBlocks || ptoSplit >= availablePTO}
-                        sx={{ p: 0, width: 24, height: 24, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}
-                      >
-                        <AddIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }} />
-                      </IconButton>
-                    </Stack>
-                  )}
-                </Stack>
+                  </Stack>
                 )}
-              </>
-            ) : !(requiresPTO && ptoDisabled) && !isPricedOption && ptoAllowed ? (
-              /* Fixed-block: radio Activity | PTO */
-              <FormControl component="fieldset" disabled={!action.eligible}>
-                <RadioGroup
-                  row
-                  value={fixedMode}
-                  onChange={(_, v) => setFixedMode(v as 'activity' | 'pto')}
-                >
-                  <FormControlLabel
-                    value="activity"
-                    control={<Radio size="small" sx={{ py: 0.25 }} />}
-                    label={<Typography variant="caption">⏱ Activity TB</Typography>}
-                    disabled={requiresPTO}
-                  />
-                  <FormControlLabel
-                    value="pto"
-                    control={<Radio size="small" sx={{ py: 0.25 }} />}
-                    label={
-                      <Typography variant="caption" sx={{ color: ptoDisabled ? 'text.disabled' : 'inherit' }}>
-                        🏖️ PTO{ptoDisabled ? <Typography component="span" variant="caption" color="error.main" sx={{ ml: 0.5 }}>(No PTO available)</Typography> : ''}
-                      </Typography>
-                    }
-                    disabled={ptoDisabled}
-                  />
-                </RadioGroup>
-                {requiresPTO && !ptoDisabled && (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-                    This action requires PTO — activity blocks cannot be used.
-                  </Typography>
-                )}
-              </FormControl>
+              </Box>
             ) : null}
+
+            {/* Quantity selector - show if not singular, not needsCartConfig, not isPricedOption, and not variable-with-max */}
+            {!isSingular && !needsCartConfig && !isPricedOption && !(isVariable && maxBlocks > minBlocks) && (
+              <Box sx={{ mt: 1.25 }}>
+                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                    How many times?
+                  </Typography>
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <IconButton
+                      size="small"
+                      onClick={() => setAddQty((q) => Math.max(1, q - 1))}
+                      disabled={addQty <= 1}
+                      sx={{ p: 0, width: 24, height: 24, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}
+                    >
+                      <RemoveIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }} />
+                    </IconButton>
+                    <Typography variant="body2" sx={{ minWidth: 32, textAlign: 'center', fontWeight: 700 }}>
+                      {addQty}×
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={() => setAddQty((q) => q + 1)}
+                      sx={{ p: 0, width: 24, height: 24, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}
+                    >
+                      <AddIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }} />
+                    </IconButton>
+                  </Stack>
+                </Stack>
+              </Box>
+            )}
           </Box>
           </>
         )}
@@ -861,39 +867,26 @@ export default function ActionCard({
 
       </CardContent>
 
-      <CardActions sx={{ pt: 0, pb: 2, px: 2, justifyContent: 'space-between', gap: 0.75 }}>
+      <CardActions sx={{ pt: 0, pb: 2, px: 2, flexDirection: 'column', gap: 0.75 }}>
         {inCart ? (
           <Button
             size="small" variant="outlined" color="error"
             onClick={() => onRemoveFromCart(action.id)}
-            sx={{ fontSize: '0.7rem' }}
+            sx={{ fontSize: '0.7rem', width: '100%' }}
           >
             Remove ({(displayTB + displayPTO) * cartQuantity} TB)
           </Button>
-        ) : needsCartConfig ? (
-          /* "Get Housing" / "Get Transportation" — add to cart, then pick in the cart */
-          <Button
-            size="small"
-            variant={!isBlocked ? 'contained' : 'outlined'}
-            color={!isBlocked ? 'primary' : 'inherit'}
-            disabled={isBlocked}
-            onClick={handleAdd}
-            fullWidth
-            startIcon={<AddShoppingCartIcon sx={{ fontSize: '0.9rem !important' }} />}
-            sx={{ fontSize: '0.7rem' }}
-          >
-            Add to Cart &amp; choose {action.name === 'Get Housing' ? 'a home' : 'a vehicle'}
-          </Button>
         ) : (
-          <>
-            {/* Express on the left */}
+          /* Buttons row - always equal width for all action types */
+          <Stack direction="row" spacing={0.75} sx={{ width: '100%' }}>
             <Button
               size="small"
               variant="contained"
               disabled={isBlocked || expressCheckingOut}
-              onClick={handleExpress}
+              onClick={needsCartConfig ? () => onExpressAcquisition?.(action, selectedTB, selectedPTO) : handleExpress}
               startIcon={expressCheckingOut ? <CircularProgress size={12} color="inherit" /> : undefined}
               sx={{
+                flex: 1,
                 fontSize: '0.7rem',
                 bgcolor: '#ffd54f',
                 color: '#333',
@@ -902,45 +895,20 @@ export default function ActionCard({
                 '&.Mui-disabled': { bgcolor: '#fff9c4', color: '#aaa' },
               }}
             >
-              {expressCheckingOut ? 'Processing…' : '⚡ Express Checkout'}
+              {expressCheckingOut ? 'Processing…' : '⚡ Express'}
             </Button>
-            {/* Add to Cart + qty counter on the right */}
-            <Stack direction="row" alignItems="center" spacing={0.5}>
-              <Button
-                size="small"
-                variant={!isBlocked ? 'contained' : 'outlined'}
-                color={!isBlocked ? 'primary' : 'inherit'}
-                disabled={isBlocked}
-                onClick={handleAdd}
-                startIcon={<AddShoppingCartIcon sx={{ fontSize: '0.9rem !important' }} />}
-                sx={{ fontSize: '0.7rem' }}
-              >
-                Add to Cart
-              </Button>
-              {!isSingular && (
-                <Stack direction="row" alignItems="center" spacing={0.25}>
-                  <IconButton
-                    size="small"
-                    onClick={() => setAddQty((q) => Math.max(1, q - 1))}
-                    disabled={addQty <= 1}
-                    sx={{ p: 0, width: 22, height: 22, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}
-                  >
-                    <RemoveIcon sx={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }} />
-                  </IconButton>
-                  <Typography variant="body2" sx={{ minWidth: 22, textAlign: 'center', fontWeight: 700 }}>
-                    ×{addQty}
-                  </Typography>
-                  <IconButton
-                    size="small"
-                    onClick={() => setAddQty((q) => q + 1)}
-                    sx={{ p: 0, width: 22, height: 22, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}
-                  >
-                    <AddIcon sx={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }} />
-                  </IconButton>
-                </Stack>
-              )}
-            </Stack>
-          </>
+            <Button
+              size="small"
+              variant={!isBlocked ? 'contained' : 'outlined'}
+              color={!isBlocked ? 'primary' : 'inherit'}
+              disabled={isBlocked}
+              onClick={handleAdd}
+              startIcon={<AddShoppingCartIcon sx={{ fontSize: '0.9rem !important' }} />}
+              sx={{ flex: 1, fontSize: '0.7rem' }}
+            >
+              Add to Cart
+            </Button>
+          </Stack>
         )}
       </CardActions>
     </Card>

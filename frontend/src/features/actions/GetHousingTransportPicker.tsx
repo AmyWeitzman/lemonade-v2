@@ -49,10 +49,20 @@ interface Props {
   /** Currently chosen id, to preselect. */
   currentId?: string;
   currentLocation?: 'city' | 'suburb';
+  /** If provided, the confirm button triggers express checkout (immediate purchase)
+   *  instead of setting the selection on a cart line. */
+  onExpressConfirm?: (selection: {
+    selectedHousingId?: string;
+    housingLocation?: 'city' | 'suburb';
+    selectedVehicleId?: string;
+  }) => void;
+  expressPending?: boolean;
+  expressError?: string | null;
 }
 
 export default function GetHousingTransportPicker({
-  open, onClose, kind, actionId, currentId, currentLocation,
+  open, onClose, kind, actionId, currentId, currentLocation, onExpressConfirm,
+  expressPending = false, expressError,
 }: Props) {
   const dispatch = useDispatch();
   const { gameSessionId } = useSelector((s: RootState) => s.auth);
@@ -84,7 +94,18 @@ export default function GetHousingTransportPicker({
   const needsLocation = kind === 'housing' && selectedHousing?.location === 'both';
 
   const confirm = () => {
-    if (!choice) return;
+    if (!choice || expressPending) return;
+    if (onExpressConfirm) {
+      if (kind === 'housing') {
+        onExpressConfirm({
+          selectedHousingId: choice,
+          housingLocation: needsLocation ? location : undefined,
+        });
+      } else {
+        onExpressConfirm({ selectedVehicleId: choice });
+      }
+      return;
+    }
     if (kind === 'housing') {
       const h = housingItems.find((x) => x.id === choice);
       dispatch(setCartItemSelection({
@@ -105,11 +126,12 @@ export default function GetHousingTransportPicker({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={expressPending ? undefined : onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 700 }}>
         {kind === 'housing' ? '🏠 Choose your housing' : '🚗 Choose your transportation'}
       </DialogTitle>
       <DialogContent dividers>
+        {expressError && <Alert severity="error" sx={{ mb: 2 }}>{expressError}</Alert>}
         {loading ? (
           <Box sx={{ textAlign: 'center', py: 4 }}><CircularProgress size={24} /></Box>
         ) : (
@@ -186,9 +208,11 @@ export default function GetHousingTransportPicker({
         </Alert>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={confirm} disabled={!choice}>
-          Use this {kind === 'housing' ? 'home' : 'vehicle'}
+        <Button onClick={onClose} disabled={expressPending}>Cancel</Button>
+        <Button variant="contained" onClick={confirm} disabled={!choice || expressPending}>
+          {onExpressConfirm
+            ? `Buy this ${kind === 'housing' ? 'home' : 'vehicle'}`
+            : `Use this ${kind === 'housing' ? 'home' : 'vehicle'}`}
         </Button>
       </DialogActions>
     </Dialog>

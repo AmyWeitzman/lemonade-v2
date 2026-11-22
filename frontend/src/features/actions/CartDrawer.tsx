@@ -29,6 +29,12 @@ interface ValidationResult {
   errors: string[];
 }
 
+interface RequiredActionInfo {
+  actionName: string;
+  blocks: number;
+  reason: string;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -42,6 +48,8 @@ interface Props {
   validation: ValidationResult | null;
   validating: boolean;
   checkingOut: boolean;
+  /** Required actions this year — checkout is disabled until all are in the cart. */
+  requiredActions?: RequiredActionInfo[];
 }
 
 function fmt(n: number) {
@@ -61,6 +69,7 @@ export default function CartDrawer({
   validation,
   validating,
   checkingOut,
+  requiredActions = [],
 }: Props) {
   const totalTB = cart.reduce((s, i) => s + i.timeBlocks * i.quantity, 0);
   const totalPTO = cart.reduce((s, i) => s + i.ptoBlocks * i.quantity, 0);
@@ -71,6 +80,11 @@ export default function CartDrawer({
   const [pickerFor, setPickerFor] = useState<CartItem | null>(null);
 
   const canCheckout = !validating && !checkingOut && cart.length > 0 && (validation?.valid ?? false);
+
+  // Required actions not yet in the cart — checkout stays disabled until they're added.
+  const cartActionNames = new Set(cart.map((i) => i.actionName));
+  const unmetRequired = requiredActions.filter((r) => !cartActionNames.has(r.actionName));
+  const hasUnmetRequired = unmetRequired.length > 0;
 
   return (
     <Drawer
@@ -330,17 +344,31 @@ export default function CartDrawer({
             </Stack>
           </Alert>
         )}
-        {!validating && validation?.valid && cart.length > 0 && (
+        {hasUnmetRequired && (
+          <Alert severity="warning" sx={{ mb: 1.5, py: 0.5, fontSize: '0.75rem' }}>
+            <Typography variant="caption" fontWeight={700} display="block" sx={{ mb: 0.25 }}>
+              ⚠ Required action{unmetRequired.length !== 1 ? 's' : ''} not in cart:
+            </Typography>
+            {unmetRequired.map((r, i) => (
+              <Typography key={i} variant="caption" display="block">
+                • {r.actionName} — {r.reason}
+              </Typography>
+            ))}
+          </Alert>
+        )}
+        {!validating && validation?.valid && cart.length > 0 && !hasUnmetRequired && (
           <Alert severity="success" sx={{ mb: 1.5, py: 0.5, fontSize: '0.75rem' }}>
             Cart looks good — ready to checkout!
           </Alert>
         )}
 
         <Stack spacing={1}>
-          <Tooltip title={!canCheckout && cart.length > 0 ? 'Fix cart errors before checking out' : ''}>
+          <Tooltip title={hasUnmetRequired
+            ? `Add required action${unmetRequired.length !== 1 ? 's' : ''} to your cart first: ${unmetRequired.map((r) => r.actionName).join(', ')}`
+            : !canCheckout && cart.length > 0 ? 'Fix cart errors before checking out' : ''}>
             <span>
               <Button
-                variant="contained" fullWidth disabled={!canCheckout} onClick={onCheckout}
+                variant="contained" fullWidth disabled={!canCheckout || hasUnmetRequired} onClick={onCheckout}
                 startIcon={checkingOut ? <CircularProgress size={16} color="inherit" /> : <ShoppingCartCheckoutIcon />}
                 sx={{ fontWeight: 700 }}
               >

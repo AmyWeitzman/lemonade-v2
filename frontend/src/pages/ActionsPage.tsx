@@ -6,7 +6,7 @@
  *
  * Requirements: Req 8, Req 22
  */
-import { useState, useCallback, useRef, useEffect, memo } from 'react';
+import { useState, useCallback, useRef, memo } from 'react';
 import {
   Box, Typography, TextField, InputAdornment, Grid, Stack,
   Fab, Badge, Alert, Skeleton, Chip, Tooltip, FormControl,
@@ -25,7 +25,6 @@ import {
   addToCart, removeFromCart, clearCart, toggleFavorite,
   setFilters, resetFilters, setCartDrawerOpen,
   updateCartItem, setCartItemQuantity,
-  addRequiredCartItem, removeRequiredCartItem,
   type CartItem,
 } from '../features/actions/actionsSlice';
 import { setPlayerStats } from '../features/auth/authSlice';
@@ -36,6 +35,7 @@ import TimeBlockVisualizer from '../features/actions/TimeBlockVisualizer';
 import RecommendedActions from '../features/actions/RecommendedActions';
 import CartDrawer from '../features/actions/CartDrawer';
 import CheckoutResultModal from '../features/actions/CheckoutResultModal';
+import GetHousingTransportPicker from '../features/actions/GetHousingTransportPicker';
 import type { ActionItem, TimeBlockBreakdown, CheckoutResult, PTOInfo } from '../features/actions/types';
 import api from '../lib/api';
 
@@ -188,38 +188,16 @@ export default function ActionsPage() {
     return true;
   });
 
-  // ── Keep required actions (get housing / transportation) locked into the cart ─
+  // ── Required actions (get housing / transportation) ──────────────────────────
+  // These are NOT auto-added to the cart anymore. They show in the Recommended
+  // Actions section and in the CartDrawer as a warning, with checkout disabled
+  // until the player adds them to the cart.
   const requiredActions = tbData?.requiredActions ?? [];
-  const requiredSignature = requiredActions.map((r) => r.actionName).sort().join(',');
-  useEffect(() => {
-    if (allActions.length === 0) return;
-    const requiredNames = new Set(requiredActions.map((r) => r.actionName));
-    for (const r of requiredActions) {
-      if (cart.some((i) => i.actionName === r.actionName)) continue;
-      const act = allActions.find((a) => a.name === r.actionName);
-      if (!act) continue;
-      dispatch(addRequiredCartItem({
-        actionId: act.id,
-        actionName: act.name,
-        timeBlocks: r.blocks,
-        ptoBlocks: 0,
-        calculatedCost: 0,
-        calculatedLemons: 0,
-        quantity: 1,
-        executionType: act.executionType,
-        category: act.category,
-        requiresPTO: false,
-        allowsPTO: false,
-      }));
-    }
-    // Drop locked lines whose requirement no longer applies
-    for (const i of cart) {
-      if (i.locked && !requiredNames.has(i.actionName)) {
-        dispatch(removeRequiredCartItem(i.actionId));
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requiredSignature, allActions.length]);
+
+  // ── Express acquisition picker (Get Housing / Get Transportation) ───────────
+  const [expressPicker, setExpressPicker] = useState<{
+    action: ActionItem; timeBlocks: number; ptoBlocks: number;
+  } | null>(null);
 
   // ── Cart validation ────────────────────────────────────────────────────────
   const cartActionIds = cart.map((i) => i.actionId);
@@ -250,7 +228,9 @@ export default function ActionsPage() {
         params: {
           gameSessionId,
           actionIds: cartActionIds,
-          quantities: JSON.stringify(quantities),
+           quantities: JSON.stringify(quantities),
+          activityBlocks: JSON.stringify(Object.fromEntries(cart.map((i) => [i.actionId, i.timeBlocks]))),
+          ptoBlocks: JSON.stringify(Object.fromEntries(cart.map((i) => [i.actionId, i.ptoBlocks]))),
           selectedOptions: JSON.stringify(selectedOptions),
           selectedHousingIds: JSON.stringify(selectedHousingIds),
           housingLocations: JSON.stringify(housingLocations),
@@ -287,6 +267,10 @@ export default function ActionsPage() {
 
     queryClient.invalidateQueries({ queryKey: ['actions'] });
     queryClient.invalidateQueries({ queryKey: ['timeBlocks'] });
+    queryClient.invalidateQueries({ queryKey: ['cartValidation'] });
+    for (const key of ['housing', 'playerHousing', 'vehicles', 'vehiclesOwned', 'playerBasic']) {
+      queryClient.invalidateQueries({ queryKey: [key] });
+    }
 
     dispatch(setPlayerStats({ money: money - data.totalCost }));
     for (let i = 0; i < data.lemonsEarned; i++) {
@@ -341,6 +325,9 @@ export default function ActionsPage() {
       ptoBlocks: number;
       selectedOption?: string;
       quantity: number;
+      selectedHousingId?: string;
+      housingLocation?: string;
+      selectedVehicleId?: string;
     }) => {
       const { data } = await api.post('/actions/execute', {
         gameSessionId,
@@ -349,14 +336,25 @@ export default function ActionsPage() {
           timeBlocks: item.timeBlocks,
           ptoBlocks: item.ptoBlocks,
           selectedOption: item.selectedOption,
+          selectedHousingId: item.selectedHousingId,
+          housingLocation: item.housingLocation,
+          selectedVehicleId: item.selectedVehicleId,
         })),
       });
       return data as ExecuteResponse;
     },
     onSuccess: (data) => {
       applyCheckoutResult(data);
+      setExpressPicker(null);
     },
   });
+
+  const expressErrorData = (expressMutation.error as {
+    response?: { data?: { error?: string; errors?: string[] } };
+  } | null)?.response?.data;
+  const expressError = expressMutation.isError
+    ? expressErrorData?.errors?.join(' ') || expressErrorData?.error || 'Express checkout failed. Please try again.'
+    : null;
 
   // ── Cart handlers ──────────────────────────────────────────────────────────
   const handleExpressCheckout = useCallback((
@@ -369,6 +367,31 @@ export default function ActionsPage() {
   ) => {
     expressMutation.mutate({ actionId: action.id, timeBlocks, ptoBlocks, selectedOption, quantity });
   }, [expressMutation]);
+
+  // Express acquisition: opens the picker dialog for Get Housing / Get Transportation.
+  // Once the player selects a home/vehicle, it executes immediately via the express mutation.
+  const handleExpressAcquisition = useCallback((action: ActionItem, timeBlocks: number, ptoBlocks: number) => {
+    expressMutation.reset();
+    setExpressPicker({ action, timeBlocks, ptoBlocks });
+  }, [expressMutation]);
+
+  const handleExpressPickerConfirm = useCallback((selection: {
+    selectedHousingId?: string;
+    housingLocation?: 'city' | 'suburb';
+    selectedVehicleId?: string;
+  }) => {
+    if (!expressPicker) return;
+    expressMutation.mutate({
+      actionId: expressPicker.action.id,
+      timeBlocks: expressPicker.timeBlocks,
+      ptoBlocks: expressPicker.ptoBlocks,
+      selectedOption: undefined,
+      quantity: 1,
+      selectedHousingId: selection.selectedHousingId,
+      housingLocation: selection.housingLocation,
+      selectedVehicleId: selection.selectedVehicleId,
+    });
+  }, [expressPicker, expressMutation]);
 
   const handleAddToCart = useCallback((
     action: ActionItem,
@@ -501,10 +524,10 @@ export default function ActionsPage() {
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" fontWeight={700} color="primary.main" display="block" sx={{ mb: 0.5 }}>⚡ Express Checkout vs Add to Cart</Typography>
                 <Typography variant="caption" color="text.secondary" display="block">
-                  <b>Add to Cart</b> queues the action for the year — you can review and adjust your plan before committing. Great when you want to budget time blocks carefully.
+                  <b>Add to Cart</b> queues the action for the year — you can review and adjust your plan before committing. For "Get Housing" and "Get Transportation", add to cart then pick your home or vehicle inside the cart.
                 </Typography>
                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-                  <b>Express Checkout</b> is for actions that execute immediately and don't require scheduling. Use it to get in and out quickly.
+                  <b>Express Checkout</b> executes immediately. For housing and transportation, it opens a picker dialog first, then purchases your selection right away — no need to visit the cart.
                 </Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -629,6 +652,7 @@ export default function ActionsPage() {
                   expressCheckingOut={expressMutation.isPending}
                   onRemoveFromCart={handleRemoveFromCart}
                   onUpdateCartPto={handleUpdateCartPto}
+                  onExpressAcquisition={handleExpressAcquisition}
                 />
               </Grid>
             );
@@ -667,6 +691,7 @@ export default function ActionsPage() {
         validation={validationData ?? null}
         validating={validating}
         checkingOut={checkoutMutation.isPending}
+        requiredActions={requiredActions}
       />
 
       {/* Checkout result modal */}
@@ -678,6 +703,21 @@ export default function ActionsPage() {
           setCheckoutResult(null);
         }}
       />
+
+      {!expressPicker && expressError && <Alert severity="error" sx={{ mt: 2 }}>{expressError}</Alert>}
+
+      {/* Express acquisition picker (Get Housing / Get Transportation) */}
+      {expressPicker && (
+        <GetHousingTransportPicker
+          open
+          onClose={() => { expressMutation.reset(); setExpressPicker(null); }}
+          kind={expressPicker.action.name === 'Get Housing' ? 'housing' : 'transport'}
+          actionId={expressPicker.action.id}
+          onExpressConfirm={handleExpressPickerConfirm}
+          expressPending={expressMutation.isPending}
+          expressError={expressError}
+        />
+      )}
     </Box>
     </Box>
   );
