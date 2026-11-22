@@ -286,8 +286,8 @@ export default function JobsPage() {
 
   // ── Apply mutation ─────────────────────────────────────────────────────────
   const applyMutation = useMutation({
-    mutationFn: async ({ jobId, partTime }: { jobId: string; partTime: boolean }) => {
-      const res = await api.post(`/jobs/${jobId}/apply`, { gameSessionId, partTime });
+    mutationFn: async ({ jobId, partTime, summerOnly }: { jobId: string; partTime: boolean; summerOnly?: boolean }) => {
+      const res = await api.post(`/jobs/${jobId}/apply`, { gameSessionId, partTime, summerOnly });
       return res.data;
     },
     onMutate: ({ jobId }) => setApplyingId(jobId),
@@ -331,8 +331,8 @@ export default function JobsPage() {
     },
   });
 
-  const handleApply = (jobId: string, partTime: boolean) => {
-    applyMutation.mutate({ jobId, partTime });
+  const handleApply = (jobId: string, partTime: boolean, summerOnly?: boolean) => {
+    applyMutation.mutate({ jobId, partTime, summerOnly });
   };
 
   const handleQuitRequest = (jobId: string) => {

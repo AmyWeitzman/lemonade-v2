@@ -10,6 +10,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+import { annualEmploymentPay } from '../lib/actionTime';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { authorize } from '../middleware/authorize';
@@ -70,7 +71,7 @@ function buildEligibilityPlayer(player: FullPlayer): PlayerForJobEligibility {
 function currentTotalSalary(player: FullPlayer): number {
   return player.employments
     .filter((e) => e.isActive)
-    .reduce((sum, e) => sum + e.currentSalary, 0);
+    .reduce((sum, e) => sum + annualEmploymentPay(e.currentSalary, e.isPartTime, e.isSeasonal), 0);
 }
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
@@ -97,6 +98,7 @@ const listJobsSchema = z.object({
 const applyJobSchema = z.object({
   gameSessionId: z.string().min(1),
   partTime: z.boolean().optional().default(false),
+  summerOnly: z.boolean().optional(),
 });
 
 const quitJobSchema = z.object({
@@ -450,7 +452,7 @@ router.post(
       return;
     }
 
-    const { gameSessionId, partTime } = result.data;
+    const { gameSessionId, partTime, summerOnly } = result.data;
 
     try {
       const player = await fetchFullPlayer(req.user!.userId, gameSessionId);
@@ -538,8 +540,15 @@ router.post(
       }
 
       // Calculate new projected income (mid-year switch: half previous + half new)
+      const seasonal = summerOnly ?? job.seasonal;
+      if (seasonal && !job.seasonal) {
+        res.status(400).json({ error: 'This job is not offered as summer-only work.' });
+        return;
+      }
       const prevSalary = currentTotalSalary(player);
-      const newProjectedIncome = calculateProjectedIncomeAfterJobChange(
+      const newProjectedIncome = seasonal
+        ? player.projectedIncome + annualEmploymentPay(job.baseSalary, partTime, true)
+        : calculateProjectedIncomeAfterJobChange(
         prevSalary,
         job.baseSalary,
         partTime,
@@ -551,10 +560,10 @@ router.post(
       const isSecondJob = benefits.canBeSecondJob;
 
       const employmentsToDeactivate: string[] = [];
-      if (!isSecondJob && !partTime) {
+      if (!isSecondJob && !partTime && !seasonal) {
         // Deactivate any existing primary (non-second) full-time jobs
         for (const emp of player.employments) {
-          if (!emp.isActive) continue;
+          if (!emp.isActive || emp.isSeasonal) continue;
           const empBenefits = getJobBenefits(emp.job.benefits, emp.job as unknown as JobRow);
           if (!empBenefits.canBeSecondJob) {
             employmentsToDeactivate.push(emp.id);
@@ -590,11 +599,11 @@ router.post(
             startAge: player.age,
             currentSalary: job.baseSalary,
             yearsOfService: 0,
-            ptoRemaining: job.ptoTimeBlocks,
-            unpaidTimeOffRemaining: job.unpaidTimeOff ?? 0,
+            ptoRemaining: partTime || seasonal ? 0 : job.ptoTimeBlocks,
+            unpaidTimeOffRemaining: seasonal ? 0 : 2,
             isActive: true,
             isPartTime: partTime,
-            isSeasonal: job.seasonal,
+            isSeasonal: seasonal,
             consecutiveMissedRaiseYears: 0,
             // chosenLocation added after last Prisma client generation — cast needed
             ...({ chosenLocation } as Record<string, unknown>),
@@ -686,7 +695,7 @@ router.post(
       }
 
       // Deactivate employment and recalculate projected income
-      const salaryLost = employment.currentSalary * (employment.isPartTime ? 0.5 : 1);
+      const salaryLost = annualEmploymentPay(employment.currentSalary, employment.isPartTime, employment.isSeasonal);
       const newProjectedIncome = Math.max(0, player.projectedIncome - salaryLost * 0.5);
 
       await prisma.$transaction(async (tx) => {

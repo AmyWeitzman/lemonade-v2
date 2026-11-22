@@ -38,6 +38,7 @@ export interface SpouseExpenseData {
 export interface PlayerForExpenses {
   age: number;
   projectedIncome: number;
+  unpaidLeavePayReduction?: number;
   maritalStatus: string;
   spouse: unknown;
   hasHealthInsurance: boolean;
@@ -124,7 +125,7 @@ async function getHouseholdShoppingDiscount(player: PlayerForExpenses): Promise<
 function getTaxableIncome(player: PlayerForExpenses): number {
   const spouse = player.spouse as SpouseExpenseData | null;
   const spouseSalary = player.maritalStatus === 'married' ? (spouse?.salary ?? 0) : 0;
-  return player.projectedIncome + spouseSalary;
+  return player.projectedIncome - (player.unpaidLeavePayReduction ?? 0) + spouseSalary;
 }
 
 function calculateHealthInsuranceCost(player: PlayerForExpenses, healthcareMult = 1): number {

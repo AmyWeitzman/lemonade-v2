@@ -29,10 +29,12 @@ import {
   sumLoanBalances,
 } from '../lib/financials';
 import { getRequiredActions } from '../lib/actionRequirements';
+import { getActionTimeBudget } from '../lib/actionTimeBudget';
 import type { ParentContributions } from '../lib/playerInit';
 import { calculateMandatoryExpenses } from '../lib/expenses';
 
 const router = Router();
+class ExpensesConflict extends Error {}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -228,7 +230,7 @@ router.get('/:playerId', authorize, async (req: Request, res: Response): Promise
       loans: loansWithDetails,
       retirementHistory: player.retirementHistory,
       mandatoryExpenses: expenses,
-      availableFunds: player.money + player.projectedIncome,
+      availableFunds: player.money + player.projectedIncome - player.unpaidLeavePayReduction,
       yearComplete: player.yearComplete,
       creditLimit: credit.creditLimit,
       currentDebt: credit.currentDebt,
@@ -641,7 +643,7 @@ router.get('/expenses', authorize, async (req: Request, res: Response): Promise<
     });
     const pendingPenaltyTotal = pendingPenalties.reduce((sum, p) => sum + p.amount, 0);
 
-    const availableFunds = player.money + player.projectedIncome;
+    const availableFunds = player.money + player.projectedIncome - player.unpaidLeavePayReduction;
     const canAfford = availableFunds + player.retirementSavings >= expenses.total + pendingPenaltyTotal;
 
     res.json({
@@ -718,6 +720,11 @@ router.post(
         return;
       }
 
+      const time = await getActionTimeBudget(fullPlayer, session.currentYear);
+      if (time.activityBlocks || time.schoolBreakBlocks) {
+        res.status(400).json({ error: `Spend your remaining ${time.activityBlocks} activity and ${time.schoolBreakBlocks} School Break blocks before ending the year. Relax is free and repeatable.` });
+        return;
+      }
       const expenses = await calculateMandatoryExpenses(fullPlayer, session);
 
       // Check for pending penalties from prior early withdrawals
@@ -740,7 +747,7 @@ router.post(
       }
 
       // Validate player has enough in each source
-      const availableMoney = player.money + player.projectedIncome;
+      const availableMoney = player.money + fullPlayer.projectedIncome - fullPlayer.unpaidLeavePayReduction;
       if (fromMoney > availableMoney) {
         res.status(400).json({
           error: `Cannot pay $${fromMoney.toLocaleString()} from money — only $${availableMoney.toLocaleString()} available`,
@@ -774,18 +781,20 @@ router.post(
 
       await prisma.$transaction(async (tx) => {
         // Deduct from money (money + projectedIncome combined)
-        const newMoney = Math.max(0, player.money + player.projectedIncome - fromMoney);
+        const newMoney = Math.max(0, availableMoney - fromMoney);
         const newRetirement = player.retirementSavings - fromRetirement;
 
-        await tx.player.update({
-          where: { id: player.id },
+        const settled = await tx.player.updateMany({
+          where: { id: player.id, updatedAt: fullPlayer.updatedAt, yearComplete: false },
           data: {
             money: newMoney,
             projectedIncome: 0, // income consumed
+            unpaidLeavePayReduction: 0,
             retirementSavings: newRetirement,
             yearComplete: true,
           },
         });
+        if (!settled.count) throw new ExpensesConflict();
 
         // Apply loan interest to all loans
         for (const loanResult of loanResults) {
@@ -916,6 +925,10 @@ router.post(
         newRetirementSavings: updatedPlayer?.retirementSavings ?? 0,
       });
     } catch (err) {
+      if (err instanceof ExpensesConflict) {
+        res.status(409).json({ error: 'Your game state changed. Refresh before paying expenses.' });
+        return;
+      }
       console.error('[finances/pay-expenses]', err);
       res.status(500).json({ error: 'Internal server error' });
     }

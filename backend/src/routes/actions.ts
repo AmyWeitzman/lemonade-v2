@@ -16,6 +16,8 @@ import { authorize } from '../middleware/authorize';
 import { validatePlayerAlive } from '../middleware/validatePlayerAlive';
 import { getIO } from '../socket';
 import { calculateTimeBlocks } from '../lib/timeBlocks';
+import { getActionTimeBudget } from '../lib/actionTimeBudget';
+import { unpaidLeavePay, validateTimeOff, type ActionBlockSplit } from '../lib/actionTime';
 import { attemptCardDrawForYear } from '../lib/cards';
 import {
   checkActionEligibility,
@@ -308,29 +310,28 @@ function calculateAttributeGains(
  */
 function resolveCartItemBlocks(
   action: ActionRow,
-  item: { timeBlocks: number; ptoBlocks?: number; selectedOption?: string },
-): { activityBlocks: number; ptoBlocks: number } {
+  item: { timeBlocks: number; ptoBlocks?: number; unpaidBlocks?: number; schoolBreakBlocks?: number; selectedOption?: string },
+): ActionBlockSplit {
   const opt = getSelectedOption(action, item.selectedOption);
-  // Actions that don't allow PTO (e.g. school/gig actions) can't have any of
-  // their blocks marked as PTO, regardless of what the client submits.
-  const ptoBlocks = action.allowsPTO === false ? 0 : (item.ptoBlocks ?? 0);
+  const ptoBlocks = item.ptoBlocks ?? 0;
+  const unpaidBlocks = item.unpaidBlocks ?? 0;
+  const schoolBreakBlocks = item.schoolBreakBlocks ?? 0;
+  const leave = ptoBlocks + unpaidBlocks + schoolBreakBlocks;
   const activityBlocks =
     opt?.timeBlocks !== undefined
-      ? opt.timeBlocks
-      : item.timeBlocks > 0
-        ? item.timeBlocks
-        : Math.max(0, action.minTimeBlocks - ptoBlocks);
-  return { activityBlocks, ptoBlocks };
+      ? Math.max(0, opt.timeBlocks - leave)
+      : item.timeBlocks;
+  return { activityBlocks, ptoBlocks, unpaidBlocks, schoolBreakBlocks };
 }
 
-function validateItemBlocks(action: ActionRow, player: PlayerForEligibility, activity: number, pto: number): string[] {
-  const total = activity + pto;
-  const errors: string[] = [];
-  if (total < action.minTimeBlocks) errors.push(`${action.name}: minimum ${action.minTimeBlocks} time blocks required`);
-  if (action.maxTimeBlocks !== null && total > action.maxTimeBlocks) {
-    errors.push(`${action.name}: maximum ${action.maxTimeBlocks} time blocks allowed`);
-  }
-  if (actionRequiresPTO(action, player) && pto < action.minTimeBlocks) errors.push(`${action.name}: requires PTO blocks`);
+function totalBlocks(split: ActionBlockSplit): number {
+  return split.activityBlocks + split.ptoBlocks + split.unpaidBlocks + split.schoolBreakBlocks;
+}
+
+function validateItemBlocks(action: ActionRow, player: PlayerForEligibility, split: ActionBlockSplit, selectedOption?: string): string[] {
+  const errors = validateTimeOff(action, player, split);
+  const optionBlocks = getSelectedOption(action, selectedOption)?.timeBlocks;
+  if (optionBlocks !== undefined && totalBlocks(split) !== optionBlocks) errors.push(`${action.name}: invalid time for this option`);
   return errors;
 }
 
@@ -371,6 +372,8 @@ const executeActionsSchema = z.object({
         actionId: z.string().min(1),
         timeBlocks: z.number().int().min(0),
         ptoBlocks: z.number().int().min(0).default(0),
+        unpaidBlocks: z.number().int().min(0).default(0),
+        schoolBreakBlocks: z.number().int().min(0).default(0),
         selectedOption: z.string().optional(),
         // "Get Housing" / "Get Transportation" carry the chosen home / vehicle.
         selectedHousingId: z.string().optional(),
@@ -401,6 +404,8 @@ const validateCartSchema = z.object({
   quantities: jsonQueryRecord(z.number().int().min(1)),
   activityBlocks: jsonQueryRecord(z.number().int().min(0)),
   ptoBlocks: jsonQueryRecord(z.number().int().min(0)),
+  unpaidBlocks: jsonQueryRecord(z.number().int().min(0)),
+  schoolBreakBlocks: jsonQueryRecord(z.number().int().min(0)),
   selectedOptions: jsonQueryRecord(z.string()),
   // actionId -> chosen housing / vehicle id for "Get Housing" / "Get Transportation"
   selectedHousingIds: jsonQueryRecord(z.string()),
@@ -668,6 +673,8 @@ router.get(
       quantities,
       activityBlocks,
       ptoBlocks,
+      unpaidBlocks,
+      schoolBreakBlocks,
       selectedOptions,
       selectedHousingIds,
       housingLocations,
@@ -697,12 +704,15 @@ router.get(
       const jobTitles = getActiveJobTitles(player);
       const hasBike = playerHasBike(player);
       const homeValueContext = getHomeValueContext(player);
-      const availableTimeBlocks = getAvailableTimeBlocks(player);
+      const timeBudget = await getActionTimeBudget(player, currentYear);
+      const availableTimeBlocks = timeBudget.activityBlocks;
       // Affordability is based on actual cash on hand, not projected future income —
       // otherwise checkout could succeed and drive the player's real balance negative.
       const availableMoney = player.money;
       let totalTimeBlocks = 0;
       let totalPtoBlocks = 0;
+      let totalUnpaid = 0;
+      let totalBreak = 0;
       let totalCost = 0;
       const errors: string[] = [];
       const resolvedHousing: Array<Extract<ResolveHousingResult, { housing: HousingRow }>> = [];
@@ -717,11 +727,14 @@ router.get(
 
         const qty = quantities?.[actionId] ?? 1;
         const selectedOption = selectedOptions?.[actionId];
-        const { activityBlocks: tb, ptoBlocks: pto } = resolveCartItemBlocks(action, {
-          timeBlocks: activityBlocks?.[actionId] ?? 0, ptoBlocks: ptoBlocks?.[actionId], selectedOption,
+        const split = resolveCartItemBlocks(action, {
+          timeBlocks: activityBlocks?.[actionId] ?? action.minTimeBlocks, ptoBlocks: ptoBlocks?.[actionId],
+          unpaidBlocks: unpaidBlocks?.[actionId], schoolBreakBlocks: schoolBreakBlocks?.[actionId], selectedOption,
         });
-        totalPtoBlocks += pto * qty;
-        errors.push(...validateItemBlocks(action, eligPlayer, tb, pto));
+        totalPtoBlocks += split.ptoBlocks * qty;
+        totalUnpaid += split.unpaidBlocks * qty;
+        totalBreak += split.schoolBreakBlocks * qty;
+        errors.push(...validateItemBlocks(action, eligPlayer, split, selectedOption));
 
         const eligResult = checkActionEligibility(action, eligPlayer);
         if (!eligResult.eligible) {
@@ -780,7 +793,7 @@ router.get(
         if (freqError) errors.push(freqError);
 
         const cost = resolveCartItemCost(action, { selectedOption }, {
-          timeBlocks: tb + pto,
+          timeBlocks: totalBlocks(split),
           familySize,
           playerAge: player.age,
           playerJobTitles: jobTitles,
@@ -789,7 +802,7 @@ router.get(
           ...homeValueContext,
         });
 
-        totalTimeBlocks += tb * qty;
+        totalTimeBlocks += split.activityBlocks * qty;
         totalCost += cost * qty;
       }
 
@@ -800,12 +813,14 @@ router.get(
       );
       const unmetRequired = requiredActions.filter((r) => !cartActionNames.has(r.actionName));
       const reservedBlocks = unmetRequired.reduce((s, r) => s + r.blocks, 0);
-      const availablePto = player.employments.filter((e) => e.isActive).reduce((sum, e) => sum + e.ptoRemaining, 0);
+      const availablePto = timeBudget.ptoBlocks;
       if (totalPtoBlocks > availablePto) {
         errors.push(`This cart uses ${totalPtoBlocks} PTO blocks, but you only have ${availablePto} available.`);
       }
 
-      if (totalTimeBlocks + reservedBlocks > availableTimeBlocks) {
+      if (totalUnpaid > timeBudget.unpaidBlocks) errors.push('Not enough unpaid leave for this cart.');
+      if (totalBreak > timeBudget.schoolBreakBlocks) errors.push('Not enough School Break blocks for this cart.');
+      if (totalTimeBlocks > availableTimeBlocks || totalTimeBlocks + totalBreak + reservedBlocks > availableTimeBlocks + timeBudget.schoolBreakBlocks) {
         if (reservedBlocks > 0) {
           errors.push(
             `${reservedBlocks} time block${reservedBlocks === 1 ? ' is' : 's are'} set aside for a required action (${unmetRequired
@@ -989,7 +1004,12 @@ router.post(
       const jobTitles = getActiveJobTitles(player);
       const hasBike = playerHasBike(player);
       const homeValueContext = getHomeValueContext(player);
-      const availableTimeBlocks = getAvailableTimeBlocks(player);
+      if (player.yearComplete) {
+        res.status(400).json({ error: 'Your year is already complete.' });
+        return;
+      }
+      const timeBudget = await getActionTimeBudget(player, currentYear);
+      const availableTimeBlocks = timeBudget.activityBlocks;
       // Affordability is based on actual cash on hand, not projected future income —
       // otherwise checkout could succeed and drive the player's real balance negative.
       const availableMoney = player.money;
@@ -1012,6 +1032,8 @@ router.post(
       const validationErrors: string[] = [];
       let totalTimeBlocks = 0;
       let totalPtoBlocks = 0;
+      let totalUnpaid = 0;
+      let totalBreak = 0;
       let totalCost = 0;
 
       // Reject doing a "once per year" action more than once in a single checkout
@@ -1028,9 +1050,7 @@ router.post(
       }
 
       // Total PTO available across all active employments
-      const totalPtoAvailable = player.employments
-        .filter((e) => e.isActive)
-        .reduce((sum, e) => sum + e.ptoRemaining, 0);
+      const totalPtoAvailable = timeBudget.ptoBlocks;
 
       for (const item of cartItems) {
         const action = actionMap.get(item.actionId);
@@ -1053,13 +1073,15 @@ router.post(
           validationErrors.push(`${action.name}: a plan must be selected`);
         }
 
-        const { activityBlocks: tb, ptoBlocks } = resolveCartItemBlocks(action, item);
-        const totalItemBlocks = tb + ptoBlocks;
+        const split = resolveCartItemBlocks(action, item);
+        const totalItemBlocks = totalBlocks(split);
 
-        validationErrors.push(...validateItemBlocks(action, eligPlayer, tb, ptoBlocks));
+        validationErrors.push(...validateItemBlocks(action, eligPlayer, split, item.selectedOption));
 
-        totalTimeBlocks += tb;
-        totalPtoBlocks += ptoBlocks;
+        totalTimeBlocks += split.activityBlocks;
+        totalPtoBlocks += split.ptoBlocks;
+        totalUnpaid += split.unpaidBlocks;
+        totalBreak += split.schoolBreakBlocks;
         totalCost += resolveCartItemCost(action, item, {
           timeBlocks: totalItemBlocks,
           familySize,
@@ -1079,7 +1101,9 @@ router.post(
       const unmetRequired = requiredActions.filter((r) => !cartActionNames.has(r.actionName));
       const reservedBlocks = unmetRequired.reduce((s, r) => s + r.blocks, 0);
 
-      if (totalTimeBlocks + reservedBlocks > availableTimeBlocks) {
+      if (totalUnpaid > timeBudget.unpaidBlocks) validationErrors.push('Not enough unpaid leave for this checkout.');
+      if (totalBreak > timeBudget.schoolBreakBlocks) validationErrors.push('Not enough School Break blocks for this checkout.');
+      if (totalTimeBlocks > availableTimeBlocks || totalTimeBlocks + totalBreak + reservedBlocks > availableTimeBlocks + timeBudget.schoolBreakBlocks) {
         validationErrors.push(
           reservedBlocks > 0
             ? `${reservedBlocks} time block${reservedBlocks === 1 ? ' is' : 's are'} set aside for a required action (${unmetRequired
@@ -1185,8 +1209,8 @@ router.post(
       // Compute all deltas before the transaction
       for (const item of cartItems) {
         const action = actionMap.get(item.actionId)!;
-        const { activityBlocks, ptoBlocks } = resolveCartItemBlocks(action, item);
-        const tb = activityBlocks + ptoBlocks;
+        const split = resolveCartItemBlocks(action, item);
+        const tb = totalBlocks(split);
         const itemEffects = resolveActionEffects(action, item.selectedOption);
 
         totalLemonsEarned += calculateLemonsEarned(action, tb, itemEffects);
@@ -1194,6 +1218,9 @@ router.post(
         healthDeltaTemp += temporary;
         healthDeltaPerm += permanent;
         stressDelta += calculateStressDelta(action, tb, itemEffects);
+        if (typeof itemEffects.stressPerPTOBlock === 'number') {
+          stressDelta += itemEffects.stressPerPTOBlock * (split.ptoBlocks + split.unpaidBlocks);
+        }
 
         const { skills, traits } = calculateAttributeGains(action, tb, itemEffects);
         for (const [k, v] of Object.entries(skills)) skillGains[k] = (skillGains[k] ?? 0) + v;
@@ -1260,11 +1287,18 @@ router.post(
       }
 
       await prisma.$transaction(async (tx) => {
+        // Lock and compare the player snapshot before committing the checkout.
+        // Concurrent checkouts must not both spend the same time or balance.
+        const claimed = await tx.player.updateMany({
+          where: { id: player.id, updatedAt: player.updatedAt, yearComplete: false },
+          data: { updatedAt: new Date(Math.max(Date.now(), player.updatedAt.getTime() + 1)) },
+        });
+        if (claimed.count !== 1) throw new CheckoutConflict();
         // Upsert action history for each cart item
         for (const item of cartItems) {
           const action = actionMap.get(item.actionId)!;
-          const { activityBlocks, ptoBlocks } = resolveCartItemBlocks(action, item);
-          const tb = activityBlocks + ptoBlocks;
+          const split = resolveCartItemBlocks(action, item);
+          const tb = totalBlocks(split);
           const cost = resolveCartItemCost(action, item, {
             timeBlocks: tb,
             familySize,
@@ -1291,12 +1325,17 @@ router.post(
               count: 1,
               totalCost: cost,
               totalTimeBlocks: tb,
+              ...split,
               lemonsEarned: lemons,
             },
             update: {
               count: { increment: 1 },
               totalCost: { increment: cost },
               totalTimeBlocks: { increment: tb },
+              activityBlocks: { increment: split.activityBlocks },
+              ptoBlocks: { increment: split.ptoBlocks },
+              unpaidBlocks: { increment: split.unpaidBlocks },
+              schoolBreakBlocks: { increment: split.schoolBreakBlocks },
               lemonsEarned: { increment: lemons },
             },
           });
@@ -1347,11 +1386,26 @@ router.post(
           }
         }
 
+        let unpaidRemaining = totalUnpaid;
+        let payReduction = 0;
+        for (const emp of player.employments.filter((e) => e.isActive && !e.isSeasonal).sort((a, b) => a.id.localeCompare(b.id))) {
+          const used = Math.min(unpaidRemaining, emp.unpaidTimeOffRemaining);
+          if (!used) continue;
+          const updated = await tx.employment.updateMany({
+            where: { id: emp.id, isActive: true, unpaidTimeOffRemaining: { gte: used } },
+            data: { unpaidTimeOffRemaining: { decrement: used } },
+          });
+          if (updated.count !== 1) throw new CheckoutConflict();
+          payReduction += unpaidLeavePay(emp.currentSalary, emp.job.timeBlocks, emp.isPartTime, used);
+          unpaidRemaining -= used;
+        }
+
         // Update player state
         await tx.player.update({
           where: { id: player.id },
           data: {
             money: { decrement: totalCost },
+            unpaidLeavePayReduction: { increment: payReduction },
             health: newHealth,
             maxHealth: newMaxHealth,
             ...(({ temporaryHealthDebt: newTempDebt }) as Record<string, unknown>),
@@ -1455,10 +1509,16 @@ router.post(
         totalTimeBlocks,
       });
     } catch (err) {
+      if (err instanceof CheckoutConflict) {
+        res.status(409).json({ error: 'Your game state changed. Refresh and try checkout again.' });
+        return;
+      }
       console.error('[actions/execute]', err);
       res.status(500).json({ error: 'Internal server error' });
     }
   },
 );
+
+class CheckoutConflict extends Error {}
 
 export default router;

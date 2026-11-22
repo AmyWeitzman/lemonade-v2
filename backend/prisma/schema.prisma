@@ -74,6 +74,7 @@ model Player {
   // Financial
   money             Float @default(0)
   projectedIncome   Float @default(0)
+  unpaidLeavePayReduction Float @default(0)
   retirementSavings Float @default(0)
   collegeFund       Float @default(0)
 
@@ -385,6 +386,10 @@ model ActionHistory {
   count          Int   @default(1)
   totalCost      Float @default(0)
   totalTimeBlocks Int  @default(0)
+  activityBlocks Int @default(0)
+  ptoBlocks Int @default(0)
+  unpaidBlocks Int @default(0)
+  schoolBreakBlocks Int @default(0)
   lemonsEarned   Int   @default(0)
 
   @@unique([playerId, actionId, year])

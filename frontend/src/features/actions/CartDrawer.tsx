@@ -127,7 +127,7 @@ export default function CartDrawer({
                 .filter((i) => i.actionId !== item.actionId)
                 .reduce((s, i) => s + i.ptoBlocks * i.quantity, 0);
               const availablePTOForItem = ptoRemaining - ptoCommittedElsewhere;
-              const canAddPTO = !item.requiresPTO && availablePTOForItem > item.ptoBlocks * item.quantity;
+              const canAddPTO = !item.requiresPTO && item.timeBlocks > 0 && availablePTOForItem >= (item.ptoBlocks + 1) * item.quantity;
               const canRemovePTO = item.ptoBlocks > 0 && !item.requiresPTO;
 
               return (
@@ -227,7 +227,12 @@ export default function CartDrawer({
                   )}
 
                   {/* PTO adjuster — shown if action supports PTO. Applies to each instance. */}
-                  {item.allowsPTO && onUpdatePto && (
+                   {!!(item.unpaidBlocks || item.schoolBreakBlocks) && (
+                     <Typography variant="caption" display="block">
+                       {item.unpaidBlocks ?? 0} unpaid leave · {item.schoolBreakBlocks ?? 0} School Break per action
+                     </Typography>
+                   )}
+                   {item.allowsPTO && onUpdatePto && (
                     <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mt: 0.5, pl: 0.25 }} flexWrap="wrap">
                       <Tooltip title={!canRemovePTO ? (item.requiresPTO ? 'Required PTO — cannot reduce' : 'No PTO to remove') : 'Move a block from PTO to activity'}>
                         <span>

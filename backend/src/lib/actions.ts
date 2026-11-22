@@ -185,7 +185,7 @@ export function actionRequiresPTO(action: ActionRow, player: PlayerForEligibilit
     reqs.hasPTODaysAvailable === true ||
     (typeof reqs.ptoOrUnpaidTimeBlocks === 'number' && reqs.ptoOrUnpaidTimeBlocks > 0);
   if (!rawRequiresPTO) return false;
-  return !isPtoExempt(player);
+  return action.name === 'Take a Mental Health Day' || !isPtoExempt(player);
 }
 
 // ─── checkActionEligibility ───────────────────────────────────────────────────
@@ -372,7 +372,7 @@ export function checkActionEligibility(
 
   // PTO / unpaid time blocks available
   // A player with no job and not in school is exempt — they have free time available.
-  if (reqs.hasPTOOrUnpaidTimeBlocks === true && !isPtoExempt(player)) {
+  if (reqs.hasPTOOrUnpaidTimeBlocks === true && (action.name === 'Take a Mental Health Day' || !isPtoExempt(player))) {
     const hasPTO = player.employments.some(
       (e) => e.isActive && (e.ptoRemaining > 0 || e.unpaidTimeOffRemaining > 0),
     );

@@ -9,6 +9,7 @@ import {
   type PlayerTimeBlockInput,
 } from '../lib/timeBlocks';
 import { getRequiredActions } from '../lib/actionRequirements';
+import { getActionTimeBudget } from '../lib/actionTimeBudget';
 import type { ParentContributions } from '../lib/playerInit';
 
 const router = Router();
@@ -141,14 +142,16 @@ router.get('/:id/time-blocks', authorize, async (req: Request, res: Response): P
       hasVehicle: ((player as any).vehicleOwnerships ?? []).some((o: any) => !o.isSpouseVehicle),
     });
     const reservedBlocks = requiredActions.reduce((s, r) => s + r.blocks, 0);
+    const actionTime = await getActionTimeBudget(player, session?.currentYear ?? 0);
 
     res.json({
-      breakdown,
+      breakdown: actionTime.breakdown,
       availableActivityBlocks,
       ptoRemaining,
       ptoTotal,
       requiredActions,
       reservedBlocks,
+      actionTime,
     });
   } catch (err) {
     console.error('[timeblocks/get]', err);

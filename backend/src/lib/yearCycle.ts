@@ -42,6 +42,7 @@ import {
 import type { ParentContributions } from './playerInit';
 import { getMandatoryExpensesTotal } from './expenses';
 import { checkJobHealthRequirement } from './jobs';
+import { annualEmploymentPay } from './actionTime';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -698,7 +699,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       // Only full-time jobs with ptoTimeBlocks > 0 accrue PTO
       const newYearsOfService = employment.yearsOfService + 1;
       let newPtoRemaining = employment.ptoRemaining;
-      if (!employment.isPartTime && job.ptoTimeBlocks > 0) {
+      if (!employment.isPartTime && !employment.isSeasonal && job.ptoTimeBlocks > 0) {
         const accrual = calculatePTOAccrual(newYearsOfService, job.ptoTimeBlocks);
         newPtoRemaining += accrual;
       }
@@ -707,7 +708,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       const newPtoUsed = 0;
 
       // Reset unpaid time off to job's base value for the new year
-      const newUnpaidTimeOff = job.unpaidTimeOff ?? 0;
+      const newUnpaidTimeOff = employment.isSeasonal ? 0 : 2;
 
       // Apply health-based auto-fire if needed
       const healthFireCheck = healthCheckUpdates.find((h) => h.employmentId === employment.id);
@@ -1092,6 +1093,13 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
             ? { money: { increment: pensionIncome + spousePensionIncome - spouseCprCharge - internshipPayDeduction } }
             : {}),
           yearComplete: false,
+          unpaidLeavePayReduction: 0,
+          projectedIncome: employmentUpdates.reduce((sum, update) => {
+            const employment = player.employments.find((e) => e.id === update.id);
+            return update.isActive && employment
+              ? sum + annualEmploymentPay(update.currentSalary, employment.isPartTime, employment.isSeasonal)
+              : sum;
+          }, 0),
           cardsReceivedThisYear: 0,
           // Reset internship flag for the new year
           ...({ didInternshipThisYear: false } as Record<string, unknown>),

@@ -156,6 +156,7 @@ export default function ActionsPage() {
       return data as {
         breakdown: TimeBlockBreakdown;
         availableActivityBlocks: number;
+        actionTime: { activityBlocks: number; schoolBreakBlocks: number; unpaidBlocks: number; ptoBlocks: number; usedActivity: number; usedBreak: number; paidUsed: number; unpaidUsed: number };
         requiredActions?: Array<{ actionName: string; blocks: number; reason: string }>;
         reservedBlocks?: number;
       } & PTOInfo;
@@ -196,7 +197,7 @@ export default function ActionsPage() {
 
   // ── Express acquisition picker (Get Housing / Get Transportation) ───────────
   const [expressPicker, setExpressPicker] = useState<{
-    action: ActionItem; timeBlocks: number; ptoBlocks: number;
+    action: ActionItem; timeBlocks: number; ptoBlocks: number; unpaidBlocks: number; schoolBreakBlocks: number;
   } | null>(null);
 
   // ── Cart validation ────────────────────────────────────────────────────────
@@ -205,7 +206,7 @@ export default function ActionsPage() {
   // immediately whenever the user adjusts quantity, PTO split, or plan option.
   const cartSignature = cart.map(
     (i) =>
-      `${i.actionId}:${i.quantity}:${i.timeBlocks}:${i.ptoBlocks}:${i.selectedOption ?? ''}:${i.selectedHousingId ?? ''}:${i.housingLocation ?? ''}:${i.selectedVehicleId ?? ''}`,
+      `${i.actionId}:${i.quantity}:${i.timeBlocks}:${i.ptoBlocks}:${i.unpaidBlocks ?? 0}:${i.schoolBreakBlocks ?? 0}:${i.selectedOption ?? ''}:${i.selectedHousingId ?? ''}:${i.housingLocation ?? ''}:${i.selectedVehicleId ?? ''}`,
   );
 
   const { data: validationData, isFetching: validating } = useQuery({
@@ -231,6 +232,8 @@ export default function ActionsPage() {
            quantities: JSON.stringify(quantities),
           activityBlocks: JSON.stringify(Object.fromEntries(cart.map((i) => [i.actionId, i.timeBlocks]))),
           ptoBlocks: JSON.stringify(Object.fromEntries(cart.map((i) => [i.actionId, i.ptoBlocks]))),
+          unpaidBlocks: JSON.stringify(Object.fromEntries(cart.map((i) => [i.actionId, i.unpaidBlocks ?? 0]))),
+          schoolBreakBlocks: JSON.stringify(Object.fromEntries(cart.map((i) => [i.actionId, i.schoolBreakBlocks ?? 0]))),
           selectedOptions: JSON.stringify(selectedOptions),
           selectedHousingIds: JSON.stringify(selectedHousingIds),
           housingLocations: JSON.stringify(housingLocations),
@@ -301,6 +304,8 @@ export default function ActionsPage() {
             actionId: i.actionId,
             timeBlocks: i.timeBlocks,
             ptoBlocks: i.ptoBlocks,
+            unpaidBlocks: i.unpaidBlocks,
+            schoolBreakBlocks: i.schoolBreakBlocks,
             selectedOption: i.selectedOption,
             selectedHousingId: i.selectedHousingId,
             housingLocation: i.housingLocation,
@@ -323,6 +328,8 @@ export default function ActionsPage() {
       actionId: string;
       timeBlocks: number;
       ptoBlocks: number;
+      unpaidBlocks?: number;
+      schoolBreakBlocks?: number;
       selectedOption?: string;
       quantity: number;
       selectedHousingId?: string;
@@ -335,6 +342,8 @@ export default function ActionsPage() {
           actionId: item.actionId,
           timeBlocks: item.timeBlocks,
           ptoBlocks: item.ptoBlocks,
+          unpaidBlocks: item.unpaidBlocks,
+          schoolBreakBlocks: item.schoolBreakBlocks,
           selectedOption: item.selectedOption,
           selectedHousingId: item.selectedHousingId,
           housingLocation: item.housingLocation,
@@ -364,15 +373,17 @@ export default function ActionsPage() {
     selectedOption?: string,
     _selectedOptionLabel?: string,
     quantity = 1,
+    unpaidBlocks = 0,
+    schoolBreakBlocks = 0,
   ) => {
-    expressMutation.mutate({ actionId: action.id, timeBlocks, ptoBlocks, selectedOption, quantity });
+    expressMutation.mutate({ actionId: action.id, timeBlocks, ptoBlocks, selectedOption, quantity, unpaidBlocks, schoolBreakBlocks });
   }, [expressMutation]);
 
   // Express acquisition: opens the picker dialog for Get Housing / Get Transportation.
   // Once the player selects a home/vehicle, it executes immediately via the express mutation.
-  const handleExpressAcquisition = useCallback((action: ActionItem, timeBlocks: number, ptoBlocks: number) => {
+  const handleExpressAcquisition = useCallback((action: ActionItem, timeBlocks: number, ptoBlocks: number, unpaidBlocks: number, schoolBreakBlocks: number) => {
     expressMutation.reset();
-    setExpressPicker({ action, timeBlocks, ptoBlocks });
+    setExpressPicker({ action, timeBlocks, ptoBlocks, unpaidBlocks, schoolBreakBlocks });
   }, [expressMutation]);
 
   const handleExpressPickerConfirm = useCallback((selection: {
@@ -385,6 +396,8 @@ export default function ActionsPage() {
       actionId: expressPicker.action.id,
       timeBlocks: expressPicker.timeBlocks,
       ptoBlocks: expressPicker.ptoBlocks,
+      unpaidBlocks: expressPicker.unpaidBlocks,
+      schoolBreakBlocks: expressPicker.schoolBreakBlocks,
       selectedOption: undefined,
       quantity: 1,
       selectedHousingId: selection.selectedHousingId,
@@ -400,6 +413,8 @@ export default function ActionsPage() {
     selectedOption?: string,
     selectedOptionLabel?: string,
     quantity = 1,
+    unpaidBlocks = 0,
+    schoolBreakBlocks = 0,
   ) => {
     const selectedOptionData = (action.userInput?.options ?? []).find((o) => o.value === selectedOption);
     const item: CartItem = {
@@ -407,6 +422,8 @@ export default function ActionsPage() {
       actionName: action.name,
       timeBlocks,
       ptoBlocks,
+      unpaidBlocks,
+      schoolBreakBlocks,
       calculatedCost: selectedOptionData?.cost ?? action.calculatedCost,
       calculatedLemons: action.calculatedLemons,
       quantity,
@@ -449,10 +466,14 @@ export default function ActionsPage() {
   }, [dispatch]);
 
   const cartCount = cart.length;
-  const totalBlocks = tbData?.breakdown.total ?? 60;
+  const totalBlocks = tbData?.actionTime?.activityBlocks ?? 0;
   const cartUsedBlocks = cart.reduce((s, i) => s + i.timeBlocks * i.quantity, 0);
   const cartPtoUsed = cart.reduce((s, i) => s + i.ptoBlocks * i.quantity, 0);
   const ptoRemaining = tbData?.ptoRemaining ?? 0;
+  const unpaidRemaining = tbData?.actionTime?.unpaidBlocks ?? 0;
+  const breaksRemaining = tbData?.actionTime?.schoolBreakBlocks ?? 0;
+  const committedUnpaid = cart.reduce((s, i) => s + (i.unpaidBlocks ?? 0) * i.quantity, 0);
+  const committedBreaks = cart.reduce((s, i) => s + (i.schoolBreakBlocks ?? 0) * i.quantity, 0);
 
   if (!gameSessionId) {
     return (
@@ -476,7 +497,7 @@ export default function ActionsPage() {
         {/* Activity blocks summary */}
         <Stack direction="row" spacing={1} alignItems="center">
           <Chip
-            label={`⏱ ${cartUsedBlocks} / ${totalBlocks} TB used`}
+            label={`${totalBlocks} activity blocks left`}
             color={cartUsedBlocks > totalBlocks ? 'error' : cartUsedBlocks > totalBlocks * 0.8 ? 'warning' : 'default'}
             variant="outlined"
             sx={{ fontWeight: 600 }}
@@ -487,6 +508,8 @@ export default function ActionsPage() {
             variant="outlined"
             sx={{ fontWeight: 600, opacity: ptoRemaining === 0 ? 0.5 : 1 }}
           />
+          {unpaidRemaining > 0 && <Chip label={`${unpaidRemaining} unpaid leave left`} variant="outlined" />}
+          {breaksRemaining > 0 && <Chip label={`${breaksRemaining} School Break left`} variant="outlined" />}
         </Stack>
       </Stack>
 
@@ -495,7 +518,7 @@ export default function ActionsPage() {
         <TimeBlockVisualizer
           breakdown={tbData?.breakdown ?? null}
           loading={tbLoading}
-          usedActivityBlocks={cartUsedBlocks}
+          usedActivityBlocks={cartUsedBlocks + committedBreaks + (tbData?.actionTime?.usedActivity ?? 0) + (tbData?.actionTime?.usedBreak ?? 0) + (tbData?.actionTime?.paidUsed ?? 0) + (tbData?.actionTime?.unpaidUsed ?? 0)}
           reservedBlocks={requiredActions
             .filter((r) => !cart.some((i) => i.actionName === r.actionName))
             .reduce((s, r) => s + r.blocks, 0)}
@@ -640,6 +663,10 @@ export default function ActionsPage() {
                   inCart={!!cartItem}
                   cartTimeBlocks={cartItem?.timeBlocks}
                   cartPtoBlocks={cartItem?.ptoBlocks}
+                  cartUnpaidBlocks={cartItem?.unpaidBlocks}
+                  cartSchoolBreakBlocks={cartItem?.schoolBreakBlocks}
+                  unpaidRemaining={unpaidRemaining - committedUnpaid}
+                  schoolBreakRemaining={breaksRemaining - committedBreaks}
                   cartQuantity={cartItem?.quantity}
                   cartSelectedOptionLabel={cartItem?.selectedOptionLabel}
                   ptoRemaining={ptoRemaining}

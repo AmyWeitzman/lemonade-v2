@@ -30,8 +30,7 @@ export async function seedActions(prisma: PrismaClient) {
         "executionType": "both",
         "frequency": "unlimited",
         "requirements": {
-            "hasPTOOrUnpaidTimeBlocks": true,
-            "retiredExempt": true
+            "hasPTOOrUnpaidTimeBlocks": true
         },
         "cost": 0,
         "costFormula": "none",
@@ -262,6 +261,7 @@ export async function seedActions(prisma: PrismaClient) {
     },
     {
         "name": "Do Karaoke",
+        "allowsPTO": false,
         "category": ["entertainment", "social-connections"],
         "executionType": "both",
         "frequency": "unlimited",
@@ -280,6 +280,7 @@ export async function seedActions(prisma: PrismaClient) {
     },
     {
         "name": "Game Night",
+        "allowsPTO": false,
         "category": ["social-connections", "entertainment"],
         "executionType": "both",
         "frequency": "unlimited",
@@ -414,10 +415,10 @@ export async function seedActions(prisma: PrismaClient) {
             "retiredExempt": true
         },
         "cost": 1000,
-        "costFormula": "per_person_per_time_block",
-        "minTimeBlocks": 2,
-        "maxTimeBlocks": null,
-        "timeBlockIncrement": 2,
+        "costFormula": "per_person",
+        "minTimeBlocks": 1,
+        "maxTimeBlocks": 1,
+        "timeBlockIncrement": 1,
         "seniorDiscount": false,
         "effects": {
             "stressPerTrip": -3,
@@ -440,10 +441,10 @@ export async function seedActions(prisma: PrismaClient) {
             "retiredExempt": true
         },
         "cost": 3700,
-        "costFormula": "per_person_per_time_block",
-        "minTimeBlocks": 3,
-        "maxTimeBlocks": null,
-        "timeBlockIncrement": 3,
+        "costFormula": "per_person",
+        "minTimeBlocks": 2,
+        "maxTimeBlocks": 2,
+        "timeBlockIncrement": 2,
         "seniorDiscount": false,
         "effects": {
             "stressPerTrip": -1,
@@ -589,6 +590,7 @@ export async function seedActions(prisma: PrismaClient) {
     },
     {
         "name": "Stargaze",
+        "allowsPTO": false,
         "category": ["outdoors"],
         "executionType": "both",
         "frequency": "unlimited",
@@ -943,6 +945,7 @@ export async function seedActions(prisma: PrismaClient) {
     },
     {
         "name": "Teach Summer Courses",
+        "allowsPTO": false,
         "category": ["community"],
         "executionType": "both",
         "frequency": "once_per_year",
@@ -2393,7 +2396,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 1,
         "maxTimeBlocks": null,
         "seniorDiscount": false,
-        "allowsPTO": false,
+        "allowsPTO": true,
         "effects": {
             "writingPerBlock": 1,
             "creativityPerBlock": 1,
@@ -2415,7 +2418,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
-        "allowsPTO": false,
+        "allowsPTO": true,
         "effects": {
             "stress": 10,
             "bookPublished": true,
@@ -2443,7 +2446,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
-        "allowsPTO": false,
+        "allowsPTO": true,
         "effects": {
             "stress": 10,
             "publishCriteria": { "writing": 80, "creativity": 70 },
@@ -2469,7 +2472,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
-        "allowsPTO": false,
+        "allowsPTO": true,
         "effects": {
             "success": {
                 "income": 500,
@@ -2500,7 +2503,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
-        "allowsPTO": false,
+        "allowsPTO": true,
         "effects": {
             "successChance": {
                 "inputs": ["bravery", "charisma", "creativity"],
@@ -2545,7 +2548,7 @@ export async function seedActions(prisma: PrismaClient) {
         "minTimeBlocks": 2,
         "maxTimeBlocks": 2,
         "seniorDiscount": false,
-        "allowsPTO": false,
+        "allowsPTO": true,
         "effects": {
             "successChance": {
                 "inputs": ["bravery", "charisma", "creativity"],

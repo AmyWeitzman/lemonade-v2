@@ -177,6 +177,8 @@ interface Props {
   inCart: boolean;
   cartTimeBlocks?: number;
   cartPtoBlocks?: number;
+  cartUnpaidBlocks?: number;
+  cartSchoolBreakBlocks?: number;
   /** Number of instances of this action in the cart (adjusted from the cart drawer) */
   cartQuantity?: number;
   /** Label of the option selected when this action was added to the cart */
@@ -185,6 +187,8 @@ interface Props {
   ptoRemaining: number;
   /** PTO blocks already committed in the cart (excluding this action) */
   ptoCommitted: number;
+  unpaidRemaining?: number;
+  schoolBreakRemaining?: number;
   onToggleFavorite: (id: string) => void;
   onAddToCart: (
     action: ActionItem,
@@ -193,6 +197,8 @@ interface Props {
     selectedOption?: string,
     selectedOptionLabel?: string,
     quantity?: number,
+    unpaidBlocks?: number,
+    schoolBreakBlocks?: number,
   ) => void;
   /** Executes this action immediately, bypassing the cart entirely */
   onExpressCheckout: (
@@ -202,6 +208,8 @@ interface Props {
     selectedOption?: string,
     selectedOptionLabel?: string,
     quantity?: number,
+    unpaidBlocks?: number,
+    schoolBreakBlocks?: number,
   ) => void;
   /** True while any express checkout is in flight (disables the button) */
   expressCheckingOut?: boolean;
@@ -209,7 +217,7 @@ interface Props {
   /** Called when the PTO split changes for an item already in the cart */
   onUpdateCartPto?: (actionId: string, timeBlocks: number, ptoBlocks: number) => void;
   /** Opens the express picker dialog for a "Get Housing" / "Get Transportation" action. */
-  onExpressAcquisition?: (action: ActionItem, timeBlocks: number, ptoBlocks: number) => void;
+  onExpressAcquisition?: (action: ActionItem, timeBlocks: number, ptoBlocks: number, unpaidBlocks: number, schoolBreakBlocks: number) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -220,10 +228,14 @@ export default function ActionCard({
   inCart,
   cartTimeBlocks = 0,
   cartPtoBlocks = 0,
+  cartUnpaidBlocks = 0,
+  cartSchoolBreakBlocks = 0,
   cartQuantity = 1,
   cartSelectedOptionLabel,
   ptoRemaining,
   ptoCommitted,
+  unpaidRemaining = 0,
+  schoolBreakRemaining = 0,
   onToggleFavorite,
   onAddToCart,
   onExpressCheckout,
@@ -242,7 +254,7 @@ export default function ActionCard({
     'Get CPR Certification', 'Change Major', 'Apply for Scholarships',
   ];
   const needsCartConfig = NEEDS_CART_CONFIG.includes(action.name);
-  const isSingular = SINGULAR_ACTIONS.includes(action.name);
+  const isSingular = SINGULAR_ACTIONS.includes(action.name) || ['once_per_year', 'once_per_two_years'].includes(action.frequency);
 
   // ── Option variants (userInput) ────────────────────────────────────────────
   const userInput = action.userInput as ActionUserInput | null;
@@ -288,12 +300,14 @@ export default function ActionCard({
   const maxBlocks = action.maxTimeBlocks ?? minBlocks;
 
   // Available PTO this action can use (not yet committed elsewhere)
-  const availablePTO = ptoRemaining - ptoCommitted;
+  const qty = isSingular || isVariable || isPricedOption ? 1 : addQty;
+  const availablePTO = Math.max(0, Math.floor((ptoRemaining - ptoCommitted) / qty));
+  const availableUnpaid = ptoAllowed ? Math.max(0, Math.floor(unpaidRemaining / qty)) : 0;
+  const availableBreak = action.name === 'Take a Mental Health Day' ? 0 : Math.max(0, Math.floor(schoolBreakRemaining / qty));
 
   // PTO disabled reasons
   const ptoDisabledReason: string | null = (() => {
-    if (availablePTO <= 0 && ptoRemaining <= 0) return 'No PTO available — get a job with PTO benefits';
-    if (availablePTO <= 0) return 'All PTO committed to other cart items';
+    if (availablePTO + availableUnpaid + availableBreak < (requiresPTO ? minBlocks : 1)) return 'Not enough time off available';
     return null;
   })();
 
@@ -307,31 +321,31 @@ export default function ActionCard({
     Math.max(minBlocks, Math.round(val / increment) * increment);
 
   const [totalBlocks, setTotalBlocks] = useState(snapToIncrement(minBlocks));
-  const [ptoSplit, setPtoSplit] = useState(requiresPTO ? minBlocks : 0);
+  const [ptoChoice, setPtoSplit] = useState<number | null>(null);
+  const [unpaidChoice, setUnpaidSplit] = useState<number | null>(null);
+  const [breakChoice, setBreakSplit] = useState<number | null>(null);
+  const durationBlocks = isPricedOption ? (selectedOption?.timeBlocks ?? minBlocks) : isVariable ? totalBlocks : minBlocks;
+  const requiredTime = requiresPTO ? Math.min(durationBlocks, typeof reqs.ptoOrUnpaidTimeBlocks === 'number' ? reqs.ptoOrUnpaidTimeBlocks : minBlocks) : 0;
+  const breakSplit = Math.min(availableBreak, durationBlocks, breakChoice ?? requiredTime);
+  const ptoSplit = ptoAllowed ? Math.min(availablePTO, durationBlocks - breakSplit, ptoChoice ?? Math.max(0, requiredTime - breakSplit)) : 0;
+  const unpaidSplit = Math.min(availableUnpaid, durationBlocks - breakSplit - ptoSplit, unpaidChoice ?? Math.max(0, requiredTime - breakSplit - ptoSplit));
 
   // Derived splits
-  const activitySplit = isVariable ? Math.max(0, totalBlocks - ptoSplit) : Math.max(0, minBlocks - ptoSplit);
+  const activitySplit = durationBlocks - ptoSplit - unpaidSplit - breakSplit;
 
   // Clamp ptoSplit when totalBlocks changes
   const handleTotalChange = (_: Event, val: number | number[]) => {
     const next = snapToIncrement(val as number);
     setTotalBlocks(next);
-    setPtoSplit((prev) => Math.min(prev, Math.min(next, availablePTO)));
   };
 
   const adjustPto = (delta: number) => {
-    setPtoSplit((prev) => {
-      const maxPto = isVariable ? totalBlocks : minBlocks;
-      const next = prev + delta;
-      return Math.max(requiresPTO ? minBlocks : 0, Math.min(next, maxPto, availablePTO));
-    });
+    setPtoSplit(Math.max(0, Math.min(ptoSplit + delta, durationBlocks - breakSplit, availablePTO)));
   };
 
   // Active TB/PTO for display and cart
-  const selectedTB = isPricedOption
-    ? (selectedOption?.timeBlocks ?? 0)
-    : activitySplit;
-  const selectedPTO = isPricedOption || !ptoAllowed ? 0 : ptoSplit;
+  const selectedTB = activitySplit;
+  const selectedPTO = ptoSplit;
 
   // In-cart values for display when already added
   const displayTB = inCart ? cartTimeBlocks : selectedTB;
@@ -419,14 +433,14 @@ export default function ActionCard({
   const gainSuffix = isVariable ? ` ${perTBLabel}` : '';
 
   const requirementItems = formatRequirements(reqs, requiresPTO);
-  const isBlocked = !action.eligible || (requiresPTO && ptoDisabled) || optionRequiredButUnset;
+  const isBlocked = !action.eligible || ptoSplit + unpaidSplit + breakSplit < requiredTime || optionRequiredButUnset;
 
   const handleAdd = () => {
-    onAddToCart(action, selectedTB, selectedPTO, hasOptions ? selectedOptionValue : undefined, selectedOption?.label, isSingular ? 1 : addQty);
+    onAddToCart(action, selectedTB, selectedPTO, hasOptions ? selectedOptionValue : undefined, selectedOption?.label, qty, unpaidSplit, breakSplit);
   };
 
   const handleExpress = () => {
-    onExpressCheckout(action, selectedTB, selectedPTO, hasOptions ? selectedOptionValue : undefined, selectedOption?.label, addQty);
+    onExpressCheckout(action, selectedTB, selectedPTO, hasOptions ? selectedOptionValue : undefined, selectedOption?.label, qty, unpaidSplit, breakSplit);
   };
 
   // When in-cart PTO changes via +/−
@@ -706,7 +720,7 @@ export default function ActionCard({
             {/* Required-PTO action with no PTO available — whole selector disabled */}
             {requiresPTO && ptoDisabled && (
               <Typography variant="caption" color="error.main" sx={{ display: 'block', fontWeight: 600 }}>
-                🏖️ No PTO available
+                Not enough eligible time off available
               </Typography>
             )}
 
@@ -731,7 +745,7 @@ export default function ActionCard({
             ) : null}
 
             {/* Time blocks breakdown (always shown except for housing/transport and when PTO disabled) */}
-            {!(requiresPTO && ptoDisabled) && !isPricedOption && maxBlocks !== 0 ? (
+            {durationBlocks > 0 ? (
               <Box sx={{ mt: (isVariable && maxBlocks > minBlocks) ? 0 : 0 }}>
                 {!ptoAllowed ? (
                   <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -754,13 +768,8 @@ export default function ActionCard({
                       >
                         🏖️ {ptoSplit} PTO
                       </Typography>
-                      {ptoDisabled && !requiresPTO && (
-                        <Typography component="span" variant="caption" color="error.main" sx={{ ml: 0.5 }}>
-                          (No PTO available)
-                        </Typography>
-                      )}
                     </Box>
-                    {!requiresPTO && (
+                    {availablePTO > 0 && (
                       <Stack direction="row" spacing={0.5} alignItems="center">
                         <IconButton
                           size="small"
@@ -776,7 +785,7 @@ export default function ActionCard({
                         <IconButton
                           size="small"
                           onClick={() => adjustPto(1)}
-                          disabled={ptoDisabled || ptoSplit >= totalBlocks || ptoSplit >= availablePTO}
+                          disabled={ptoSplit >= durationBlocks - breakSplit || ptoSplit >= availablePTO}
                           sx={{ p: 0, width: 24, height: 24, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}
                         >
                           <AddIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }} />
@@ -784,6 +793,22 @@ export default function ActionCard({
                       </Stack>
                     )}
                   </Stack>
+                )}
+                {availableUnpaid > 0 && (
+                  <FormControl size="small" fullWidth sx={{ mt: 1 }}>
+                    <Typography variant="caption">Unpaid leave (reduces annual pay)</Typography>
+                    <Select value={unpaidSplit} onChange={(e) => setUnpaidSplit(Number(e.target.value))} inputProps={{ 'aria-label': 'Unpaid leave blocks' }}>
+                      {Array.from({ length: Math.min(availableUnpaid, durationBlocks - breakSplit - ptoSplit) + 1 }, (_, n) => <MenuItem key={n} value={n}>{n}</MenuItem>)}
+                    </Select>
+                  </FormControl>
+                )}
+                {availableBreak > 0 && (
+                  <FormControl size="small" fullWidth sx={{ mt: 1 }}>
+                    <Typography variant="caption">School Break blocks</Typography>
+                    <Select value={breakSplit} onChange={(e) => setBreakSplit(Number(e.target.value))} inputProps={{ 'aria-label': 'School Break blocks' }}>
+                      {Array.from({ length: Math.min(availableBreak, durationBlocks) + 1 }, (_, n) => <MenuItem key={n} value={n}>{n}</MenuItem>)}
+                    </Select>
+                  </FormControl>
                 )}
               </Box>
             ) : null}
@@ -874,7 +899,7 @@ export default function ActionCard({
             onClick={() => onRemoveFromCart(action.id)}
             sx={{ fontSize: '0.7rem', width: '100%' }}
           >
-            Remove ({(displayTB + displayPTO) * cartQuantity} TB)
+            Remove ({(displayTB + displayPTO + cartUnpaidBlocks + cartSchoolBreakBlocks) * cartQuantity} TB)
           </Button>
         ) : (
           /* Buttons row - always equal width for all action types */
@@ -883,7 +908,7 @@ export default function ActionCard({
               size="small"
               variant="contained"
               disabled={isBlocked || expressCheckingOut}
-              onClick={needsCartConfig ? () => onExpressAcquisition?.(action, selectedTB, selectedPTO) : handleExpress}
+              onClick={needsCartConfig ? () => onExpressAcquisition?.(action, selectedTB, selectedPTO, unpaidSplit, breakSplit) : handleExpress}
               startIcon={expressCheckingOut ? <CircularProgress size={12} color="inherit" /> : undefined}
               sx={{
                 flex: 1,

@@ -13,6 +13,8 @@ export interface CartItem {
   // multiply by `quantity` to get the totals for this cart line.
   timeBlocks: number;      // activity blocks used, per instance
   ptoBlocks: number;       // PTO blocks used per instance (0 if none)
+  unpaidBlocks?: number;
+  schoolBreakBlocks?: number;
   calculatedCost: number;
   calculatedLemons: number;
   quantity: number;        // number of times this action is being done (>= 1)
@@ -133,6 +135,8 @@ const actionsSlice = createSlice({
         existing.quantity += action.payload.quantity;
         existing.timeBlocks = action.payload.timeBlocks;
         existing.ptoBlocks = action.payload.ptoBlocks;
+        existing.unpaidBlocks = action.payload.unpaidBlocks;
+        existing.schoolBreakBlocks = action.payload.schoolBreakBlocks;
         existing.calculatedCost = action.payload.calculatedCost;
         existing.calculatedLemons = action.payload.calculatedLemons;
         existing.selectedOption = action.payload.selectedOption;

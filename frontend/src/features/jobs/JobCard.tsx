@@ -157,7 +157,7 @@ function CareerAdvancement({ salaryTiers, resolvedDegrees, hasDegreeRequirement 
 
 interface Props {
   job: JobItem;
-  onApply: (jobId: string, partTime: boolean) => void;
+  onApply: (jobId: string, partTime: boolean, summerOnly?: boolean) => void;
   onQuit: (jobId: string) => void;
   applying: boolean;
   quitting: boolean;
@@ -324,7 +324,7 @@ export default function JobCard({ job, onApply, onQuit, applying, quitting, isBo
                 <Button size="small" variant="outlined" color="primary"
                   disabled={!job.eligible || applying}
                   startIcon={applying ? <CircularProgress size={12} /> : undefined}
-                  onClick={() => onApply(job.id, true)} sx={{ fontSize: '0.7rem' }}>
+                   onClick={() => onApply(job.id, true, false)} sx={{ fontSize: '0.7rem' }}>
                   Apply (PT)
                 </Button>
               )}
@@ -332,9 +332,13 @@ export default function JobCard({ job, onApply, onQuit, applying, quitting, isBo
                 color={job.eligible ? 'primary' : 'inherit'}
                 disabled={!job.eligible || applying}
                 startIcon={applying ? <CircularProgress size={12} /> : <WorkIcon sx={{ fontSize: '0.9rem !important' }} />}
-                onClick={() => onApply(job.id, false)} sx={{ fontSize: '0.7rem' }}>
-                Apply
-              </Button>
+                  onClick={() => onApply(job.id, !job.fullTime, false)} sx={{ fontSize: '0.7rem' }}>
+                 Apply
+               </Button>
+              {job.seasonal && job.fullTime && <Button size="small" disabled={!job.eligible || applying}
+                onClick={() => onApply(job.id, false, true)}>Summer FT</Button>}
+              {job.seasonal && job.partTime && <Button size="small" disabled={!job.eligible || applying}
+                onClick={() => onApply(job.id, true, true)}>Summer PT</Button>}
             </>
           )}
         </CardActions>
