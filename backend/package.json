@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
+    "test": "vitest run src/lib/__tests__",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src",
@@ -40,6 +41,7 @@
     "prettier": "^3.2.5",
     "prisma": "^5.10.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^3.2.6"
   }
 }
