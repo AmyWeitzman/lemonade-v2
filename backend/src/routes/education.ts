@@ -18,10 +18,10 @@ import { authorize } from '../middleware/authorize';
 import { validatePlayerAlive } from '../middleware/validatePlayerAlive';
 import { getIO } from '../socket';
 import { sendNotification } from '../lib/yearCycle';
+import { prepareEducationChange } from '../lib/educationCheckout';
 import {
   checkEduEligibility,
   isCCToBachelorsSameMajor,
-  getCCShortcutCredits,
   checkScholarshipEligibility,
   EduProgramRow,
   PlayerForEduEligibility,
@@ -335,40 +335,13 @@ router.post(
         return;
       }
 
-      // Part-time validation
-      if (partTime && !program.partTimeAllowed) {
-        res.status(400).json({ error: 'This program does not offer part-time enrollment' });
+      const prepared = prepareEducationChange(player, program, false, partTime);
+      if (!prepared.apply) {
+        res.status(400).json({ error: prepared.error });
         return;
       }
-
-      // Eligibility check
-      const eligPlayer = buildEligibilityPlayer(player);
-      const eligResult = checkEduEligibility(program, eligPlayer);
-      if (!eligResult.eligible) {
-        res.status(400).json({ error: 'Requirements not met', reasons: eligResult.reasons });
-        return;
-      }
-
-      // Determine starting credits (CC→Bachelors shortcut)
-      const isShortcut = isCCToBachelorsSameMajor(program, eligPlayer.educations);
-      const startingCredits = isShortcut
-        ? getCCShortcutCredits(program)
-        : { generalEducation: 0, field: 0, major: 0 };
-
-      // Create education record
-      const education = await prisma.education.create({
-        data: {
-          playerId: player.id,
-          programId,
-          isPartTime: partTime,
-          startAge: player.age,
-          creditsCompleted: startingCredits as unknown as Record<string, number>,
-          isActive: true,
-          graduated: false,
-          parentContributionUsed: 0,
-          scholarships: [],
-        },
-      });
+      const { isShortcut, credits: startingCredits } = prepared;
+      const education = await prepared.apply(prisma);
 
       // Notify player
       const shortcutNote = isShortcut
@@ -525,57 +498,13 @@ router.post(
         return;
       }
 
-      // Must be same degree type to change major
-      if (newProgram.type !== activeEdu.program.type) {
-        res.status(400).json({
-          error: `Cannot change from ${activeEdu.program.type} to ${newProgram.type} — drop out and re-enroll instead`,
-        });
+      const prepared = prepareEducationChange(player, newProgram, true, partTime);
+      if (!prepared.apply) {
+        res.status(400).json({ error: prepared.error });
         return;
       }
-
-      // Eligibility check for new program
-      const eligPlayer = buildEligibilityPlayer(player);
-      const eligResult = checkEduEligibility(newProgram, eligPlayer);
-      if (!eligResult.eligible) {
-        res.status(400).json({ error: 'Requirements not met for new program', reasons: eligResult.reasons });
-        return;
-      }
-
-      const oldCredits = activeEdu.creditsCompleted as {
-        generalEducation: number;
-        field: number;
-        major: number;
-      };
-
-      // Credit transfer rules:
-      // - Gen Ed always transfers
-      // - Field credits transfer if same field
-      // - Major credits never transfer
-      const sameField =
-        activeEdu.program.field.toLowerCase() === newProgram.field.toLowerCase();
-
-      const newCredits = {
-        generalEducation: oldCredits.generalEducation, // always transfers
-        field: sameField ? oldCredits.field : 0,       // transfers if same field
-        major: 0,                                       // never transfers
-      };
-
-      const isNewPartTime = partTime ?? activeEdu.isPartTime;
-
-      if (isNewPartTime && !newProgram.partTimeAllowed) {
-        res.status(400).json({ error: 'New program does not offer part-time enrollment' });
-        return;
-      }
-
-      await prisma.education.update({
-        where: { id: activeEdu.id },
-        data: {
-          programId: newProgramId,
-          isPartTime: isNewPartTime,
-          creditsCompleted: newCredits,
-          scholarships: [], // scholarships reset on major change
-        },
-      });
+      const { credits: newCredits, sameField } = prepared;
+      await prepared.apply(prisma);
 
       await sendNotification(
         player.id,

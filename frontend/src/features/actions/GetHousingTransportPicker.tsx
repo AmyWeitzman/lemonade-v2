@@ -3,7 +3,7 @@
  * a "Get Housing" / "Get Transportation" cart line. Reuses the housing / vehicle
  * catalog endpoints (already eligibility-annotated for this player).
  */
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button, Stack,
   Radio, FormControlLabel, RadioGroup, Typography, Box, CircularProgress,
@@ -16,6 +16,13 @@ import { setCartItemSelection } from './actionsSlice';
 import api from '../../lib/api';
 
 type Kind = 'housing' | 'transport';
+export interface AcquisitionSelection {
+  selectedHousingId?: string;
+  housingLocation?: 'city' | 'suburb';
+  selectedHousingLabel?: string;
+  selectedVehicleId?: string;
+  selectedVehicleLabel?: string;
+}
 
 interface HousingOption {
   id: string;
@@ -49,20 +56,15 @@ interface Props {
   /** Currently chosen id, to preselect. */
   currentId?: string;
   currentLocation?: 'city' | 'suburb';
-  /** If provided, the confirm button triggers express checkout (immediate purchase)
-   *  instead of setting the selection on a cart line. */
-  onExpressConfirm?: (selection: {
-    selectedHousingId?: string;
-    housingLocation?: 'city' | 'suburb';
-    selectedVehicleId?: string;
-  }) => void;
-  expressPending?: boolean;
-  expressError?: string | null;
+  children?: ReactNode;
+  checkoutButtons?: (selection?: AcquisitionSelection) => ReactNode;
+  pending?: boolean;
+  error?: string | null;
 }
 
 export default function GetHousingTransportPicker({
-  open, onClose, kind, actionId, currentId, currentLocation, onExpressConfirm,
-  expressPending = false, expressError,
+  open, onClose, kind, actionId, currentId, currentLocation, children, checkoutButtons,
+  pending = false, error,
 }: Props) {
   const dispatch = useDispatch();
   const { gameSessionId } = useSelector((s: RootState) => s.auth);
@@ -91,47 +93,28 @@ export default function GetHousingTransportPicker({
   const vehicleItems = vehicleQ.data ?? [];
 
   const selectedHousing = housingItems.find((h) => h.id === choice);
+  const selectedVehicle = vehicleItems.find((v) => v.id === choice);
   const needsLocation = kind === 'housing' && selectedHousing?.location === 'both';
+  const selection: AcquisitionSelection | undefined = kind === 'housing' && selectedHousing?.eligible ? {
+    selectedHousingId: choice, housingLocation: needsLocation ? location : undefined, selectedHousingLabel: selectedHousing.name,
+  } : kind === 'transport' && selectedVehicle?.eligible ? {
+    selectedVehicleId: choice, selectedVehicleLabel: selectedVehicle.name,
+  } : undefined;
 
   const confirm = () => {
-    if (!choice || expressPending) return;
-    if (onExpressConfirm) {
-      if (kind === 'housing') {
-        onExpressConfirm({
-          selectedHousingId: choice,
-          housingLocation: needsLocation ? location : undefined,
-        });
-      } else {
-        onExpressConfirm({ selectedVehicleId: choice });
-      }
-      return;
-    }
-    if (kind === 'housing') {
-      const h = housingItems.find((x) => x.id === choice);
-      dispatch(setCartItemSelection({
-        actionId,
-        selectedHousingId: choice,
-        housingLocation: needsLocation ? location : undefined,
-        selectedHousingLabel: h?.name,
-      }));
-    } else {
-      const v = vehicleItems.find((x) => x.id === choice);
-      dispatch(setCartItemSelection({
-        actionId,
-        selectedVehicleId: choice,
-        selectedVehicleLabel: v?.name,
-      }));
-    }
+    if (!selection || pending) return;
+    dispatch(setCartItemSelection({ actionId, ...selection }));
     onClose();
   };
 
   return (
-    <Dialog open={open} onClose={expressPending ? undefined : onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={pending ? undefined : onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 700 }}>
         {kind === 'housing' ? '🏠 Choose your housing' : '🚗 Choose your transportation'}
       </DialogTitle>
       <DialogContent dividers>
-        {expressError && <Alert severity="error" sx={{ mb: 2 }}>{expressError}</Alert>}
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {(kind === 'housing' ? housingQ.isError : vehicleQ.isError) && <Alert severity="error">Could not load choices.</Alert>}
         {loading ? (
           <Box sx={{ textAlign: 'center', py: 4 }}><CircularProgress size={24} /></Box>
         ) : (
@@ -206,14 +189,13 @@ export default function GetHousingTransportPicker({
             ? 'any purchase price (and sale of your current home) is applied then.'
             : 'the purchase price is charged then.'}
         </Alert>
+        {children}
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={expressPending}>Cancel</Button>
-        <Button variant="contained" onClick={confirm} disabled={!choice || expressPending}>
-          {onExpressConfirm
-            ? `Buy this ${kind === 'housing' ? 'home' : 'vehicle'}`
-            : `Use this ${kind === 'housing' ? 'home' : 'vehicle'}`}
-        </Button>
+      <DialogActions disableSpacing sx={{ flexWrap: 'wrap', gap: 2, px: 3 }}>
+        <Button onClick={onClose} disabled={pending} sx={{ mr: 'auto' }}>Cancel</Button>
+        {checkoutButtons ? checkoutButtons(selection) : <Button variant="contained" onClick={confirm} disabled={!selection || pending}>
+          Use this {kind === 'housing' ? 'home' : 'vehicle'}
+        </Button>}
       </DialogActions>
     </Dialog>
   );

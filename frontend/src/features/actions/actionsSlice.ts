@@ -9,10 +9,9 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 export interface CartItem {
   actionId: string;
   actionName: string;
-  // timeBlocks/ptoBlocks/calculatedCost/calculatedLemons are all PER INSTANCE —
-  // multiply by `quantity` to get the totals for this cart line.
-  timeBlocks: number;      // activity blocks used, per instance
-  ptoBlocks: number;       // PTO blocks used per instance (0 if none)
+  // Block allocations are totals across the line. Cost and lemons are per instance.
+  timeBlocks: number;
+  ptoBlocks: number;
   unpaidBlocks?: number;
   schoolBreakBlocks?: number;
   calculatedCost: number;
@@ -30,6 +29,10 @@ export interface CartItem {
   selectedHousingLabel?: string;
   selectedVehicleId?: string;
   selectedVehicleLabel?: string;
+  educationProgramId?: string;
+  educationPartTime?: boolean;
+  educationProgramLabel?: string;
+  frequency?: string;
   // True for cart lines auto-added because the action is required this year and
   // that cannot be removed (Phase 5 earmark).
   locked?: boolean;
@@ -89,7 +92,15 @@ const CART_STORAGE_PREFIX = 'lemonade_cart_';
 const loadCart = (gameSessionId: string): CartItem[] => {
   try {
     const raw = localStorage.getItem(CART_STORAGE_PREFIX + gameSessionId);
-    return raw ? (JSON.parse(raw) as CartItem[]) : [];
+    if (!raw) return [];
+    const saved = JSON.parse(raw) as CartItem[] | { version: 2; items: CartItem[] };
+    return Array.isArray(saved) ? saved.map((item) => ({
+      ...item,
+      timeBlocks: item.timeBlocks * item.quantity,
+      ptoBlocks: item.ptoBlocks * item.quantity,
+      unpaidBlocks: (item.unpaidBlocks ?? 0) * item.quantity,
+      schoolBreakBlocks: (item.schoolBreakBlocks ?? 0) * item.quantity,
+    })) : saved.items;
   } catch {
     return [];
   }
@@ -100,7 +111,7 @@ const persistCart = (state: ActionsState) => {
   try {
     localStorage.setItem(
       CART_STORAGE_PREFIX + state.cartSessionId,
-      JSON.stringify(state.cart),
+      JSON.stringify({ version: 2, items: state.cart }),
     );
   } catch {
     /* storage full or unavailable — cart stays in memory for this session */
@@ -130,17 +141,7 @@ const actionsSlice = createSlice({
     addToCart(state, action: PayloadAction<CartItem>) {
       const existing = state.cart.find((i) => i.actionId === action.payload.actionId);
       if (existing) {
-        // Same per-instance config (TB/PTO/cost/lemons) is assumed — just add more instances.
-        // Re-adding with a newly selected option (e.g. a different plan) updates the choice.
-        existing.quantity += action.payload.quantity;
-        existing.timeBlocks = action.payload.timeBlocks;
-        existing.ptoBlocks = action.payload.ptoBlocks;
-        existing.unpaidBlocks = action.payload.unpaidBlocks;
-        existing.schoolBreakBlocks = action.payload.schoolBreakBlocks;
-        existing.calculatedCost = action.payload.calculatedCost;
-        existing.calculatedLemons = action.payload.calculatedLemons;
-        existing.selectedOption = action.payload.selectedOption;
-        existing.selectedOptionLabel = action.payload.selectedOptionLabel;
+        Object.assign(existing, action.payload);
       } else {
         state.cart.push(action.payload);
       }
@@ -207,7 +208,15 @@ const actionsSlice = createSlice({
     setCartItemQuantity(state, action: PayloadAction<{ actionId: string; quantity: number }>) {
       const item = state.cart.find((i) => i.actionId === action.payload.actionId);
       if (item && !item.locked) {
-        item.quantity = Math.max(1, action.payload.quantity);
+        const duration = (item.timeBlocks + item.ptoBlocks + (item.unpaidBlocks ?? 0) + (item.schoolBreakBlocks ?? 0)) / item.quantity;
+        const quantity = Math.min(60, Math.max(1, action.payload.quantity));
+        const total = duration * quantity;
+        if (item.requiresPTO && quantity > item.quantity) return;
+        item.ptoBlocks = Math.min(item.ptoBlocks, total);
+        item.unpaidBlocks = Math.min(item.unpaidBlocks ?? 0, total - item.ptoBlocks);
+        item.schoolBreakBlocks = Math.min(item.schoolBreakBlocks ?? 0, total - item.ptoBlocks - item.unpaidBlocks);
+        item.timeBlocks = total - item.ptoBlocks - item.unpaidBlocks - item.schoolBreakBlocks;
+        item.quantity = quantity;
       }
       persistCart(state);
     },

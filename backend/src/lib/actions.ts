@@ -526,25 +526,29 @@ export interface ActionHistoryRecord {
 export function checkFrequencyLimit(
   action: ActionRow,
   existingHistory: ActionHistoryRecord | null,
+  requested = 1,
 ): string | null {
-  if (!existingHistory) return null;
+  const count = (existingHistory?.count ?? 0) + requested;
 
   switch (action.frequency) {
     case 'once_per_year':
-      if (existingHistory.count >= 1) {
+      if (count > 1) {
         return `${action.name} can only be done once per year`;
       }
       break;
     case 'once_per_two_years':
       // Caller must check across two years; here we just check current year
-      if (existingHistory.count >= 1) {
+      if (count > 1) {
         return `${action.name} can only be done once every two years`;
       }
       break;
     case 'twice_per_year':
-      if (existingHistory.count >= 2) {
+      if (count > 2) {
         return `${action.name} can only be done twice per year`;
       }
+      break;
+    case 'four_per_year':
+      if (count > 4) return `${action.name} can only be done four times per year`;
       break;
     case 'multiple':
       // Limited but no hard cap defined — allow

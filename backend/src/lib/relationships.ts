@@ -32,6 +32,7 @@ export interface SpouseData {
   originalLoans: number;
   playerOriginalMoney: number;
   playerOriginalSavings: number;
+  playerOriginalLoans?: number;
 }
 
 export interface SpouseLoan {
@@ -506,5 +507,7 @@ export function buildSpouseFromCandidate(
     originalMoney: candidate.money,
     originalSavings: candidate.retirementSavings,
     originalLoans: candidate.loans,
+    playerOriginalMoney: 0,
+    playerOriginalSavings: 0,
   };
 }

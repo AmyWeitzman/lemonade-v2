@@ -48,6 +48,7 @@ interface Props {
   validation: ValidationResult | null;
   validating: boolean;
   checkingOut: boolean;
+  checkoutError?: string | null;
   /** Required actions this year — checkout is disabled until all are in the cart. */
   requiredActions?: RequiredActionInfo[];
 }
@@ -69,11 +70,12 @@ export default function CartDrawer({
   validation,
   validating,
   checkingOut,
+  checkoutError,
   requiredActions = [],
 }: Props) {
-  const totalTB = cart.reduce((s, i) => s + i.timeBlocks * i.quantity, 0);
-  const totalPTO = cart.reduce((s, i) => s + i.ptoBlocks * i.quantity, 0);
-  const totalCost = cart.reduce((s, i) => s + i.calculatedCost * i.quantity, 0);
+  const totalTB = cart.reduce((s, i) => s + i.timeBlocks, 0);
+  const totalPTO = cart.reduce((s, i) => s + i.ptoBlocks, 0);
+  const totalCost = validation?.totalCost ?? cart.reduce((s, i) => s + i.calculatedCost * i.quantity, 0);
   const totalLemons = cart.reduce((s, i) => s + i.calculatedLemons * i.quantity, 0);
 
   // Which cart line's home/vehicle picker is open (by actionId), if any.
@@ -125,9 +127,9 @@ export default function CartDrawer({
             {cart.map((item) => {
               const ptoCommittedElsewhere = cart
                 .filter((i) => i.actionId !== item.actionId)
-                .reduce((s, i) => s + i.ptoBlocks * i.quantity, 0);
+                .reduce((s, i) => s + i.ptoBlocks, 0);
               const availablePTOForItem = ptoRemaining - ptoCommittedElsewhere;
-              const canAddPTO = !item.requiresPTO && item.timeBlocks > 0 && availablePTOForItem >= (item.ptoBlocks + 1) * item.quantity;
+              const canAddPTO = !item.requiresPTO && item.timeBlocks > 0 && availablePTOForItem > item.ptoBlocks;
               const canRemovePTO = item.ptoBlocks > 0 && !item.requiresPTO;
 
               return (
@@ -147,13 +149,13 @@ export default function CartDrawer({
                       secondary={
                         <Stack direction="row" spacing={0.75} sx={{ mt: 0.5 }} flexWrap="wrap">
                           <Chip
-                            label={`⏱ ${item.timeBlocks * item.quantity} TB`}
+                             label={`⏱ ${item.timeBlocks} TB`}
                             size="small" variant="outlined"
                             sx={{ fontSize: '0.65rem', height: 18 }}
                           />
                           {item.ptoBlocks > 0 && (
                             <Chip
-                              label={`🏖️ ${item.ptoBlocks * item.quantity} PTO`}
+                               label={`🏖️ ${item.ptoBlocks} PTO`}
                               size="small"
                               sx={{ fontSize: '0.65rem', height: 18, bgcolor: '#fff8e1', color: '#795548' }}
                             />
@@ -192,10 +194,10 @@ export default function CartDrawer({
                   )}
 
                   {/* Quantity adjuster — how many times this action is being done */}
-                  {onUpdateQuantity && !item.locked && (
+                  {onUpdateQuantity && !item.locked && !['once_per_year', 'once_per_two_years'].includes(item.frequency ?? '') && !['Get Housing', 'Get Transportation', 'Get Divorced'].includes(item.actionName) && (
                     <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 0.75, pl: 0.25 }}>
                       <Typography variant="caption" color="text.secondary" sx={{ mr: 0.25 }}>
-                        Times:
+                         Quantity
                       </Typography>
                       <Tooltip title="Do this one fewer time">
                         <span>
@@ -216,7 +218,8 @@ export default function CartDrawer({
                         <span>
                           <IconButton
                             size="small"
-                            onClick={() => onUpdateQuantity(item.actionId, item.quantity + 1)}
+                             disabled={item.requiresPTO || item.quantity >= (item.frequency === 'four_per_year' ? 4 : item.frequency === 'twice_per_year' ? 2 : 60)}
+                             onClick={() => onUpdateQuantity(item.actionId, item.quantity + 1)}
                             sx={{ p: 0.25 }}
                           >
                             <AddIcon sx={{ fontSize: 13 }} />
@@ -226,15 +229,16 @@ export default function CartDrawer({
                     </Stack>
                   )}
 
-                  {/* PTO adjuster — shown if action supports PTO. Applies to each instance. */}
+                   {/* Leave allocations are totals for the cart line. */}
                    {!!(item.unpaidBlocks || item.schoolBreakBlocks) && (
                      <Typography variant="caption" display="block">
-                       {item.unpaidBlocks ?? 0} unpaid leave · {item.schoolBreakBlocks ?? 0} School Break per action
+                       {item.unpaidBlocks ?? 0} unpaid leave · {item.schoolBreakBlocks ?? 0} School Break
                      </Typography>
                    )}
-                   {item.allowsPTO && onUpdatePto && (
-                    <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mt: 0.5, pl: 0.25 }} flexWrap="wrap">
-                      <Tooltip title={!canRemovePTO ? (item.requiresPTO ? 'Required PTO — cannot reduce' : 'No PTO to remove') : 'Move a block from PTO to activity'}>
+                    {item.allowsPTO && onUpdatePto && item.timeBlocks + item.ptoBlocks + (item.unpaidBlocks ?? 0) + (item.schoolBreakBlocks ?? 0) > 0 && (
+                     <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mt: 0.5, pl: 0.25 }} flexWrap="wrap">
+                       <Typography variant="caption">{item.timeBlocks} activity +</Typography>
+                       <Tooltip title={canRemovePTO ? 'Move a block from PTO to activity' : ''}>
                         <span>
                           <IconButton
                             size="small"
@@ -247,9 +251,9 @@ export default function CartDrawer({
                         </span>
                       </Tooltip>
                       <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                        ⏱ {item.timeBlocks} activity&nbsp;&nbsp;🏖️ {item.ptoBlocks} PTO{item.quantity > 1 ? ' (per time)' : ''}
+                         {item.ptoBlocks} PTO
                       </Typography>
-                      <Tooltip title={!canAddPTO ? (availablePTOForItem <= 0 ? 'No PTO remaining' : 'All blocks already PTO') : 'Move a block from activity to PTO'}>
+                       <Tooltip title={canAddPTO ? 'Move a block from activity to PTO' : ''}>
                         <span>
                           <IconButton
                             size="small"
@@ -367,6 +371,7 @@ export default function CartDrawer({
           </Alert>
         )}
 
+        {checkoutError && <Alert severity="error" sx={{ mb: 1.5 }}>{checkoutError}</Alert>}
         <Stack spacing={1}>
           <Tooltip title={hasUnmetRequired
             ? `Add required action${unmetRequired.length !== 1 ? 's' : ''} to your cart first: ${unmetRequired.map((r) => r.actionName).join(', ')}`

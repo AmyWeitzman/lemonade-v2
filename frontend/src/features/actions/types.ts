@@ -65,6 +65,18 @@ export interface PTOInfo {
 }
 
 export interface CheckoutResult {
+  educationProgramName?: string;
+  divorceScheduled?: {
+    score: number;
+    cost: number;
+    blocks: number;
+    effectiveYear: number;
+    beforeCareBlocks: number;
+    afterCareBlocks: number;
+    annualChildcareAtCurrentPlan: number;
+    annualChildcareToKeepCareTime: number | null;
+    spouseIncomeRemoved: number;
+  };
   totalLemonsEarned: number;
   healthDelta: number;
   stressDelta: number;

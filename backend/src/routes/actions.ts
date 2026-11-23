@@ -17,7 +17,11 @@ import { validatePlayerAlive } from '../middleware/validatePlayerAlive';
 import { getIO } from '../socket';
 import { calculateTimeBlocks } from '../lib/timeBlocks';
 import { getActionTimeBudget } from '../lib/actionTimeBudget';
+import { expandCheckoutBlocks } from '../lib/checkoutBlocks';
+import { prepareEducationChange } from '../lib/educationCheckout';
+import type { EduProgramRow } from '../lib/education';
 import { unpaidLeavePay, validateTimeOff, type ActionBlockSplit } from '../lib/actionTime';
+import { DIVORCE_ACTION, getDivorceQuote, quoteDivorceAction } from '../lib/divorce';
 import { attemptCardDrawForYear } from '../lib/cards';
 import {
   checkActionEligibility,
@@ -364,24 +368,24 @@ const listActionsSchema = z.object({
   sort: z.enum(['lemons_per_tb', 'lemons_per_dollar', 'cost_per_tb', 'min_cost']).optional(),
 });
 
+const checkoutItemSchema = z.object({
+  actionId: z.string().min(1),
+  quantity: z.number().int().min(1).max(60).optional(),
+  timeBlocks: z.number().int().min(0).max(60),
+  ptoBlocks: z.number().int().min(0).max(60).default(0),
+  unpaidBlocks: z.number().int().min(0).max(60).default(0),
+  schoolBreakBlocks: z.number().int().min(0).max(60).default(0),
+  selectedOption: z.string().optional(),
+  selectedHousingId: z.string().optional(),
+  housingLocation: z.enum(['city', 'suburb']).optional(),
+  selectedVehicleId: z.string().optional(),
+  educationProgramId: z.string().min(1).optional(),
+  educationPartTime: z.boolean().optional(),
+});
 const executeActionsSchema = z.object({
   gameSessionId: z.string().min(1),
-  actions: z
-    .array(
-      z.object({
-        actionId: z.string().min(1),
-        timeBlocks: z.number().int().min(0),
-        ptoBlocks: z.number().int().min(0).default(0),
-        unpaidBlocks: z.number().int().min(0).default(0),
-        schoolBreakBlocks: z.number().int().min(0).default(0),
-        selectedOption: z.string().optional(),
-        // "Get Housing" / "Get Transportation" carry the chosen home / vehicle.
-        selectedHousingId: z.string().optional(),
-        housingLocation: z.enum(['city', 'suburb']).optional(),
-        selectedVehicleId: z.string().optional(),
-      }),
-    )
-    .min(1),
+  checkoutKind: z.enum(['cart', 'express']).optional(),
+  actions: z.array(checkoutItemSchema).min(1).max(200),
 });
 
 // Query-string transport: these arrive as JSON-encoded strings over GET, but may
@@ -400,12 +404,13 @@ const jsonQueryRecord = <V extends z.ZodTypeAny>(valueSchema: V) =>
 
 const validateCartSchema = z.object({
   gameSessionId: z.string().min(1),
-  actionIds: z.array(z.string().min(1)).min(1),
-  quantities: jsonQueryRecord(z.number().int().min(1)),
-  activityBlocks: jsonQueryRecord(z.number().int().min(0)),
-  ptoBlocks: jsonQueryRecord(z.number().int().min(0)),
-  unpaidBlocks: jsonQueryRecord(z.number().int().min(0)),
-  schoolBreakBlocks: jsonQueryRecord(z.number().int().min(0)),
+  actionIds: z.array(z.string().min(1)).min(1).max(200),
+  quantities: jsonQueryRecord(z.number().int().min(1).max(60)),
+  activityBlocks: jsonQueryRecord(z.number().int().min(0).max(60)),
+  ptoBlocks: jsonQueryRecord(z.number().int().min(0).max(60)),
+  unpaidBlocks: jsonQueryRecord(z.number().int().min(0).max(60)),
+  schoolBreakBlocks: jsonQueryRecord(z.number().int().min(0).max(60)),
+  totalAllocations: z.boolean().optional(),
   selectedOptions: jsonQueryRecord(z.string()),
   // actionId -> chosen housing / vehicle id for "Get Housing" / "Get Transportation"
   selectedHousingIds: jsonQueryRecord(z.string()),
@@ -456,7 +461,8 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     const hasBike = playerHasBike(player);
     const homeValueContext = getHomeValueContext(player);
 
-    let actions = allActions;
+    const divorce = await getDivorceQuote(player, currentYear);
+    let actions = allActions.map((a) => quoteDivorceAction(a, divorce));
 
     if (category) {
       actions = actions.filter((a) => (a.category as string[]).includes(category));
@@ -534,7 +540,8 @@ router.get('/', authorize, async (req: Request, res: Response): Promise<void> =>
     }
 
     const annotated = actions.map((a) => {
-      const eligResult = checkActionEligibility(a, eligPlayer);
+      const eligResult = a.name === DIVORCE_ACTION && divorce.reason
+        ? { eligible: false, reasons: [divorce.reason] } : checkActionEligibility(a, eligPlayer);
       const cost = calculateActionCost({
         action: a,
         timeBlocks: a.minTimeBlocks,
@@ -622,8 +629,11 @@ router.get('/search', authorize, async (req: Request, res: Response): Promise<vo
         const hasBike = playerHasBike(player);
         const homeValueContext = getHomeValueContext(player);
 
-        const annotated = actions.map((a) => {
-          const eligResult = checkActionEligibility(a, eligPlayer);
+        const divorce = await getDivorceQuote(player, sessionForYear?.currentYear ?? 0);
+        const annotated = actions.map((row) => {
+          const a = quoteDivorceAction(row, divorce);
+          const eligResult = a.name === DIVORCE_ACTION && divorce.reason
+            ? { eligible: false, reasons: [divorce.reason] } : checkActionEligibility(a, eligPlayer);
           const cost = calculateActionCost({
             action: a,
             timeBlocks: a.minTimeBlocks,
@@ -656,10 +666,7 @@ router.get('/search', authorize, async (req: Request, res: Response): Promise<vo
 
 // ─── GET /api/actions/cart/validate ──────────────────────────────────────────
 
-router.get(
-  '/cart/validate',
-  authorize,
-  async (req: Request, res: Response): Promise<void> => {
+async function validateCart(req: Request, res: Response): Promise<void> {
     const bodyOrQuery = Object.keys(req.body ?? {}).length > 0 ? req.body : req.query;
     const result = validateCartSchema.safeParse(bodyOrQuery);
     if (!result.success) {
@@ -675,6 +682,7 @@ router.get(
       ptoBlocks,
       unpaidBlocks,
       schoolBreakBlocks,
+      totalAllocations,
       selectedOptions,
       selectedHousingIds,
       housingLocations,
@@ -689,13 +697,14 @@ router.get(
       }
 
       const dbActions = await prisma.action.findMany({ where: { id: { in: actionIds } } });
-      const actions = dbActions as unknown as ActionRow[];
 
       const session = await prisma.gameSession.findUnique({
         where: { id: gameSessionId },
         select: { currentYear: true, inflationRates: true },
       });
       const currentYear = session?.currentYear ?? 0;
+      const divorce = await getDivorceQuote(player, currentYear);
+      const actions = (dbActions as unknown as ActionRow[]).map((a) => quoteDivorceAction(a, divorce));
       const cheapestRentAnnual = await getCheapestRentAnnual();
       const couchYears = (player as unknown as { couchSurfYearsUsed?: number }).couchSurfYearsUsed ?? 0;
 
@@ -726,15 +735,29 @@ router.get(
         }
 
         const qty = quantities?.[actionId] ?? 1;
+        if (action.executionType === 'express') errors.push(`${action.name} requires Express Checkout. Remove it from the cart to continue.`);
+        if (action.name === DIVORCE_ACTION && (divorce.reason || qty !== 1)) {
+          errors.push(divorce.reason ?? 'Divorce can only be scheduled once.');
+        }
         const selectedOption = selectedOptions?.[actionId];
-        const split = resolveCartItemBlocks(action, {
+        const line = {
           timeBlocks: activityBlocks?.[actionId] ?? action.minTimeBlocks, ptoBlocks: ptoBlocks?.[actionId],
           unpaidBlocks: unpaidBlocks?.[actionId], schoolBreakBlocks: schoolBreakBlocks?.[actionId], selectedOption,
-        });
-        totalPtoBlocks += split.ptoBlocks * qty;
-        totalUnpaid += split.unpaidBlocks * qty;
-        totalBreak += split.schoolBreakBlocks * qty;
-        errors.push(...validateItemBlocks(action, eligPlayer, split, selectedOption));
+        };
+        const instances = totalAllocations ? expandCheckoutBlocks({ ...line, quantity: qty }) : [line];
+        if (!instances) { errors.push(`${action.name}: invalid time-block allocation`); continue; }
+        const splits = instances.map((instance) => resolveCartItemBlocks(action, instance));
+        for (const split of splits) {
+          const multiplier = totalAllocations ? 1 : qty;
+          totalPtoBlocks += split.ptoBlocks * multiplier;
+          totalUnpaid += split.unpaidBlocks * multiplier;
+          totalBreak += split.schoolBreakBlocks * multiplier;
+          totalTimeBlocks += split.activityBlocks * multiplier;
+          errors.push(...validateItemBlocks(action, eligPlayer, split, selectedOption));
+        }
+        if ((action.userInput as { options?: unknown[] } | null)?.options?.length && !getSelectedOption(action, selectedOption)) {
+          errors.push(`${action.name}: an option must be selected`);
+        }
 
         const eligResult = checkActionEligibility(action, eligPlayer);
         if (!eligResult.eligible) {
@@ -789,11 +812,11 @@ router.get(
         const history = await prisma.actionHistory.findUnique({
           where: { playerId_actionId_year: { playerId: player.id, actionId, year: currentYear } },
         });
-        const freqError = checkFrequencyLimit(action, history as ActionHistoryRecord | null);
+        const freqError = checkFrequencyLimit(action, history as ActionHistoryRecord | null, qty);
         if (freqError) errors.push(freqError);
 
         const cost = resolveCartItemCost(action, { selectedOption }, {
-          timeBlocks: totalBlocks(split),
+          timeBlocks: totalBlocks(splits[0]),
           familySize,
           playerAge: player.age,
           playerJobTitles: jobTitles,
@@ -802,7 +825,6 @@ router.get(
           ...homeValueContext,
         });
 
-        totalTimeBlocks += split.activityBlocks * qty;
         totalCost += cost * qty;
       }
 
@@ -876,8 +898,10 @@ router.get(
       console.error('[actions/cart/validate]', err);
       res.status(500).json({ error: 'Internal server error' });
     }
-  },
-);
+}
+
+router.get('/cart/validate', authorize, validateCart);
+router.post('/cart/validate', authorize, validateCart);
 
 // ─── GET /api/actions/recommended ────────────────────────────────────────────
 // Lightweight "you should probably do this" list for the Actions page.
@@ -957,18 +981,20 @@ router.get('/recommended', authorize, async (req: Request, res: Response): Promi
 
 // ─── POST /api/actions/execute ────────────────────────────────────────────────
 
-router.post(
-  '/execute',
-  authorize,
-  validatePlayerAlive,
-  async (req: Request, res: Response): Promise<void> => {
+export async function executeActions(req: Request, res: Response): Promise<void> {
     const result = executeActionsSchema.safeParse(req.body);
     if (!result.success) {
       res.status(400).json({ error: result.error.errors[0]?.message ?? 'Invalid request' });
       return;
     }
 
-    const { gameSessionId, actions: cartItems } = result.data;
+    const { gameSessionId, checkoutKind } = result.data;
+    const expanded = result.data.actions.map(expandCheckoutBlocks);
+    if (expanded.some((items) => items === null)) {
+      res.status(400).json({ error: 'Invalid time-block allocation' });
+      return;
+    }
+    const cartItems = expanded.flatMap((items) => items ?? []);
     const middlewarePlayer = req.player!;
 
     if (middlewarePlayer.gameSessionId !== gameSessionId) {
@@ -1018,9 +1044,14 @@ router.post(
 
       const actionIds = cartItems.map((c) => c.actionId);
       const dbActions = await prisma.action.findMany({ where: { id: { in: actionIds } } });
+      const divorce = await getDivorceQuote(player, currentYear);
       const actionMap = new Map(
-        (dbActions as unknown as ActionRow[]).map((a) => [a.id, a]),
+        (dbActions as unknown as ActionRow[]).map((a) => [a.id, quoteDivorceAction(a, divorce)]),
       );
+      const educationItems = cartItems.filter((item) => ['Pursue Education', 'Change Major'].includes(actionMap.get(item.actionId)?.name ?? ''));
+      let educationChange: ReturnType<typeof prepareEducationChange> | undefined;
+      const schedulesDivorce = dbActions.some((a) => a.name === DIVORCE_ACTION);
+      const divorceItem = cartItems.find((item) => actionMap.get(item.actionId)?.name === DIVORCE_ACTION);
 
       const historyRecords = await prisma.actionHistory.findMany({
         where: { playerId: player.id, year: currentYear, actionId: { in: actionIds } },
@@ -1030,23 +1061,33 @@ router.post(
       );
 
       const validationErrors: string[] = [];
+      if (educationItems.length > 1 || (educationItems.length && cartItems.length !== 1)) {
+        validationErrors.push('Check out education changes separately.');
+      } else if (educationItems.length === 1) {
+        const item = educationItems[0];
+        const program = item.educationProgramId ? await prisma.educationProgram.findUnique({ where: { id: item.educationProgramId } }) : null;
+        if (!program) validationErrors.push('Select an education program.');
+        else {
+          educationChange = prepareEducationChange(player, program as unknown as EduProgramRow, actionMap.get(item.actionId)?.name === 'Change Major', item.educationPartTime);
+          if (educationChange.error) validationErrors.push(educationChange.error);
+        }
+      }
+      if (schedulesDivorce && divorce.reason) validationErrors.push(divorce.reason);
       let totalTimeBlocks = 0;
       let totalPtoBlocks = 0;
       let totalUnpaid = 0;
       let totalBreak = 0;
       let totalCost = 0;
 
-      // Reject doing a "once per year" action more than once in a single checkout
-      // (the frontend expands cart quantity into repeated entries).
+      // Check requested repetitions together with the current year's history.
       const perActionCount = new Map<string, number>();
       for (const item of cartItems) {
         perActionCount.set(item.actionId, (perActionCount.get(item.actionId) ?? 0) + 1);
       }
       for (const [aid, n] of perActionCount) {
-        const a = actionMap.get(aid);
-        if (n > 1 && a && ['once_per_year', 'once_per_two_years'].includes(a.frequency)) {
-          validationErrors.push(`${a.name} can only be done once${a.frequency === 'once_per_two_years' ? ' every two years' : ' per year'}.`);
-        }
+        const action = actionMap.get(aid);
+        const freqError = action && checkFrequencyLimit(action, historyMap.get(aid) ?? null, n);
+        if (freqError) validationErrors.push(freqError);
       }
 
       // Total PTO available across all active employments
@@ -1058,15 +1099,14 @@ router.post(
           validationErrors.push(`Action ${item.actionId} not found`);
           continue;
         }
+        if ((checkoutKind === 'cart' && action.executionType === 'express') || (checkoutKind === 'express' && action.executionType === 'cart')) {
+          validationErrors.push(`${action.name} is not available with this checkout method.`);
+        }
 
         const eligResult = checkActionEligibility(action, eligPlayer);
         if (!eligResult.eligible) {
           validationErrors.push(`${action.name}: ${eligResult.reasons.join('; ')}`);
         }
-
-        const history = historyMap.get(item.actionId) ?? null;
-        const freqError = checkFrequencyLimit(action, history);
-        if (freqError) validationErrors.push(freqError);
 
         const userInput = action.userInput as { options?: Array<{ value: string }> } | null;
         if (userInput?.options?.length && !getSelectedOption(action, item.selectedOption)) {
@@ -1294,6 +1334,7 @@ router.post(
           data: { updatedAt: new Date(Math.max(Date.now(), player.updatedAt.getTime() + 1)) },
         });
         if (claimed.count !== 1) throw new CheckoutConflict();
+        if (educationChange?.apply) await educationChange.apply(tx);
         // Upsert action history for each cart item
         for (const item of cartItems) {
           const action = actionMap.get(item.actionId)!;
@@ -1406,6 +1447,10 @@ router.post(
           data: {
             money: { decrement: totalCost },
             unpaidLeavePayReduction: { increment: payReduction },
+            ...(schedulesDivorce && !divorce.reason ? {
+              divorceEffectiveYear: divorce.effectiveYear,
+              divorceKeepSpouseVehicle: divorce.canChooseVehicle && divorceItem?.selectedOption === 'keep_spouse',
+            } : {}),
             health: newHealth,
             maxHealth: newMaxHealth,
             ...(({ temporaryHealthDebt: newTempDebt }) as Record<string, unknown>),
@@ -1507,6 +1552,9 @@ router.post(
         traitGains,
         totalCost,
         totalTimeBlocks,
+        newMoney: updatedPlayer?.money,
+        ...(schedulesDivorce && !divorce.reason ? { divorceScheduled: divorce } : {}),
+        ...(educationChange && !educationChange.error ? { educationProgramName: educationChange.programName } : {}),
       });
     } catch (err) {
       if (err instanceof CheckoutConflict) {
@@ -1516,8 +1564,9 @@ router.post(
       console.error('[actions/execute]', err);
       res.status(500).json({ error: 'Internal server error' });
     }
-  },
-);
+}
+
+router.post('/execute', authorize, validatePlayerAlive, executeActions);
 
 class CheckoutConflict extends Error {}
 

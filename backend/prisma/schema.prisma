@@ -143,6 +143,8 @@ model Player {
 
   // Marriage compatibility
   marriageCompatibility Json? // MarriageCompatibility
+  divorceEffectiveYear Int?
+  divorceKeepSpouseVehicle Boolean @default(false)
 
   // Bookmarks (for profile setup workflow and normal gameplay)
   jobBookmarks       String[] @default([])

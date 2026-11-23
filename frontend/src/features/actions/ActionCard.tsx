@@ -2,20 +2,19 @@
  * ActionCard — displays a single action with eligibility, cost, effects,
  * PTO/activity block selector, and add-to-cart.
  *
- * Variable-block actions: one total-block slider + PTO split +/− buttons.
- * Fixed-block actions: radio ⏱ Activity TB | 🏖️ PTO.
- * Required-PTO actions: PTO only (no radio choice).
+ * Simple actions configure inline; actions with additional choices use a dialog.
  */
 import { useState } from 'react';
 import {
   Box, Card, CardContent, CardActions, Typography, Chip, Stack,
   Tooltip, IconButton, Button, Slider, Radio, RadioGroup,
   FormControlLabel, FormControl, Divider, Checkbox, Select, MenuItem, InputLabel,
-  CircularProgress,
+  CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Alert,
 } from '@mui/material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import AddShoppingCartIcon from '@mui/icons-material/AddShoppingCart';
+import BoltIcon from '@mui/icons-material/Bolt';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import BlockIcon from '@mui/icons-material/Block';
 import AddIcon from '@mui/icons-material/Add';
@@ -24,6 +23,21 @@ import type { ActionItem, ActionUserInput } from './types';
 import { CATEGORY_SLUG_TO_LABEL } from './ActionFilters';
 import { skillTraitChipSx, SKILL_TRAIT_ICONS } from '../../lib/colorMaps';
 import { formatKey } from '../../components/cards/cardComponents';
+import GetHousingTransportPicker, { type AcquisitionSelection } from './GetHousingTransportPicker';
+import EducationCheckoutFields, { type EducationSelection } from './EducationCheckoutFields';
+
+export type CheckoutSelection = AcquisitionSelection & EducationSelection;
+
+function Stepper({ label, value, decrease, increase, disabled }: {
+  label: string; value: string | number; decrease: () => void; increase: () => void;
+  disabled: { minus: boolean; plus: boolean };
+}) {
+  return <Stack direction="row" spacing={0.25} alignItems="center" sx={{ whiteSpace: 'nowrap' }}>
+    <IconButton size="small" aria-label={`Decrease ${label}`} disabled={disabled.minus} onClick={decrease}><RemoveIcon fontSize="small" /></IconButton>
+    <Typography variant="body2" fontWeight={700} color={disabled.minus && disabled.plus ? 'text.disabled' : 'text.primary'}>{value}</Typography>
+    <IconButton size="small" aria-label={`Increase ${label}`} disabled={disabled.plus} onClick={increase}><AddIcon fontSize="small" /></IconButton>
+  </Stack>;
+}
 
 // ─── Category colours ─────────────────────────────────────────────────────────
 
@@ -199,6 +213,7 @@ interface Props {
     quantity?: number,
     unpaidBlocks?: number,
     schoolBreakBlocks?: number,
+    selection?: CheckoutSelection,
   ) => void;
   /** Executes this action immediately, bypassing the cart entirely */
   onExpressCheckout: (
@@ -210,6 +225,7 @@ interface Props {
     quantity?: number,
     unpaidBlocks?: number,
     schoolBreakBlocks?: number,
+    selection?: CheckoutSelection,
   ) => void;
   /** True while any express checkout is in flight (disables the button) */
   expressCheckingOut?: boolean;
@@ -217,7 +233,10 @@ interface Props {
   /** Called when the PTO split changes for an item already in the cart */
   onUpdateCartPto?: (actionId: string, timeBlocks: number, ptoBlocks: number) => void;
   /** Opens the express picker dialog for a "Get Housing" / "Get Transportation" action. */
-  onExpressAcquisition?: (action: ActionItem, timeBlocks: number, ptoBlocks: number, unpaidBlocks: number, schoolBreakBlocks: number) => void;
+  expressError?: string | null;
+  optionsOpen?: boolean;
+  onOpenOptions?: () => void;
+  onCloseOptions?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -242,9 +261,10 @@ export default function ActionCard({
   expressCheckingOut = false,
   onRemoveFromCart,
   onUpdateCartPto,
-  onExpressAcquisition,
+  expressError, optionsOpen = false, onOpenOptions, onCloseOptions,
 }: Props) {
   const [addQty, setAddQty] = useState(1);
+  const [education, setEducation] = useState<EducationSelection>({});
 
   // Actions that acquire something in another system and are configured in the
   // cart (or their own page). Doing them 2× in a year makes no sense.
@@ -254,11 +274,13 @@ export default function ActionCard({
     'Get CPR Certification', 'Change Major', 'Apply for Scholarships',
   ];
   const needsCartConfig = NEEDS_CART_CONFIG.includes(action.name);
+  const needsEducation = action.name === 'Pursue Education' || action.name === 'Change Major';
   const isSingular = SINGULAR_ACTIONS.includes(action.name) || ['once_per_year', 'once_per_two_years'].includes(action.frequency);
 
   // ── Option variants (userInput) ────────────────────────────────────────────
   const userInput = action.userInput as ActionUserInput | null;
   const hasOptions = !!userInput?.options?.length;
+  const configurable = needsCartConfig || needsEducation || hasOptions;
   // "Priced" options carry their own cost/timeBlocks (e.g. Study Abroad plans) —
   // these bypass the normal TB slider/radio entirely, since the plan determines it.
   const isPricedOption =
@@ -301,17 +323,11 @@ export default function ActionCard({
 
   // Available PTO this action can use (not yet committed elsewhere)
   const qty = isSingular || isVariable || isPricedOption ? 1 : addQty;
-  const availablePTO = Math.max(0, Math.floor((ptoRemaining - ptoCommitted) / qty));
-  const availableUnpaid = ptoAllowed ? Math.max(0, Math.floor(unpaidRemaining / qty)) : 0;
-  const availableBreak = action.name === 'Take a Mental Health Day' ? 0 : Math.max(0, Math.floor(schoolBreakRemaining / qty));
-
-  // PTO disabled reasons
-  const ptoDisabledReason: string | null = (() => {
-    if (availablePTO + availableUnpaid + availableBreak < (requiresPTO ? minBlocks : 1)) return 'Not enough time off available';
-    return null;
-  })();
-
-  const ptoDisabled = ptoDisabledReason !== null;
+  const maxQuantity = Math.min(action.frequency === 'four_per_year' ? 4 : action.frequency === 'twice_per_year' ? 2 : 60,
+    minBlocks > 0 ? Math.floor(60 / minBlocks) : 60);
+  const availablePTO = ptoAllowed ? Math.max(0, ptoRemaining - ptoCommitted) : 0;
+  const availableUnpaid = ptoAllowed ? Math.max(0, unpaidRemaining) : 0;
+  const availableBreak = action.name === 'Take a Mental Health Day' ? 0 : Math.max(0, schoolBreakRemaining);
 
   // ── Local state for block selection ─────────────────────────────────────────
 
@@ -324,8 +340,8 @@ export default function ActionCard({
   const [ptoChoice, setPtoSplit] = useState<number | null>(null);
   const [unpaidChoice, setUnpaidSplit] = useState<number | null>(null);
   const [breakChoice, setBreakSplit] = useState<number | null>(null);
-  const durationBlocks = isPricedOption ? (selectedOption?.timeBlocks ?? minBlocks) : isVariable ? totalBlocks : minBlocks;
-  const requiredTime = requiresPTO ? Math.min(durationBlocks, typeof reqs.ptoOrUnpaidTimeBlocks === 'number' ? reqs.ptoOrUnpaidTimeBlocks : minBlocks) : 0;
+  const durationBlocks = (isPricedOption ? (selectedOption?.timeBlocks ?? minBlocks) : isVariable ? totalBlocks : minBlocks) * qty;
+  const requiredTime = requiresPTO ? Math.min(durationBlocks, (typeof reqs.ptoOrUnpaidTimeBlocks === 'number' ? reqs.ptoOrUnpaidTimeBlocks : minBlocks) * qty) : 0;
   const breakSplit = Math.min(availableBreak, durationBlocks, breakChoice ?? requiredTime);
   const ptoSplit = ptoAllowed ? Math.min(availablePTO, durationBlocks - breakSplit, ptoChoice ?? Math.max(0, requiredTime - breakSplit)) : 0;
   const unpaidSplit = Math.min(availableUnpaid, durationBlocks - breakSplit - ptoSplit, unpaidChoice ?? Math.max(0, requiredTime - breakSplit - ptoSplit));
@@ -340,7 +356,18 @@ export default function ActionCard({
   };
 
   const adjustPto = (delta: number) => {
-    setPtoSplit(Math.max(0, Math.min(ptoSplit + delta, durationBlocks - breakSplit, availablePTO)));
+    setPtoSplit(Math.max(0, Math.min(ptoSplit + delta, durationBlocks - breakSplit - unpaidSplit, availablePTO)));
+  };
+
+  const changeQuantity = (delta: number) => {
+    const next = Math.max(1, Math.min(maxQuantity, addQty + delta));
+    const capacity = minBlocks * next;
+    const paid = Math.min(ptoSplit, capacity);
+    const unpaid = Math.min(unpaidSplit, capacity - paid);
+    setPtoSplit(paid);
+    setUnpaidSplit(unpaid);
+    setBreakSplit(Math.min(breakSplit, capacity - paid - unpaid));
+    setAddQty(next);
   };
 
   // Active TB/PTO for display and cart
@@ -435,12 +462,13 @@ export default function ActionCard({
   const requirementItems = formatRequirements(reqs, requiresPTO);
   const isBlocked = !action.eligible || ptoSplit + unpaidSplit + breakSplit < requiredTime || optionRequiredButUnset;
 
-  const handleAdd = () => {
-    onAddToCart(action, selectedTB, selectedPTO, hasOptions ? selectedOptionValue : undefined, selectedOption?.label, qty, unpaidSplit, breakSplit);
+  const handleAdd = (selection?: CheckoutSelection) => {
+    onAddToCart(action, selectedTB, selectedPTO, hasOptions ? selectedOptionValue : undefined, selectedOption?.label, qty, unpaidSplit, breakSplit, selection);
+    onCloseOptions?.();
   };
 
-  const handleExpress = () => {
-    onExpressCheckout(action, selectedTB, selectedPTO, hasOptions ? selectedOptionValue : undefined, selectedOption?.label, qty, unpaidSplit, breakSplit);
+  const handleExpress = (selection?: CheckoutSelection) => {
+    onExpressCheckout(action, selectedTB, selectedPTO, hasOptions ? selectedOptionValue : undefined, selectedOption?.label, qty, unpaidSplit, breakSplit, selection);
   };
 
   // When in-cart PTO changes via +/−
@@ -454,6 +482,83 @@ export default function ActionCard({
     onUpdateCartPto(action.id, newTB, newPto);
   };
 
+  const checkoutButtons = (selection?: CheckoutSelection, inDialog = true) => {
+    const disabled = isBlocked || expressCheckingOut || (needsCartConfig && !selection) || (needsEducation && !selection?.educationProgramId);
+    const buttonSx = inDialog ? undefined : { flex: '1 1 0', fontSize: '0.8rem' };
+    return <Stack direction="row" useFlexGap flexWrap="wrap" justifyContent={inDialog ? 'flex-end' : 'space-between'}
+      spacing={inDialog ? 3 : 1.5} sx={{ width: inDialog ? 'auto' : '100%' }}>
+      {action.executionType !== 'cart' && <Button size="small" variant="contained" disabled={disabled}
+        onClick={() => handleExpress(selection)}
+        startIcon={expressCheckingOut ? <CircularProgress size={12} color="inherit" /> : <BoltIcon />}
+        sx={{ ...buttonSx, bgcolor: '#ffd54f', color: '#333', fontWeight: 700,
+          '&:hover': { bgcolor: '#ffca28' },
+          '&.Mui-disabled': {
+            bgcolor: inDialog ? 'action.disabledBackground' : '#fff9c4',
+            color: inDialog ? 'action.disabled' : '#aaa',
+          },
+        }}>
+        {expressCheckingOut ? 'Processing…' : inDialog ? 'Express Checkout' : 'Express'}
+      </Button>}
+      {action.executionType !== 'express' && <Button size="small" variant="contained" disabled={disabled}
+        startIcon={<AddShoppingCartIcon />} onClick={() => handleAdd(selection)} sx={buttonSx}>Add to Cart</Button>}
+    </Stack>;
+  };
+
+  const checkoutOptions = (
+    <Box sx={{ p: 1 }}>
+      {needsEducation && <EducationCheckoutFields changeMajor={action.name === 'Change Major'} onChange={setEducation} />}
+      {hasOptions && <Box sx={{ mb: 1.5 }}>
+        {userInput?.type === 'duration_sightseeing' ? <>
+          <Typography variant="caption">{userInput.label ?? 'Choose your plan'}</Typography>
+          <RadioGroup row aria-label="Study abroad duration" value={duration} onChange={(_, value) => setDuration(value as 'semester' | 'year')}>
+            <FormControlLabel value="semester" control={<Radio size="small" />} label="Semester" />
+            <FormControlLabel value="year" control={<Radio size="small" />} label="Full year" />
+          </RadioGroup>
+          <FormControlLabel control={<Checkbox size="small" checked={sightseeing} onChange={(e) => setSightseeing(e.target.checked)} />} label="Add sightseeing trips" />
+        </> : <FormControl fullWidth size="small">
+          <InputLabel>{userInput?.label ?? 'Choose an option'}</InputLabel>
+          <Select value={dropdownValue} label={userInput?.label ?? 'Choose an option'} onChange={(e) => setDropdownValue(e.target.value)}>
+            {userInput?.options?.map((o) => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
+          </Select>
+        </FormControl>}
+        {selectedOption?.cost !== undefined && <Typography variant="caption">Cost: ${selectedOption.cost.toLocaleString()}</Typography>}
+      </Box>}
+      {isVariable && <Slider aria-label="Total time blocks" value={totalBlocks} min={minBlocks} max={maxBlocks}
+        step={increment} onChange={handleTotalChange} size="small" valueLabelDisplay="auto" />}
+      <Stack direction="row" flexWrap="wrap" columnGap={{ xs: 3, sm: 4 }} rowGap={1}>
+        {!isSingular && !isVariable && !isPricedOption && <Box>
+          <Typography variant="body2" fontWeight={700}>Quantity</Typography>
+          <Stepper label="quantity" value={qty} decrease={() => changeQuantity(-1)} increase={() => changeQuantity(1)}
+            disabled={{ minus: qty <= 1, plus: qty >= maxQuantity }} />
+        </Box>}
+        {durationBlocks > 0 && <Box>
+          <Typography variant="body2" fontWeight={700}>Time blocks</Typography>
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minHeight: 30 }}>
+            <Typography variant="body2" fontWeight={600} sx={{ whiteSpace: 'nowrap' }}>{activitySplit} activity</Typography>
+            {ptoAllowed && <>
+              <Typography variant="body2">+</Typography>
+              <Stepper label="PTO" value={`${ptoSplit} PTO`} decrease={() => adjustPto(-1)} increase={() => adjustPto(1)}
+                disabled={{ minus: ptoSplit <= 0, plus: ptoSplit >= availablePTO || activitySplit <= 0 }} />
+            </>}
+          </Stack>
+        </Box>}
+      </Stack>
+      {availableUnpaid > 0 && durationBlocks > 0 && <FormControl size="small" fullWidth sx={{ mt: 1 }}>
+        <Typography variant="body2">Unpaid leave (reduces annual pay)</Typography>
+        <Select value={unpaidSplit} onChange={(e) => setUnpaidSplit(Number(e.target.value))} inputProps={{ 'aria-label': 'Unpaid leave blocks' }}>
+          {Array.from({ length: Math.min(availableUnpaid, durationBlocks - breakSplit - ptoSplit) + 1 }, (_, n) => <MenuItem key={n} value={n}>{n}</MenuItem>)}
+        </Select>
+      </FormControl>}
+      {availableBreak > 0 && durationBlocks > 0 && <FormControl size="small" fullWidth sx={{ mt: 1 }}>
+        <Typography variant="body2">School Break blocks</Typography>
+        <Select value={breakSplit} onChange={(e) => setBreakSplit(Number(e.target.value))} inputProps={{ 'aria-label': 'School Break blocks' }}>
+          {Array.from({ length: Math.min(availableBreak, durationBlocks - ptoSplit - unpaidSplit) + 1 }, (_, n) => <MenuItem key={n} value={n}>{n}</MenuItem>)}
+        </Select>
+      </FormControl>}
+    </Box>
+  );
+
+  const dialogOpen = configurable && optionsOpen;
   return (
     <Card
       variant="outlined"
@@ -493,7 +598,7 @@ export default function ActionCard({
               }
             </Box>
           </Tooltip>
-          <Typography variant="subtitle2" fontWeight={700} sx={{ lineHeight: 1.3 }}>
+          <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.3 }}>
             {action.name}
           </Typography>
         </Stack>
@@ -507,20 +612,20 @@ export default function ActionCard({
                 key={cat}
                 label={categoryLabel(cat)}
                 size="small"
-                sx={{ fontSize: '0.72rem', height: 22, bgcolor: style.bg, color: style.text, fontWeight: 600, '& .MuiChip-label': { px: 1 } }}
+                 sx={{ fontSize: '0.82rem', bgcolor: style.bg, color: style.text, fontWeight: 600, '& .MuiChip-label': { px: 1 } }}
               />
             );
           })}
           {isGoodDeed && (
-            <Chip label="🤝 Good Deed" size="small" sx={{ fontSize: '0.65rem', height: 22, bgcolor: '#e8f5e9', color: '#1b5e20', fontWeight: 600, '& .MuiChip-label': { px: 1 } }} />
+            <Chip label="🤝 Good Deed" size="small" sx={{ fontSize: '0.8rem', bgcolor: '#e8f5e9', color: '#1b5e20', fontWeight: 600, '& .MuiChip-label': { px: 1 } }} />
           )}
           {action.seniorDiscount && (
-            <Chip label="👴 Senior Discount" size="small" sx={{ fontSize: '0.65rem', height: 22, bgcolor: '#e3f2fd', color: '#0d47a1', fontWeight: 600, '& .MuiChip-label': { px: 1 } }} />
+            <Chip label="👴 Senior Discount" size="small" sx={{ fontSize: '0.8rem', bgcolor: '#e3f2fd', color: '#0d47a1', fontWeight: 600, '& .MuiChip-label': { px: 1 } }} />
           )}
         </Stack>
 
         {/* Description */}
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontSize: '0.8rem' }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           {action.description}
         </Typography>
 
@@ -532,7 +637,7 @@ export default function ActionCard({
                 ? `⏱ ${selectedOption?.timeBlocks ?? 0} TB`
                 : `⏱ Spend ${minBlocks}${action.maxTimeBlocks && action.maxTimeBlocks !== minBlocks ? `–${action.maxTimeBlocks}` : ''} TB`
             }
-            size="small" variant="outlined" sx={{ fontSize: '0.7rem' }}
+            size="small" variant="outlined" sx={{ fontSize: '0.8rem' }}
           />
           {(() => {
             const displayCost = isPricedOption ? (selectedOption?.cost ?? action.cost) : action.calculatedCost;
@@ -548,7 +653,7 @@ export default function ActionCard({
                 <Tooltip title={basisText ?? ''} disableHoverListener={!basisText}>
                   <Chip
                     label={`💰 Costs ${fmt(displayCost)}`}
-                    size="small" variant="outlined" sx={{ fontSize: '0.7rem' }}
+                    size="small" variant="outlined" sx={{ fontSize: '0.8rem' }}
                   />
                 </Tooltip>
               );
@@ -556,55 +661,55 @@ export default function ActionCard({
             if (isHomeValueCost) {
               return (
                 <Tooltip title="Own an eligible home to see the exact cost">
-                  <Chip label={`💰 ${basisText}`} size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                  <Chip label={`💰 ${basisText}`} size="small" variant="outlined" sx={{ fontSize: '0.8rem' }} />
                 </Tooltip>
               );
             }
             return null;
           })()}
           {lemonsLabel && (
-            <Chip label={lemonsLabel} size="small" sx={{ fontSize: '0.7rem', bgcolor: '#fff9c4' }} />
+            <Chip label={lemonsLabel} size="small" sx={{ fontSize: '0.8rem', bgcolor: '#fff9c4' }} />
           )}
           {healthDisplay.flat !== 0 && (
             <Chip
               label={`❤️ ${healthDisplay.flat > 0 ? '+' : ''}${healthDisplay.flat}% health${isVariable ? ` ${perTBLabel}` : ''}`}
               size="small"
-              sx={{ fontSize: '0.7rem', bgcolor: healthDisplay.flat > 0 ? '#e8f5e9' : '#ffebee', color: healthDisplay.flat > 0 ? 'success.dark' : 'error.dark' }}
+              sx={{ fontSize: '0.8rem', bgcolor: healthDisplay.flat > 0 ? '#e8f5e9' : '#ffebee', color: healthDisplay.flat > 0 ? 'success.dark' : 'error.dark' }}
             />
           )}
           {healthDisplay.rate !== 0 && (
             <Chip
               label={`❤️ ${healthDisplay.rate > 0 ? '+' : ''}${healthDisplay.rate}% health ${perTBLabel}`}
               size="small"
-              sx={{ fontSize: '0.7rem', bgcolor: healthDisplay.rate > 0 ? '#e8f5e9' : '#ffebee', color: healthDisplay.rate > 0 ? 'success.dark' : 'error.dark' }}
+              sx={{ fontSize: '0.8rem', bgcolor: healthDisplay.rate > 0 ? '#e8f5e9' : '#ffebee', color: healthDisplay.rate > 0 ? 'success.dark' : 'error.dark' }}
             />
           )}
           {stressDisplay.flat !== 0 && (
             <Chip
               label={`😰 ${stressDisplay.flat > 0 ? '+' : ''}${stressDisplay.flat}% stress${isVariable ? ` ${perTBLabel}` : ''}`}
               size="small"
-              sx={{ fontSize: '0.7rem', bgcolor: stressDisplay.flat < 0 ? '#e8f5e9' : '#fff3e0', color: stressDisplay.flat < 0 ? 'success.dark' : 'warning.dark' }}
+              sx={{ fontSize: '0.8rem', bgcolor: stressDisplay.flat < 0 ? '#e8f5e9' : '#fff3e0', color: stressDisplay.flat < 0 ? 'success.dark' : 'warning.dark' }}
             />
           )}
           {stressDisplay.rate !== 0 && (
             <Chip
               label={`😰 ${stressDisplay.rate > 0 ? '+' : ''}${stressDisplay.rate}% stress ${perTBLabel}`}
               size="small"
-              sx={{ fontSize: '0.7rem', bgcolor: stressDisplay.rate < 0 ? '#e8f5e9' : '#fff3e0', color: stressDisplay.rate < 0 ? 'success.dark' : 'warning.dark' }}
+              sx={{ fontSize: '0.8rem', bgcolor: stressDisplay.rate < 0 ? '#e8f5e9' : '#fff3e0', color: stressDisplay.rate < 0 ? 'success.dark' : 'warning.dark' }}
             />
           )}
           {stressPerPTOBlock !== null && (
             <Chip
               label={`😰 ${stressPerPTOBlock > 0 ? '+' : ''}${stressPerPTOBlock}% stress per PTO block`}
               size="small"
-              sx={{ fontSize: '0.7rem', bgcolor: stressPerPTOBlock < 0 ? '#e8f5e9' : '#fff3e0', color: stressPerPTOBlock < 0 ? 'success.dark' : 'warning.dark' }}
+              sx={{ fontSize: '0.8rem', bgcolor: stressPerPTOBlock < 0 ? '#e8f5e9' : '#fff3e0', color: stressPerPTOBlock < 0 ? 'success.dark' : 'warning.dark' }}
             />
           )}
           {isVariable && stressPerTrip !== null && (
             <Chip
               label={`😰 ${stressPerTrip > 0 ? '+' : ''}${stressPerTrip}% stress ${perTBLabel}`}
               size="small"
-              sx={{ fontSize: '0.7rem', bgcolor: stressPerTrip < 0 ? '#e8f5e9' : '#fff3e0', color: stressPerTrip < 0 ? 'success.dark' : 'warning.dark' }}
+              sx={{ fontSize: '0.8rem', bgcolor: stressPerTrip < 0 ? '#e8f5e9' : '#fff3e0', color: stressPerTrip < 0 ? 'success.dark' : 'warning.dark' }}
             />
           )}
         </Stack>
@@ -612,12 +717,12 @@ export default function ActionCard({
         {/* Requirements */}
         {requirementItems.length > 0 && (
           <Box sx={{ mb: 1 }}>
-            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.35 }}>
+            <Typography variant="body2" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.35 }}>
               📋 Requirements
             </Typography>
             <Stack direction="row" flexWrap="wrap" gap={0.5}>
               {requirementItems.map((item, i) => (
-                <Chip key={i} label={item} size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: '#ede7f6', color: '#4a148c', fontWeight: 500 }} />
+                <Chip key={i} label={item} size="small" sx={{ fontSize: '0.8rem', bgcolor: '#ede7f6', color: '#4a148c', fontWeight: 500 }} />
               ))}
             </Stack>
           </Box>
@@ -627,10 +732,10 @@ export default function ActionCard({
         {!action.eligible && action.eligibilityReasons.length > 0 && (
           <Box sx={{ mb: 1 }}>
             {action.eligibilityReasons.slice(0, 2).map((r, i) => (
-              <Typography key={i} variant="caption" color="error.main" display="block" sx={{ fontSize: '0.7rem' }}>• {humanizeText(r)}</Typography>
+              <Typography key={i} variant="body2" color="error.main" display="block">• {humanizeText(r)}</Typography>
             ))}
             {action.eligibilityReasons.length > 2 && (
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>+{action.eligibilityReasons.length - 2} more…</Typography>
+              <Typography variant="body2" color="text.secondary">+{action.eligibilityReasons.length - 2} more…</Typography>
             )}
           </Box>
         )}
@@ -638,14 +743,14 @@ export default function ActionCard({
         {/* Skill/trait gains */}
         {(skillGains.length > 0 || traitGains.length > 0) && (
           <Box sx={{ mt: 0.5 }}>
-            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.35 }}>📈 Skill/Trait gains</Typography>
+            <Typography variant="body2" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.35 }}>📈 Skill/Trait gains</Typography>
             <Stack direction="row" flexWrap="wrap" gap={0.5}>
               {[...skillGains, ...traitGains].map(({ key, val, perBlock }) => {
                 const icon = SKILL_TRAIT_ICONS[key] ?? '';
                 const suffix = perBlock ? ` ${perTBLabel}` : gainSuffix;
                 const label = `${icon} ${formatKey(key)} +${val}${suffix}`;
                 return (
-                  <Chip key={key} label={label} size="small" sx={{ fontSize: '0.7rem', height: 22, ...skillTraitChipSx(key) }} />
+                  <Chip key={key} label={label} size="small" sx={{ fontSize: '0.8rem', ...skillTraitChipSx(key) }} />
                 );
               })}
             </Stack>
@@ -656,194 +761,15 @@ export default function ActionCard({
         {!inCart && (
           <>
           <Divider sx={{ mt: 2, mb: 1 }} />
-          <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.25 }}>
+          <Typography variant="body2" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.25 }}>
             ⚙️ Checkout options
           </Typography>
-          <Box sx={{ p: 1.25, borderRadius: 1.5 }}>
-            {/* Option variant picker (e.g. Study Abroad plan, Internship focus) */}
-            {hasOptions && (
-              <Box sx={{ mb: 1.25 }}>
-                {userInput!.type === 'duration_sightseeing' ? (
-                  <>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ display: 'block', mb: 0.25 }}>
-                      {userInput!.label ?? 'Choose your plan'}
-                    </Typography>
-                    <FormControl component="fieldset" disabled={!action.eligible}>
-                      <RadioGroup row value={duration} onChange={(_, v) => setDuration(v as 'semester' | 'year')}>
-                        <FormControlLabel
-                          value="semester"
-                          control={<Radio size="small" sx={{ py: 0.25 }} />}
-                          label={<Typography variant="caption">Semester</Typography>}
-                        />
-                        <FormControlLabel
-                          value="year"
-                          control={<Radio size="small" sx={{ py: 0.25 }} />}
-                          label={<Typography variant="caption">Full Year</Typography>}
-                        />
-                      </RadioGroup>
-                    </FormControl>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          size="small"
-                          checked={sightseeing}
-                          onChange={(e) => setSightseeing(e.target.checked)}
-                          disabled={!action.eligible}
-                        />
-                      }
-                      label={<Typography variant="caption">Add sightseeing trips</Typography>}
-                      sx={{ display: 'block', ml: 0 }}
-                    />
-                  </>
-                ) : (
-                  <FormControl fullWidth size="small" disabled={!action.eligible}>
-                    <InputLabel>{userInput!.label ?? 'Choose an option'}</InputLabel>
-                    <Select
-                      value={dropdownValue}
-                      label={userInput!.label ?? 'Choose an option'}
-                      onChange={(e) => setDropdownValue(e.target.value)}
-                    >
-                      {userInput!.options.map((o) => (
-                        <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                )}
-                {optionRequiredButUnset && (
-                  <Typography variant="caption" color="warning.dark" sx={{ display: 'block', mt: 0.25 }}>
-                    Select an option to continue
-                  </Typography>
-                )}
-              </Box>
-            )}
+          {configurable ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+              <Button size="small" variant="outlined" sx={{ fontSize: '0.8rem' }} disabled={expressCheckingOut} onClick={() => { setEducation({}); onOpenOptions?.(); }}>View Options</Button>
+            </Box>
+          ) : checkoutOptions}
 
-            {/* Required-PTO action with no PTO available — whole selector disabled */}
-            {requiresPTO && ptoDisabled && (
-              <Typography variant="caption" color="error.main" sx={{ display: 'block', fontWeight: 600 }}>
-                Not enough eligible time off available
-              </Typography>
-            )}
-
-            {/* Variable-block WITH max: slider for total blocks */}
-            {!(requiresPTO && ptoDisabled) && isVariable && maxBlocks > minBlocks ? (
-              <>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary" fontWeight={600}>Total blocks</Typography>
-                  <Typography variant="caption" fontWeight={700}>{totalBlocks}</Typography>
-                </Stack>
-                <Slider
-                  value={totalBlocks}
-                  min={minBlocks}
-                  max={maxBlocks}
-                  step={increment}
-                  onChange={handleTotalChange}
-                  size="small"
-                  marks
-                  sx={{ mt: 0, mb: 1 }}
-                />
-              </>
-            ) : null}
-
-            {/* Time blocks breakdown (always shown except for housing/transport and when PTO disabled) */}
-            {durationBlocks > 0 ? (
-              <Box sx={{ mt: (isVariable && maxBlocks > minBlocks) ? 0 : 0 }}>
-                {!ptoAllowed ? (
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    ⏱ {selectedTB} activity
-                  </Typography>
-                ) : (
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Box>
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        ⏱ {activitySplit} activity
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', mx: 0.75 }}>+</Typography>
-                      <Typography
-                        component="span"
-                        variant="caption"
-                        sx={{
-                          color: requiresPTO ? 'warning.dark' : ptoDisabled ? 'text.disabled' : 'primary.main',
-                          fontWeight: 600,
-                        }}
-                      >
-                        🏖️ {ptoSplit} PTO
-                      </Typography>
-                    </Box>
-                    {availablePTO > 0 && (
-                      <Stack direction="row" spacing={0.5} alignItems="center">
-                        <IconButton
-                          size="small"
-                          onClick={() => adjustPto(-1)}
-                          disabled={ptoSplit <= 0}
-                          sx={{ p: 0, width: 24, height: 24, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}
-                        >
-                          <RemoveIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }} />
-                        </IconButton>
-                        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 24, textAlign: 'center' }}>
-                          PTO
-                        </Typography>
-                        <IconButton
-                          size="small"
-                          onClick={() => adjustPto(1)}
-                          disabled={ptoSplit >= durationBlocks - breakSplit || ptoSplit >= availablePTO}
-                          sx={{ p: 0, width: 24, height: 24, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}
-                        >
-                          <AddIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }} />
-                        </IconButton>
-                      </Stack>
-                    )}
-                  </Stack>
-                )}
-                {availableUnpaid > 0 && (
-                  <FormControl size="small" fullWidth sx={{ mt: 1 }}>
-                    <Typography variant="caption">Unpaid leave (reduces annual pay)</Typography>
-                    <Select value={unpaidSplit} onChange={(e) => setUnpaidSplit(Number(e.target.value))} inputProps={{ 'aria-label': 'Unpaid leave blocks' }}>
-                      {Array.from({ length: Math.min(availableUnpaid, durationBlocks - breakSplit - ptoSplit) + 1 }, (_, n) => <MenuItem key={n} value={n}>{n}</MenuItem>)}
-                    </Select>
-                  </FormControl>
-                )}
-                {availableBreak > 0 && (
-                  <FormControl size="small" fullWidth sx={{ mt: 1 }}>
-                    <Typography variant="caption">School Break blocks</Typography>
-                    <Select value={breakSplit} onChange={(e) => setBreakSplit(Number(e.target.value))} inputProps={{ 'aria-label': 'School Break blocks' }}>
-                      {Array.from({ length: Math.min(availableBreak, durationBlocks) + 1 }, (_, n) => <MenuItem key={n} value={n}>{n}</MenuItem>)}
-                    </Select>
-                  </FormControl>
-                )}
-              </Box>
-            ) : null}
-
-            {/* Quantity selector - show if not singular, not needsCartConfig, not isPricedOption, and not variable-with-max */}
-            {!isSingular && !needsCartConfig && !isPricedOption && !(isVariable && maxBlocks > minBlocks) && (
-              <Box sx={{ mt: 1.25 }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                    How many times?
-                  </Typography>
-                  <Stack direction="row" spacing={0.5} alignItems="center">
-                    <IconButton
-                      size="small"
-                      onClick={() => setAddQty((q) => Math.max(1, q - 1))}
-                      disabled={addQty <= 1}
-                      sx={{ p: 0, width: 24, height: 24, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}
-                    >
-                      <RemoveIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }} />
-                    </IconButton>
-                    <Typography variant="body2" sx={{ minWidth: 32, textAlign: 'center', fontWeight: 700 }}>
-                      {addQty}×
-                    </Typography>
-                    <IconButton
-                      size="small"
-                      onClick={() => setAddQty((q) => q + 1)}
-                      sx={{ p: 0, width: 24, height: 24, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}
-                    >
-                      <AddIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }} />
-                    </IconButton>
-                  </Stack>
-                </Stack>
-              </Box>
-            )}
-          </Box>
           </>
         )}
 
@@ -851,33 +777,33 @@ export default function ActionCard({
         {inCart && (
           <Box sx={{ mt: 1, p: 1, bgcolor: 'primary.50', borderRadius: 1.5, border: '1px solid', borderColor: 'primary.light' }}>
             {cartSelectedOptionLabel && (
-              <Typography variant="caption" fontWeight={700} color="primary.dark" sx={{ display: 'block', mb: 0.25 }}>
+              <Typography variant="body2" fontWeight={700} color="primary.dark" sx={{ display: 'block', mb: 0.25 }}>
                 🎓 {cartSelectedOptionLabel}
               </Typography>
             )}
             <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="body2" color="text.secondary">
                 {cartQuantity > 1 && <>×{cartQuantity}{' '}</>}
                 {ptoAllowed
-                  ? <>⏱ {displayTB * cartQuantity} activity  +  🏖️ {displayPTO * cartQuantity} PTO {' '}= {(displayTB + displayPTO) * cartQuantity} total blocks</>
-                  : <>⏱ {(displayTB + displayPTO) * cartQuantity} total blocks</>}
+                  ? <>{displayTB} activity + {displayPTO} PTO</>
+                  : <>{displayTB} activity</>}
               </Typography>
-              {ptoAllowed && !requiresPTO && onUpdateCartPto && (
+              {ptoAllowed && !requiresPTO && onUpdateCartPto && displayTB + displayPTO > 0 && (
                 <Stack direction="row" spacing={0.5} alignItems="center">
-                  <Tooltip title={ptoDisabledReason ?? 'Use less PTO'}>
+                  <Tooltip title="Use less PTO">
                     <span>
                       <IconButton size="small" onClick={() => handleCartPtoAdjust(-1)} disabled={displayPTO <= 0} sx={{ p: 0, width: 24, height: 24, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}>
                         <RemoveIcon sx={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }} />
                       </IconButton>
                     </span>
                   </Tooltip>
-                  <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center' }}>PTO</Typography>
-                  <Tooltip title={ptoDisabledReason ?? 'Use more PTO'}>
+                  <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>PTO</Typography>
+                  <Tooltip title="Use more PTO">
                     <span>
                       <IconButton
                         size="small"
                         onClick={() => handleCartPtoAdjust(1)}
-                        disabled={ptoDisabled || displayPTO >= displayTB + displayPTO || displayPTO >= availablePTO + displayPTO}
+                        disabled={displayTB <= 0 || displayPTO >= availablePTO}
                         sx={{ p: 0, width: 24, height: 24, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}
                       >
                         <AddIcon sx={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }} />
@@ -892,50 +818,33 @@ export default function ActionCard({
 
       </CardContent>
 
-      <CardActions sx={{ pt: 0, pb: 2, px: 2, flexDirection: 'column', gap: 0.75 }}>
+      {(inCart || !configurable) && <CardActions sx={{ pt: 0, pb: 2, px: 2, flexDirection: 'column', gap: 0.75 }}>
         {inCart ? (
           <Button
             size="small" variant="outlined" color="error"
             onClick={() => onRemoveFromCart(action.id)}
-            sx={{ fontSize: '0.7rem', width: '100%' }}
+            sx={{ fontSize: '0.8rem', width: '100%' }}
           >
-            Remove ({(displayTB + displayPTO + cartUnpaidBlocks + cartSchoolBreakBlocks) * cartQuantity} TB)
+            Remove ({displayTB + displayPTO + cartUnpaidBlocks + cartSchoolBreakBlocks} TB)
           </Button>
-        ) : (
-          /* Buttons row - always equal width for all action types */
-          <Stack direction="row" spacing={0.75} sx={{ width: '100%' }}>
-            <Button
-              size="small"
-              variant="contained"
-              disabled={isBlocked || expressCheckingOut}
-              onClick={needsCartConfig ? () => onExpressAcquisition?.(action, selectedTB, selectedPTO, unpaidSplit, breakSplit) : handleExpress}
-              startIcon={expressCheckingOut ? <CircularProgress size={12} color="inherit" /> : undefined}
-              sx={{
-                flex: 1,
-                fontSize: '0.7rem',
-                bgcolor: '#ffd54f',
-                color: '#333',
-                fontWeight: 700,
-                '&:hover': { bgcolor: '#ffca28' },
-                '&.Mui-disabled': { bgcolor: '#fff9c4', color: '#aaa' },
-              }}
-            >
-              {expressCheckingOut ? 'Processing…' : '⚡ Express'}
-            </Button>
-            <Button
-              size="small"
-              variant={!isBlocked ? 'contained' : 'outlined'}
-              color={!isBlocked ? 'primary' : 'inherit'}
-              disabled={isBlocked}
-              onClick={handleAdd}
-              startIcon={<AddShoppingCartIcon sx={{ fontSize: '0.9rem !important' }} />}
-              sx={{ flex: 1, fontSize: '0.7rem' }}
-            >
-              Add to Cart
-            </Button>
-          </Stack>
-        )}
-      </CardActions>
+        ) : !configurable && checkoutButtons(undefined, false)}
+      </CardActions>}
+      {dialogOpen && needsCartConfig && <GetHousingTransportPicker open actionId={action.id}
+        kind={action.name === 'Get Housing' ? 'housing' : 'transport'} onClose={() => onCloseOptions?.()}
+        pending={expressCheckingOut} error={expressError} checkoutButtons={checkoutButtons}>
+        {checkoutOptions}
+      </GetHousingTransportPicker>}
+      {dialogOpen && !needsCartConfig && <Dialog open onClose={expressCheckingOut ? undefined : onCloseOptions} fullWidth maxWidth="sm">
+        <DialogTitle>{action.name} Options</DialogTitle>
+        <DialogContent dividers>
+          {expressError && <Alert severity="error">{expressError}</Alert>}
+          {checkoutOptions}
+        </DialogContent>
+        <DialogActions disableSpacing sx={{ flexWrap: 'wrap', gap: 2, px: 3 }}>
+          <Button disabled={expressCheckingOut} onClick={onCloseOptions} sx={{ mr: 'auto' }}>Cancel</Button>
+          {checkoutButtons(needsEducation ? education : undefined)}
+        </DialogActions>
+      </Dialog>}
     </Card>
   );
 }

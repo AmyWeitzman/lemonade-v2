@@ -71,6 +71,24 @@ export default function CheckoutResultModal({ open, result, onClose }: Props) {
       </DialogTitle>
 
       <DialogContent>
+        {result.educationProgramName && <Typography sx={{ my: 2 }}>You’re now enrolled in {result.educationProgramName}.</Typography>}
+        {result.divorceScheduled && (
+          <Stack spacing={1} sx={{ my: 2 }}>
+            <Typography fontWeight={700}>Divorce scheduled for next year</Typography>
+            <Typography variant="body2">
+              Compatibility {result.divorceScheduled.score}: paid ${result.divorceScheduled.cost.toLocaleString()} and spent {result.divorceScheduled.blocks} time block(s).
+              Your spouse stays in your household through this year’s expenses.
+            </Typography>
+            <Typography variant="body2">
+              Next year your spouse’s income will no longer count. With your current childcare plan, projected care time changes from {result.divorceScheduled.beforeCareBlocks} to {result.divorceScheduled.afterCareBlocks} blocks, at ${result.divorceScheduled.annualChildcareAtCurrentPlan.toLocaleString()} per year. Review your childcare, housing, and transportation before the year ends.
+            </Typography>
+            {result.divorceScheduled.annualChildcareToKeepCareTime !== null && (
+              <Typography variant="body2">
+                The cheapest plan that keeps care time at or below its previous level costs ${result.divorceScheduled.annualChildcareToKeepCareTime.toLocaleString()} per year.
+              </Typography>
+            )}
+          </Stack>
+        )}
         {/* Lemons earned */}
         {result.totalLemonsEarned > 0 && (
           <Box

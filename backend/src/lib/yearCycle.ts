@@ -43,6 +43,7 @@ import type { ParentContributions } from './playerInit';
 import { getMandatoryExpensesTotal } from './expenses';
 import { checkJobHealthRequirement } from './jobs';
 import { annualEmploymentPay } from './actionTime';
+import { finalizeScheduledDivorce } from './divorce';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -282,7 +283,21 @@ function lemonsForAge(age: number): number {
 
 // ─── startNewYear ─────────────────────────────────────────────────────────────
 
+const yearTransitions = new Map<string, Promise<void>>();
+
 export async function startNewYear(sessionId: string, io: IO): Promise<void> {
+  const pending = yearTransitions.get(sessionId);
+  if (pending) return pending;
+  const transition = advanceYear(sessionId, io);
+  yearTransitions.set(sessionId, transition);
+  try {
+    await transition;
+  } finally {
+    yearTransitions.delete(sessionId);
+  }
+}
+
+async function advanceYear(sessionId: string, io: IO): Promise<void> {
   // 1. Fetch session
   const session = await prisma.gameSession.findUnique({ where: { id: sessionId } });
   if (!session) throw new Error(`Session ${sessionId} not found`);
@@ -299,6 +314,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
       housingOwnerships: { where: { endAge: null }, include: { housing: true } },
     },
   });
+  if (!players.length || players.some((player) => !player.yearComplete)) return;
 
   // 3. Generate inflation rates once for this year (same rates apply to all players)
   const currentInflationRates = (session.inflationRates as unknown) as InflationRates[];
@@ -307,6 +323,19 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
 
   // 4. Process each player
   for (const player of players) {
+    const divorce = await finalizeScheduledDivorce(player, session.currentYear + 1);
+    if (divorce) {
+      Object.assign(player, divorce.state);
+      const { impact, settlement } = divorce;
+      await sendNotification(player.id, {
+        type: 'warning', category: 'family', title: 'Divorce finalized', persistent: true,
+        actionRequired: divorce.vehicleReview || impact.afterCareBlocks > 0,
+        message: `Your spouse is no longer part of your household. After the settlement: $${settlement.playerMoney.toLocaleString()} cash, $${settlement.playerRetirementSavings.toLocaleString()} retirement savings, and $${settlement.playerLoanBalance.toLocaleString()} debt. ` +
+          `With your current plan, childcare costs $${impact.annualChildcareAtCurrentPlan.toLocaleString()} and uses ${impact.afterCareBlocks} blocks (previously ${impact.beforeCareBlocks} for the same child ages). ` +
+          (impact.annualChildcareToKeepCareTime === null ? '' : `The cheapest plan that restores that care time costs $${impact.annualChildcareToKeepCareTime.toLocaleString()} per year. `) +
+          `Review your childcare and housing${divorce.vehicleReview ? ', and arrange transportation that fits your family' : ''}.`,
+      }, io);
+    }
     const traits = player.traits as Record<string, number>;
     const skills = player.skills as Record<string, number>;
 
@@ -328,7 +357,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
     const newMaxHealth = healthState.maxHealth;
 
     // c. Reset stress
-    const newStress = 0;
+    const newStress = divorce?.settlement.stressAdded ?? 0;
 
     // d. Retirement check — mark player retired at 65 (Req 15.5)
     const isNowRetired = player.isRetired || newAge >= 65;
@@ -1003,7 +1032,7 @@ export async function startNewYear(sessionId: string, io: IO): Promise<void> {
           debtStressHistory: newDebtStressHistory,
           familyActionHistory: newFamilyActionHistory,
           hasKidsUnder18,
-          currentStress: newStress,
+          currentStress: player.stress,
           compassion: newTraits.compassion ?? 0,
           patience: newTraits.patience ?? 0,
           stressTolerance: newTraits.stressTolerance ?? 0,

@@ -35,7 +35,7 @@ import TimeBlockVisualizer from '../features/actions/TimeBlockVisualizer';
 import RecommendedActions from '../features/actions/RecommendedActions';
 import CartDrawer from '../features/actions/CartDrawer';
 import CheckoutResultModal from '../features/actions/CheckoutResultModal';
-import GetHousingTransportPicker from '../features/actions/GetHousingTransportPicker';
+import type { CheckoutSelection } from '../features/actions/ActionCard';
 import type { ActionItem, TimeBlockBreakdown, CheckoutResult, PTOInfo } from '../features/actions/types';
 import api from '../lib/api';
 
@@ -196,9 +196,7 @@ export default function ActionsPage() {
   const requiredActions = tbData?.requiredActions ?? [];
 
   // ── Express acquisition picker (Get Housing / Get Transportation) ───────────
-  const [expressPicker, setExpressPicker] = useState<{
-    action: ActionItem; timeBlocks: number; ptoBlocks: number; unpaidBlocks: number; schoolBreakBlocks: number;
-  } | null>(null);
+  const [optionsActionId, setOptionsActionId] = useState<string | null>(null);
 
   // ── Cart validation ────────────────────────────────────────────────────────
   const cartActionIds = cart.map((i) => i.actionId);
@@ -225,20 +223,16 @@ export default function ActionsPage() {
         if (i.housingLocation) housingLocations[i.actionId] = i.housingLocation;
         if (i.selectedVehicleId) selectedVehicleIds[i.actionId] = i.selectedVehicleId;
       });
-      const { data } = await api.get('/actions/cart/validate', {
-        params: {
+      const { data } = await api.post('/actions/cart/validate', {
           gameSessionId,
           actionIds: cartActionIds,
-           quantities: JSON.stringify(quantities),
-          activityBlocks: JSON.stringify(Object.fromEntries(cart.map((i) => [i.actionId, i.timeBlocks]))),
-          ptoBlocks: JSON.stringify(Object.fromEntries(cart.map((i) => [i.actionId, i.ptoBlocks]))),
-          unpaidBlocks: JSON.stringify(Object.fromEntries(cart.map((i) => [i.actionId, i.unpaidBlocks ?? 0]))),
-          schoolBreakBlocks: JSON.stringify(Object.fromEntries(cart.map((i) => [i.actionId, i.schoolBreakBlocks ?? 0]))),
-          selectedOptions: JSON.stringify(selectedOptions),
-          selectedHousingIds: JSON.stringify(selectedHousingIds),
-          housingLocations: JSON.stringify(housingLocations),
-          selectedVehicleIds: JSON.stringify(selectedVehicleIds),
-        },
+          quantities,
+          totalAllocations: true,
+          activityBlocks: Object.fromEntries(cart.map((i) => [i.actionId, i.timeBlocks])),
+          ptoBlocks: Object.fromEntries(cart.map((i) => [i.actionId, i.ptoBlocks])),
+          unpaidBlocks: Object.fromEntries(cart.map((i) => [i.actionId, i.unpaidBlocks ?? 0])),
+          schoolBreakBlocks: Object.fromEntries(cart.map((i) => [i.actionId, i.schoolBreakBlocks ?? 0])),
+          selectedOptions, selectedHousingIds, housingLocations, selectedVehicleIds,
       });
       return data as {
         valid: boolean;
@@ -255,6 +249,8 @@ export default function ActionsPage() {
 
   // ── Checkout ───────────────────────────────────────────────────────────────
   interface ExecuteResponse {
+    educationProgramName?: string;
+    divorceScheduled?: CheckoutResult['divorceScheduled'];
     success: boolean;
     lemonsEarned: number;
     healthChange: { temporary: number; permanent: number };
@@ -262,6 +258,7 @@ export default function ActionsPage() {
     skillGains: Record<string, number>;
     traitGains: Record<string, number>;
     totalCost: number;
+    newMoney?: number;
     totalTimeBlocks: number;
   }
 
@@ -271,16 +268,19 @@ export default function ActionsPage() {
     queryClient.invalidateQueries({ queryKey: ['actions'] });
     queryClient.invalidateQueries({ queryKey: ['timeBlocks'] });
     queryClient.invalidateQueries({ queryKey: ['cartValidation'] });
-    for (const key of ['housing', 'playerHousing', 'vehicles', 'vehiclesOwned', 'playerBasic']) {
+    for (const key of ['housing', 'playerHousing', 'vehicles', 'vehiclesOwned', 'playerBasic', 'education', 'educationCheckout', 'educationPrograms', 'playerEducation']) {
       queryClient.invalidateQueries({ queryKey: [key] });
     }
 
-    dispatch(setPlayerStats({ money: money - data.totalCost }));
+    const newMoney = data.newMoney ?? money - data.totalCost;
+    dispatch(setPlayerStats({ money: newMoney }));
     for (let i = 0; i < data.lemonsEarned; i++) {
       dispatch(addLemon());
     }
 
     setCheckoutResult({
+      educationProgramName: data.educationProgramName,
+      divorceScheduled: data.divorceScheduled,
       totalLemonsEarned: data.lemonsEarned,
       healthDelta,
       stressDelta: data.stressChange,
@@ -288,7 +288,7 @@ export default function ActionsPage() {
       traitGains: data.traitGains,
       newHealth: Math.min(100, Math.max(0, health + healthDelta)),
       newStress: Math.min(100, Math.max(0, stress + data.stressChange)),
-      newMoney: money - data.totalCost,
+      newMoney,
     });
     setResultModalOpen(true);
   };
@@ -297,11 +297,10 @@ export default function ActionsPage() {
     mutationFn: async () => {
       const { data } = await api.post('/actions/execute', {
         gameSessionId,
-        // Expand each cart line into one entry per instance (quantity), so cost/effects
-        // are computed correctly per-execution rather than as one combined block.
-        actions: cart.flatMap((i) =>
-          Array.from({ length: i.quantity }, () => ({
+        checkoutKind: 'cart',
+        actions: cart.map((i) => ({
             actionId: i.actionId,
+            quantity: i.quantity,
             timeBlocks: i.timeBlocks,
             ptoBlocks: i.ptoBlocks,
             unpaidBlocks: i.unpaidBlocks,
@@ -310,8 +309,7 @@ export default function ActionsPage() {
             selectedHousingId: i.selectedHousingId,
             housingLocation: i.housingLocation,
             selectedVehicleId: i.selectedVehicleId,
-          })),
-        ),
+        })),
       });
       return data as ExecuteResponse;
     },
@@ -333,28 +331,21 @@ export default function ActionsPage() {
       selectedOption?: string;
       quantity: number;
       selectedHousingId?: string;
-      housingLocation?: string;
+      housingLocation?: 'city' | 'suburb';
       selectedVehicleId?: string;
+      educationProgramId?: string;
+      educationPartTime?: boolean;
     }) => {
       const { data } = await api.post('/actions/execute', {
         gameSessionId,
-        actions: Array.from({ length: item.quantity }, () => ({
-          actionId: item.actionId,
-          timeBlocks: item.timeBlocks,
-          ptoBlocks: item.ptoBlocks,
-          unpaidBlocks: item.unpaidBlocks,
-          schoolBreakBlocks: item.schoolBreakBlocks,
-          selectedOption: item.selectedOption,
-          selectedHousingId: item.selectedHousingId,
-          housingLocation: item.housingLocation,
-          selectedVehicleId: item.selectedVehicleId,
-        })),
+        checkoutKind: 'express',
+        actions: [item],
       });
       return data as ExecuteResponse;
     },
     onSuccess: (data) => {
+      setOptionsActionId(null);
       applyCheckoutResult(data);
-      setExpressPicker(null);
     },
   });
 
@@ -363,6 +354,12 @@ export default function ActionsPage() {
   } | null)?.response?.data;
   const expressError = expressMutation.isError
     ? expressErrorData?.errors?.join(' ') || expressErrorData?.error || 'Express checkout failed. Please try again.'
+    : null;
+  const cartErrorData = (checkoutMutation.error as {
+    response?: { data?: { error?: string; errors?: string[] } };
+  } | null)?.response?.data;
+  const cartError = checkoutMutation.isError
+    ? cartErrorData?.errors?.join(' ') || cartErrorData?.error || 'Cart checkout failed. Please try again.'
     : null;
 
   // ── Cart handlers ──────────────────────────────────────────────────────────
@@ -375,36 +372,10 @@ export default function ActionsPage() {
     quantity = 1,
     unpaidBlocks = 0,
     schoolBreakBlocks = 0,
+    selection?: CheckoutSelection,
   ) => {
-    expressMutation.mutate({ actionId: action.id, timeBlocks, ptoBlocks, selectedOption, quantity, unpaidBlocks, schoolBreakBlocks });
+    expressMutation.mutate({ ...selection, actionId: action.id, timeBlocks, ptoBlocks, selectedOption, quantity, unpaidBlocks, schoolBreakBlocks });
   }, [expressMutation]);
-
-  // Express acquisition: opens the picker dialog for Get Housing / Get Transportation.
-  // Once the player selects a home/vehicle, it executes immediately via the express mutation.
-  const handleExpressAcquisition = useCallback((action: ActionItem, timeBlocks: number, ptoBlocks: number, unpaidBlocks: number, schoolBreakBlocks: number) => {
-    expressMutation.reset();
-    setExpressPicker({ action, timeBlocks, ptoBlocks, unpaidBlocks, schoolBreakBlocks });
-  }, [expressMutation]);
-
-  const handleExpressPickerConfirm = useCallback((selection: {
-    selectedHousingId?: string;
-    housingLocation?: 'city' | 'suburb';
-    selectedVehicleId?: string;
-  }) => {
-    if (!expressPicker) return;
-    expressMutation.mutate({
-      actionId: expressPicker.action.id,
-      timeBlocks: expressPicker.timeBlocks,
-      ptoBlocks: expressPicker.ptoBlocks,
-      unpaidBlocks: expressPicker.unpaidBlocks,
-      schoolBreakBlocks: expressPicker.schoolBreakBlocks,
-      selectedOption: undefined,
-      quantity: 1,
-      selectedHousingId: selection.selectedHousingId,
-      housingLocation: selection.housingLocation,
-      selectedVehicleId: selection.selectedVehicleId,
-    });
-  }, [expressPicker, expressMutation]);
 
   const handleAddToCart = useCallback((
     action: ActionItem,
@@ -415,9 +386,11 @@ export default function ActionsPage() {
     quantity = 1,
     unpaidBlocks = 0,
     schoolBreakBlocks = 0,
+    selection?: CheckoutSelection,
   ) => {
     const selectedOptionData = (action.userInput?.options ?? []).find((o) => o.value === selectedOption);
     const item: CartItem = {
+      ...selection,
       actionId: action.id,
       actionName: action.name,
       timeBlocks,
@@ -428,6 +401,7 @@ export default function ActionsPage() {
       calculatedLemons: action.calculatedLemons,
       quantity,
       executionType: action.executionType,
+      frequency: action.frequency,
       category: action.category,
       requiresPTO: action.requiresPTO,
       allowsPTO: action.allowsPTO,
@@ -435,10 +409,6 @@ export default function ActionsPage() {
       selectedOptionLabel,
     };
     dispatch(addToCart(item));
-    // "Get Housing" / "Get Transportation" need a home/vehicle picked in the cart.
-    if (action.name === 'Get Housing' || action.name === 'Get Transportation') {
-      dispatch(setCartDrawerOpen(true));
-    }
   }, [dispatch]);
 
   const handleUpdateCartPto = useCallback((actionId: string, timeBlocks: number, ptoBlocks: number) => {
@@ -467,13 +437,13 @@ export default function ActionsPage() {
 
   const cartCount = cart.length;
   const totalBlocks = tbData?.actionTime?.activityBlocks ?? 0;
-  const cartUsedBlocks = cart.reduce((s, i) => s + i.timeBlocks * i.quantity, 0);
-  const cartPtoUsed = cart.reduce((s, i) => s + i.ptoBlocks * i.quantity, 0);
+  const cartUsedBlocks = cart.reduce((s, i) => s + i.timeBlocks, 0);
+  const cartPtoUsed = cart.reduce((s, i) => s + i.ptoBlocks, 0);
   const ptoRemaining = tbData?.ptoRemaining ?? 0;
   const unpaidRemaining = tbData?.actionTime?.unpaidBlocks ?? 0;
   const breaksRemaining = tbData?.actionTime?.schoolBreakBlocks ?? 0;
-  const committedUnpaid = cart.reduce((s, i) => s + (i.unpaidBlocks ?? 0) * i.quantity, 0);
-  const committedBreaks = cart.reduce((s, i) => s + (i.schoolBreakBlocks ?? 0) * i.quantity, 0);
+  const committedUnpaid = cart.reduce((s, i) => s + (i.unpaidBlocks ?? 0), 0);
+  const committedBreaks = cart.reduce((s, i) => s + (i.schoolBreakBlocks ?? 0), 0);
 
   if (!gameSessionId) {
     return (
@@ -547,10 +517,10 @@ export default function ActionsPage() {
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" fontWeight={700} color="primary.main" display="block" sx={{ mb: 0.5 }}>⚡ Express Checkout vs Add to Cart</Typography>
                 <Typography variant="caption" color="text.secondary" display="block">
-                  <b>Add to Cart</b> queues the action for the year — you can review and adjust your plan before committing. For "Get Housing" and "Get Transportation", add to cart then pick your home or vehicle inside the cart.
+                  <b>Add to Cart</b> saves your choices so you can review the plan before committing.
                 </Typography>
                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-                  <b>Express Checkout</b> executes immediately. For housing and transportation, it opens a picker dialog first, then purchases your selection right away — no need to visit the cart.
+                  <b>Express Checkout</b> executes immediately. For actions with extra choices, use <b>View Options</b> to configure them first.
                 </Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -672,14 +642,17 @@ export default function ActionsPage() {
                   ptoRemaining={ptoRemaining}
                   ptoCommitted={cart
                     .filter((i) => i.actionId !== action.id)
-                    .reduce((s, i) => s + i.ptoBlocks * i.quantity, 0)}
+                     .reduce((s, i) => s + i.ptoBlocks, 0)}
                   onToggleFavorite={handleToggleFavorite}
                   onAddToCart={handleAddToCart}
                   onExpressCheckout={handleExpressCheckout}
                   expressCheckingOut={expressMutation.isPending}
                   onRemoveFromCart={handleRemoveFromCart}
                   onUpdateCartPto={handleUpdateCartPto}
-                  onExpressAcquisition={handleExpressAcquisition}
+                  expressError={optionsActionId === action.id && expressMutation.variables?.actionId === action.id ? expressError : null}
+                  optionsOpen={optionsActionId === action.id}
+                  onOpenOptions={() => { expressMutation.reset(); setOptionsActionId(action.id); }}
+                  onCloseOptions={() => { expressMutation.reset(); setOptionsActionId(null); }}
                 />
               </Grid>
             );
@@ -718,6 +691,7 @@ export default function ActionsPage() {
         validation={validationData ?? null}
         validating={validating}
         checkingOut={checkoutMutation.isPending}
+        checkoutError={cartError}
         requiredActions={requiredActions}
       />
 
@@ -731,20 +705,7 @@ export default function ActionsPage() {
         }}
       />
 
-      {!expressPicker && expressError && <Alert severity="error" sx={{ mt: 2 }}>{expressError}</Alert>}
-
-      {/* Express acquisition picker (Get Housing / Get Transportation) */}
-      {expressPicker && (
-        <GetHousingTransportPicker
-          open
-          onClose={() => { expressMutation.reset(); setExpressPicker(null); }}
-          kind={expressPicker.action.name === 'Get Housing' ? 'housing' : 'transport'}
-          actionId={expressPicker.action.id}
-          onExpressConfirm={handleExpressPickerConfirm}
-          expressPending={expressMutation.isPending}
-          expressError={expressError}
-        />
-      )}
+      {expressError && expressMutation.variables?.actionId !== optionsActionId && <Alert severity="error" sx={{ mt: 2 }}>{expressError}</Alert>}
     </Box>
     </Box>
   );

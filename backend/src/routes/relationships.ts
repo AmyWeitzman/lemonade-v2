@@ -12,15 +12,15 @@
 
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { authorize } from '../middleware/authorize';
 import { validatePlayerAlive } from '../middleware/validatePlayerAlive';
 import { getIO } from '../socket';
 import { sendNotification } from '../lib/yearCycle';
+import { DIVORCE_ACTION, getDivorceQuote } from '../lib/divorce';
+import { executeActions } from './actions';
 import {
   executeMarriage,
-  calculateDivorceSettlement,
   tryForChild,
   checkAdoptionEligibility,
   calculateAdoptionAvailableYear,
@@ -72,6 +72,7 @@ const marrySchema = z.object({
 
 const divorceSchema = z.object({
   gameSessionId: z.string().min(1),
+  keepVehicle: z.enum(['keep_yours', 'keep_spouse']).default('keep_yours'),
 });
 
 const childSchema = z.object({
@@ -120,6 +121,8 @@ router.post(
         originalMoney: spouseData.money,
         originalSavings: spouseData.retirementSavings,
         originalLoans: spouseData.loans.reduce((sum, l) => sum + l.currentBalance, 0),
+        playerOriginalMoney: player.money,
+        playerOriginalSavings: player.retirementSavings,
       };
 
       const marriageResult = executeMarriage({
@@ -158,6 +161,7 @@ router.post(
         originalLoans: marriageResult.spouseOriginalLoans,
         playerOriginalMoney: marriageResult.playerOriginalMoney,
         playerOriginalSavings: marriageResult.playerOriginalSavings,
+        playerOriginalLoans: (await prisma.loan.aggregate({ where: { playerId: player.id, owner: 'player' }, _sum: { currentBalance: true } }))._sum.currentBalance ?? 0,
       };
 
       await prisma.$transaction(async (tx) => {
@@ -266,102 +270,22 @@ router.post(
     const player = req.player!;
 
     try {
-      if (player.maritalStatus !== 'married') {
-        res.status(400).json({ error: 'Player is not married' });
+      if (player.gameSessionId !== gameSessionId) {
+        res.status(403).json({ error: 'Player does not belong to this session' });
         return;
       }
-
-      const spouse = player.spouse as SpouseData | null;
-      if (!spouse) {
-        res.status(400).json({ error: 'No spouse data found' });
+      const [fullPlayer, session, action] = await Promise.all([
+        prisma.player.findUniqueOrThrow({ where: { id: player.id }, include: { children: true, employments: true, educations: true, vehicleOwnerships: true } }),
+        prisma.gameSession.findUniqueOrThrow({ where: { id: gameSessionId } }),
+        prisma.action.findUniqueOrThrow({ where: { name: DIVORCE_ACTION } }),
+      ]);
+      const quote = await getDivorceQuote(fullPlayer, session.currentYear);
+      if (!('blocks' in quote) || quote.blocks === undefined) {
+        res.status(400).json({ error: quote.reason });
         return;
       }
-
-      // Fetch all loans and separate by owner
-      const loans = await prisma.loan.findMany({ where: { playerId: player.id } });
-      const playerLoansBalance = loans
-        .filter((l) => l.owner === 'player' || l.isJoint)
-        .reduce((sum, l) => sum + l.currentBalance, 0);
-      const spouseLoansBalance = loans
-        .filter((l) => l.owner === 'spouse')
-        .reduce((sum, l) => sum + l.currentBalance, 0);
-      const totalLoanBalance = playerLoansBalance + spouseLoansBalance;
-
-      const settlement = calculateDivorceSettlement({
-        currentMoney: player.money,
-        currentRetirementSavings: player.retirementSavings,
-        currentLoanBalance: totalLoanBalance,
-        playerOriginalMoney: spouse.playerOriginalMoney ?? 0,
-        spouseOriginalMoney: spouse.originalMoney ?? 0,
-        playerOriginalSavings: spouse.playerOriginalSavings ?? 0,
-        spouseOriginalSavings: spouse.originalSavings ?? 0,
-        playerOriginalLoans: 0,
-        spouseOriginalLoans: spouseLoansBalance,
-      });
-
-      const newStress = Math.min(100, player.stress + settlement.stressAdded);
-
-      await prisma.$transaction(async (tx) => {
-        // Apply settlement
-        await tx.player.update({
-          where: { id: player.id },
-          data: {
-            money: settlement.playerMoney,
-            retirementSavings: settlement.playerRetirementSavings,
-            maritalStatus: 'divorced',
-            spouse: Prisma.JsonNull,
-            stress: newStress,
-            // Reset childcare plan since household composition changed
-            childcarePlan: 'none',
-          },
-        });
-
-        // Remove spouse-owned and joint loans (they go back to spouse or are split)
-        await tx.loan.deleteMany({
-          where: {
-            playerId: player.id,
-            OR: [{ owner: 'spouse' }, { isJoint: true }],
-          },
-        });
-
-        // Mark spouse vehicles as ended (they go with the spouse)
-        await tx.vehicleOwnership.updateMany({
-          where: { playerId: player.id, isSpouseVehicle: true, endAge: null },
-          data: { endAge: player.age },
-        });
-      });
-
-      await sendNotification(
-        player.id,
-        {
-          type: 'warning',
-          category: 'family',
-          title: 'Divorce Finalized',
-          message: 'Your divorce has been finalized. Assets have been split. Please review your childcare arrangements.',
-          persistent: true,
-          actionRequired: true,
-        },
-        getIO(),
-      );
-
-      getIO().to(`game:${gameSessionId}`).emit('playerStateChanged', {
-        playerId: player.id,
-        changes: {
-          money: settlement.playerMoney,
-          retirementSavings: settlement.playerRetirementSavings,
-          stress: newStress,
-        },
-      });
-
-      res.json({
-        divorced: true,
-        settlement: {
-          playerMoney: settlement.playerMoney,
-          playerRetirementSavings: settlement.playerRetirementSavings,
-          playerLoanBalance: settlement.playerLoanBalance,
-          stressAdded: settlement.stressAdded,
-        },
-      });
+      req.body = { gameSessionId, actions: [{ actionId: action.id, timeBlocks: quote.blocks, selectedOption: quote.canChooseVehicle ? result.data.keepVehicle : undefined }] };
+      await executeActions(req, res);
     } catch (err) {
       console.error('[relationships/divorce]', err);
       res.status(500).json({ error: 'Internal server error' });
@@ -1029,6 +953,9 @@ router.post(
         originalMoney: marriageResult.spouseOriginalMoney,
         originalSavings: marriageResult.spouseOriginalSavings,
         originalLoans: marriageResult.spouseOriginalLoans,
+        playerOriginalMoney: marriageResult.playerOriginalMoney,
+        playerOriginalSavings: marriageResult.playerOriginalSavings,
+        playerOriginalLoans: (await prisma.loan.aggregate({ where: { playerId: player.id, owner: 'player' }, _sum: { currentBalance: true } }))._sum.currentBalance ?? 0,
       };
 
       await prisma.$transaction(async (tx) => {
