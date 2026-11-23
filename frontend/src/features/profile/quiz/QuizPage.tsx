@@ -10,6 +10,7 @@
  */
 import { useState, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { useDispatch } from 'react-redux';
 
 import { SKILL_LABELS, TRAIT_LABELS } from '../constants';
 import {
@@ -19,6 +20,7 @@ import {
 import SkillsQuiz from './SkillsQuiz';
 import TraitsQuiz from './TraitsQuiz';
 import api from '../../../lib/api';
+import { setPlayerInitialized } from '../../auth/authSlice';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,6 +58,7 @@ export default function QuizPage({
   onConfirmSuccess,
   onRollSuccess,
 }: QuizPageProps) {
+  const dispatch = useDispatch();
   const [skillAnswers, setSkillAnswers] = useState<Record<string, number>>({});
   const [traitAnswers, setTraitAnswers] = useState<Record<string, number>>({});
   const [quizStep, setQuizStep] = useState<QuizStep>('skills');
@@ -86,7 +89,8 @@ export default function QuizPage({
     onSuccess: () => {
       setSubmitError(null);
       onRollSuccess(); // update Redux hasRolledProfile
-      onConfirmSuccess(); // go directly to game, skip summary page
+      dispatch(setPlayerInitialized()); // mark player as initialized
+      onConfirmSuccess(); // navigate to game home
     },
     onError: (err: unknown) => {
       const msg =
