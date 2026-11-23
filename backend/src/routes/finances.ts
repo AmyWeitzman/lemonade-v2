@@ -32,6 +32,7 @@ import { getRequiredActions } from '../lib/actionRequirements';
 import { getActionTimeBudget } from '../lib/actionTimeBudget';
 import type { ParentContributions } from '../lib/playerInit';
 import { calculateMandatoryExpenses } from '../lib/expenses';
+import { calculateRecommendedPerPlayer } from '../lib/pitcher';
 
 const router = Router();
 class ExpensesConflict extends Error {}
@@ -1052,7 +1053,6 @@ router.post(
           pitcherCurrentLemons: true,
           pitcherYearlyGoal: true,
           pitcherContributionsByPlayer: true,
-          pitcherGraceYearUsed: true,
         },
       });
       if (!session) {
@@ -1092,7 +1092,7 @@ router.post(
           select: {
             pitcherCurrentLemons: true,
             pitcherYearlyGoal: true,
-            pitcherGraceYearUsed: true,
+            pitcherInGraceYear: true,
             pitcherContributionsByPlayer: true,
           },
         });
@@ -1107,8 +1107,10 @@ router.post(
         io.to(`game:${gameSessionId}`).emit('pitcherUpdated', {
           currentLemons: updatedSession?.pitcherCurrentLemons ?? 0,
           yearlyGoal: updatedSession?.pitcherYearlyGoal ?? 0,
-          graceYearUsed: updatedSession?.pitcherGraceYearUsed ?? false,
+          graceYearUsed: updatedSession?.pitcherInGraceYear ?? false,
           contributionsByPlayer: (updatedSession?.pitcherContributionsByPlayer as Record<string, number>) ?? {},
+          recommendedPerPlayer: calculateRecommendedPerPlayer(updatedSession?.pitcherYearlyGoal ?? 0,
+            await prisma.player.count({ where: { gameSessionId, isAlive: true } })),
         });
       }
 

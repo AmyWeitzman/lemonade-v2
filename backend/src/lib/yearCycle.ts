@@ -419,13 +419,13 @@ async function advanceYear(sessionId: string, io: IO): Promise<void> {
     const CPR_RENEWAL_COST = 75;
     const CPR_RENEWAL_INTERVAL = 2;
     let spouseCprCharge = 0;
-    if (updatedSpouse && hasCertification(updatedSpouse, 'cpr', session.currentYear)) {
+    if (updatedSpouse && hasCertification({ certifications: updatedSpouse.certifications }, 'cpr', session.currentYear)) {
       const spouseCprYear = (updatedSpouse as Record<string, unknown>).spouseCprYear as number | undefined;
       if (spouseCprYear === undefined || (session.currentYear + 1 - spouseCprYear) >= CPR_RENEWAL_INTERVAL) {
         spouseCprCharge = CPR_RENEWAL_COST;
         // Renew the CPR certification by granting it again (extends expiry by 2 years)
         const renewedCerts = grantCertification(
-          updatedSpouse,
+          { certifications: updatedSpouse.certifications },
           'cpr',
           session.currentYear + 1,
         );
@@ -473,10 +473,10 @@ async function advanceYear(sessionId: string, io: IO): Promise<void> {
     }
 
     // e3b. Check spouse CPR certification expiry
-    if (spouse && Array.isArray(spouse.certifications)) {
-      const spouseCerts = spouse.certifications as CertificationEntry[];
+    if (updatedSpouse && Array.isArray(updatedSpouse.certifications)) {
+      const spouseCerts = updatedSpouse.certifications as CertificationEntry[];
       const spouseExpiredCerts = spouseCerts.filter(
-        (cert) => cert.type === 'cpr' && cert.expirationYear && cert.expirationYear <= session.currentYear + 1,
+        (cert) => cert.type === 'cpr' && cert.expiresYear != null && session.currentYear + 1 > cert.expiresYear,
       );
       if (spouseExpiredCerts.length > 0) {
         updatedSpouse = {
@@ -632,7 +632,6 @@ async function advanceYear(sessionId: string, io: IO): Promise<void> {
       const job = employment.job;
       const jobMinHealth = (job.requirements as Record<string, unknown>)?.minHealth as number | undefined;
 
-      const { checkJobHealthRequirement } = await import('./jobs');
       const healthCheck = checkJobHealthRequirement(newHealth, jobMinHealth, newJobHealthGracePeriod);
 
       // Update grace period based on this employment's check

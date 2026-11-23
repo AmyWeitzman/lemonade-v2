@@ -246,7 +246,7 @@ router.get('/programs', authorize, async (req: Request, res: Response): Promise<
       filtered.sort((a, b) => {
         switch (sort) {
           case 'tuition_asc': return a.tuitionFullTime - b.tuitionFullTime;
-          case 'stress_asc':  return a.stressLevel - b.stressLevel;
+          case 'stress_asc':  return (a.stressLevel ?? 0) - (b.stressLevel ?? 0);
           default:            return 0;
         }
       });

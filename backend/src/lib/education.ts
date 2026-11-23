@@ -35,6 +35,7 @@ export interface EduProgramRow {
   graduationRequirements: EduGraduationRequirements;
   tuitionFullTime: number;
   tuitionPartTime: number | null;
+  stressLevel?: number;
   totalCredits: { generalEducation: number; field: number; major: number };
   skillGains: { automatic: Record<string, number>; major: Record<string, number> };
   isStem: boolean;
