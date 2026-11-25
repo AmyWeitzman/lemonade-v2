@@ -27,6 +27,9 @@ import {
   HomeImprovement,
 } from '../lib/housing';
 import { acquireHousing } from '../lib/housingActions';
+import { getActionTimeBudget } from '../lib/actionTimeBudget';
+import { getRequiredActions } from '../lib/actionRequirements';
+import { COUCH_MOVING_BLOCKS } from '../lib/housingRules';
 import type { InflationRates } from '../lib/inflation';
 import type { ParentContributions } from '../lib/playerInit';
 import { checkBikeRestriction } from '../lib/jobs';
@@ -44,6 +47,7 @@ async function fetchFullPlayer(userId: string, gameSessionId: string) {
       children: true,
       pets: true,
       educations: { where: { isActive: true } },
+      employments: { where: { isActive: true }, include: { job: true } },
       housingOwnerships: {
         where: { endAge: null },
         include: { housing: true },
@@ -297,6 +301,22 @@ router.post(
 
       const inflationRates = (session.inflationRates as unknown as InflationRates[]) ?? [];
       const currentYear = session.currentYear;
+
+      if (housing.type === 'couch') {
+        const budget = await getActionTimeBudget(player, currentYear);
+        const reserved = getRequiredActions({
+          currentYear,
+          activeHousingType: housing.type,
+          parentMaxAge: (player.parentContributions as ParentContributions | null)?.maxParentAge,
+          age: player.age,
+          couchSurfYearsUsed: player.couchSurfYearsUsed,
+          hasVehicle: player.vehicleOwnerships.some((v) => v.endAge === null && !v.isSpouseVehicle),
+        }).reduce((sum, action) => sum + action.blocks, 0);
+        if (budget.activityBlocks + budget.schoolBreakBlocks < reserved + COUCH_MOVING_BLOCKS) {
+          res.status(400).json({ error: 'Moving onto a friend’s couch takes one additional activity block. Leave room for it before moving.' });
+          return;
+        }
+      }
 
       // Resolve location:
       // - city/suburb-only housing → use housing's location

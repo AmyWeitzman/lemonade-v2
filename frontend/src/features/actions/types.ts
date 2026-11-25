@@ -55,7 +55,7 @@ export interface TimeBlockBreakdown {
   childcare: number;
   commute: number;
   pets: number;
-  chores: number;
+  moving: number;
   activities: number;
 }
 

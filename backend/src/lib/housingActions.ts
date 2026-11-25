@@ -13,6 +13,7 @@ import {
   type HomeImprovement,
 } from './housing';
 import type { InflationRates } from './inflation';
+import { COUCH_STRESS } from './housingRules';
 
 type Tx = Prisma.TransactionClient;
 
@@ -70,7 +71,8 @@ export async function acquireHousing(
     );
   }
 
-  const stressAdded = applyMoveStress && currentOwnership ? HOUSING_CHANGE_STRESS : 0;
+  const moveStress = applyMoveStress ? (currentOwnership ? HOUSING_CHANGE_STRESS : 0) + (housing.type === 'couch' ? COUCH_STRESS : 0) : 0;
+  const stressAdded = Math.max(0, Math.min(moveStress, 100 - player.stress));
 
   // Buying a home is paid in full from cash (there are no mortgages). The caller
   // must ensure the player can cover `purchasePrice − saleProceeds` first.

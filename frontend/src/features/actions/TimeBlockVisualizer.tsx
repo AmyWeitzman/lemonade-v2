@@ -2,7 +2,7 @@
  * TimeBlockVisualizer — 60-block scale showing how time is allocated.
  *
  * The backend returns `activities` = all blocks not consumed by sleep/work/
- * childcare/commute/pets.  That is the player's *available* budget — it is NOT
+ * childcare/commute/pets/moving. That is the player's *available* budget — it is NOT
  * time already spent on activities.
  *
  * To show what's really happening we split the activities bucket:
@@ -31,7 +31,7 @@ const SEGMENTS: Segment[] = [
   { key: 'childcare',  label: 'Childcare',  emoji: '👶', color: '#ec407a', textColor: '#fff' },
   { key: 'commute',    label: 'Commute',    emoji: '🚗', color: '#ff7043', textColor: '#fff' },
   { key: 'pets',       label: 'Pets',       emoji: '🐾', color: '#ab47bc', textColor: '#fff' },
-  { key: 'chores',     label: 'Chores',     emoji: '🧹', color: '#8d6e63', textColor: '#fff' },
+  { key: 'moving',     label: 'Moving',     emoji: '📦', color: '#8d6e63', textColor: '#fff' },
   { key: 'activities', label: 'Activities', emoji: '🍋', color: '#66bb6a', textColor: '#fff' },
   { key: 'reserved',   label: 'Required',   emoji: '🔒', color: '#ffb300', textColor: '#333' },
   { key: 'unused',     label: 'Unused',     emoji: '⬜', color: '#d6d6d6ff', textColor: '#333' },

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { authorize } from '../middleware/authorize';
+import { canStartWithParents } from '../lib/housingRules';
 import {
   rollTraits,
   rollSkills,
@@ -10,6 +11,7 @@ import {
   rollChronicConditions,
   CAR_KEY_TO_VEHICLE,
   getParentRollFromContributions,
+  type ParentContributions,
 } from '../lib/playerInit';
 
 const router = Router();
@@ -170,7 +172,7 @@ router.post('/:id/initialize/confirm', authorize, async (req: Request, res: Resp
     }
 
     // Resolve parent car gift
-    const parentContributions = player.parentContributions as { car?: string | null };
+    const parentContributions = player.parentContributions as ParentContributions | null;
     let vehicleOwnershipData: { vehicleId: string } | null = null;
     if (parentContributions?.car) {
       const vehicleLookup = CAR_KEY_TO_VEHICLE[parentContributions.car];
@@ -202,6 +204,21 @@ router.post('/:id/initialize/confirm', authorize, async (req: Request, res: Resp
           await tx.vehicleOwnership.create({
             data: { playerId: id, vehicleId: vehicleOwnershipData.vehicleId, startAge: updated.age, wasParentGift: true },
           });
+        }
+      }
+
+      const session = await tx.gameSession.findUniqueOrThrow({
+        where: { id: updated.gameSessionId }, select: { currentYear: true },
+      });
+      if (canStartWithParents(session.currentYear, updated.age, parentContributions?.maxParentAge)) {
+        const alreadyHoused = await tx.housingOwnership.findFirst({ where: { playerId: id, endAge: null } });
+        if (!alreadyHoused) {
+          const parentsPlace = await tx.housing.findFirst({ where: { type: 'parent' }, orderBy: { id: 'asc' } });
+          if (parentsPlace) {
+            await tx.housingOwnership.create({
+              data: { playerId: id, housingId: parentsPlace.id, startAge: updated.age, chosenLocation: updated.location },
+            });
+          }
         }
       }
 

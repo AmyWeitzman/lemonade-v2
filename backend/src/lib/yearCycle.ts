@@ -44,6 +44,7 @@ import { getMandatoryExpensesTotal } from './expenses';
 import { checkJobHealthRequirement } from './jobs';
 import { annualEmploymentPay } from './actionTime';
 import { finalizeScheduledDivorce } from './divorce';
+import { COUCH_STRESS } from './housingRules';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -356,8 +357,10 @@ async function advanceYear(sessionId: string, io: IO): Promise<void> {
     const newHealth = Math.max(0, healthState.health - healthLoss);
     const newMaxHealth = healthState.maxHealth;
 
-    // c. Reset stress
-    const newStress = divorce?.settlement.stressAdded ?? 0;
+    // c. Reset stress and apply the new year's housing stress.
+    const activeHousingRecord = player.housingOwnerships.find((h) => h.endAge === null);
+    const onCouch = activeHousingRecord?.housing?.type === 'couch';
+    const newStress = Math.min(100, (divorce?.settlement.stressAdded ?? 0) + (onCouch ? COUCH_STRESS : 0));
 
     // d. Retirement check — mark player retired at 65 (Req 15.5)
     const isNowRetired = player.isRetired || newAge >= 65;
@@ -522,8 +525,6 @@ async function advanceYear(sessionId: string, io: IO): Promise<void> {
     }
 
     // e5. Couch-surfing: increment the lifetime counter and warn on the last year.
-    const activeHousingRecord = player.housingOwnerships.find((h) => h.endAge === null);
-    const onCouch = activeHousingRecord?.housing?.type === 'couch';
     const prevCouchYears =
       (player as unknown as { couchSurfYearsUsed?: number }).couchSurfYearsUsed ?? 0;
     const newCouchSurfYearsUsed = onCouch ? prevCouchYears + 1 : prevCouchYears;

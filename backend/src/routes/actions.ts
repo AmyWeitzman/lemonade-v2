@@ -17,6 +17,7 @@ import { validatePlayerAlive } from '../middleware/validatePlayerAlive';
 import { getIO } from '../socket';
 import { calculateTimeBlocks } from '../lib/timeBlocks';
 import { getActionTimeBudget } from '../lib/actionTimeBudget';
+import { COUCH_STRESS, COUCH_MOVING_BLOCKS } from '../lib/housingRules';
 import { expandCheckoutBlocks } from '../lib/checkoutBlocks';
 import { prepareEducationChange } from '../lib/educationCheckout';
 import type { EduProgramRow } from '../lib/education';
@@ -842,6 +843,10 @@ async function validateCart(req: Request, res: Response): Promise<void> {
 
       if (totalUnpaid > timeBudget.unpaidBlocks) errors.push('Not enough unpaid leave for this cart.');
       if (totalBreak > timeBudget.schoolBreakBlocks) errors.push('Not enough School Break blocks for this cart.');
+      const movingBlocks = resolvedHousing.some((r) => r.housing.type === 'couch') ? COUCH_MOVING_BLOCKS : 0;
+      if (movingBlocks && totalTimeBlocks + totalBreak + reservedBlocks + movingBlocks > availableTimeBlocks + timeBudget.schoolBreakBlocks) {
+        errors.push('Moving onto a friend’s couch takes one additional activity block. Leave room for it before checking out.');
+      }
       if (totalTimeBlocks > availableTimeBlocks || totalTimeBlocks + totalBreak + reservedBlocks > availableTimeBlocks + timeBudget.schoolBreakBlocks) {
         if (reservedBlocks > 0) {
           errors.push(
@@ -1217,6 +1222,11 @@ export async function executeActions(req: Request, res: Response): Promise<void>
           }
         }
 
+        if ([...housingResolved.values()].some((r) => r.housing.type === 'couch') &&
+            totalTimeBlocks + totalBreak + reservedBlocks + COUCH_MOVING_BLOCKS > availableTimeBlocks + timeBudget.schoolBreakBlocks) {
+          validationErrors.push('Moving onto a friend’s couch takes one additional activity block. Leave room for it before checking out.');
+        }
+
         // Combined up-front cost: action costs + home purchase + vehicle purchase,
         // minus proceeds from selling the player's current owned home.
         const housingUpFront = [...housingResolved.values()].reduce(
@@ -1242,7 +1252,7 @@ export async function executeActions(req: Request, res: Response): Promise<void>
       let totalLemonsEarned = 0;
       let healthDeltaTemp = 0;
       let healthDeltaPerm = 0;
-      let stressDelta = 0;
+      let stressDelta = [...housingResolved.values()].some((r) => r.housing.type === 'couch') ? COUCH_STRESS : 0;
       const skillGains: Record<string, number> = {};
       const traitGains: Record<string, number> = {};
 

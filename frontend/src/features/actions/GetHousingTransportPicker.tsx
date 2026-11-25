@@ -26,6 +26,7 @@ export interface AcquisitionSelection {
 
 interface HousingOption {
   id: string;
+  type: string;
   name: string;
   location: string; // 'city' | 'suburb' | 'both'
   isRental: boolean;
@@ -135,6 +136,9 @@ export default function GetHousingTransportPicker({
                               {h.isRental ? `${fmt(h.rentPerYear)}/yr rent` : `${fmt(h.purchasePrice)} to buy`}
                             </Typography>
                           </Typography>
+                          {h.type === 'couch' && <Typography variant="caption" display="block" color="text.secondary">
+                            Staying here sets aside 1 Moving block and adds 20 stress each year.
+                          </Typography>}
                           {!h.eligible && h.eligibilityReasons[0] && (
                             <Typography variant="caption" color="error.main">{h.eligibilityReasons[0]}</Typography>
                           )}

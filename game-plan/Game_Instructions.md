@@ -715,6 +715,9 @@
 
 ## **HOUSES**
 
+- Eligible players start at Parents’ Place in year one without using the Get Housing action.
+- Staying on a friend's couch reserves 1 Moving block from the normal activity budget and adds 20 stress points on arrival and at the start of subsequent years there.
+
 - **Coding note: track how long had current house**  
 - **Two areas: city and suburbs**  
 - **Cost 1 time blocks commute to job if live in other area (if have two jobs (PT/FT) in other area, still only costs 1 time block (no commute for both))**  
